@@ -1,0 +1,23 @@
+{
+  "stocks": [
+    {
+      "code": "sh600519",
+      "name": "贵州茅台",
+      "market": "A股",
+      "enabled": true
+    },
+    {
+      "code": "sz000001",
+      "name": "平安银行",
+      "market": "A股",
+      "enabled": true
+    },
+    {
+      "code": "hk00700",
+      "name": "腾讯控股",
+      "market": "港股",
+      "enabled": true
+    }
+  ],
+  "note": "默认监控列表，可通过 WebBuddy 界面或直接编辑此文件修改"
+}

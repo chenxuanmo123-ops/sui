@@ -1,0 +1,22 @@
+{
+  "name": "financial-signal-monitor",
+  "version": "1.0.0",
+  "description": "基于Agent的金融信号监控与自动推送系统 - 双数据源(A股/港股/美股) + 智能信号检测 + 自动告警",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node src/test.js"
+  },
+  "keywords": [
+    "finance",
+    "stock",
+    "monitor",
+    "agent",
+    "automation"
+  ],
+  "author": "Li Zongyuan <WorkBuddy Agent>",
+  "license": "MIT",
+  "dependencies": {
+    "fs-extra": "^11.2.0"
+  }
+}

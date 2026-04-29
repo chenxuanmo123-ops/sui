@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>金融信号监控项目 - 项目展示</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 20px;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            color: #a0a0a0;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 60px;
+        }
+
+        .feature-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(102, 126, 234, 0.5);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.2);
+        }
+
+        .feature-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+
+        .feature-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .feature-desc {
+            color: #a0a0a0;
+            line-height: 1.6;
+        }
+
+        .stats-section {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 60px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 30px;
+            text-align: center;
+        }
+
+        .stat-item {
+            padding: 20px;
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .stat-label {
+            color: #a0a0a0;
+            margin-top: 10px;
+        }
+
+        .architecture-section {
+            margin-bottom: 60px;
+        }
+
+        .section-title {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .architecture-diagram {
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .diagram-box {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 15px 30px;
+            border-radius: 8px;
+            margin: 10px;
+            font-weight: 500;
+        }
+
+        .arrow {
+            color: #667eea;
+            font-size: 1.5rem;
+            margin: 0 10px;
+        }
+
+        .cta-section {
+            text-align: center;
+            padding: 40px;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            border-radius: 16px;
+        }
+
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 40px;
+            border-radius: 30px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 60px;
+            color: #666;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>金融信号监控项目</h1>
+            <p>基于 Agent 的金融信号监控与自动推送系统 - 双数据源协同 + 多维度信号检测 + 自动化告警</p>
+        </header>
+
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <h3 class="feature-title">双数据源协同</h3>
+                <p class="feature-desc">westock-data (腾讯自选股) + neodata-financial-search (自然语言搜索)，互为补充，确保数据完整性</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔍</div>
+                <h3 class="feature-title">多维度信号检测</h3>
+                <p class="feature-desc">价格异动、成交量放大、主力资金流向、MACD技术指标，4种检测算法全面覆盖</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🤖</div>
+                <h3 class="feature-title">多Agent协作</h3>
+                <p class="feature-desc">数据采集、信号检测、分析推理、告警推送，4个Agent协同工作，实现完整自动化链路</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">⏰</div>
+                <h3 class="feature-title">自动化执行</h3>
+                <p class="feature-desc">通过WorkBuddy Automation实现定时调度，自动保存日志，支持历史回溯</p>
+            </div>
+        </div>
+
+        <div class="stats-section">
+            <h2 class="section-title">项目运行数据</h2>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-value">3</div>
+                    <div class="stat-label">监控股票数</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">4</div>
+                    <div class="stat-label">信号检测类型</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">2</div>
+                    <div class="stat-label">数据源数量</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">100%</div>
+                    <div class="stat-label">自动化程度</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="architecture-section">
+            <h2 class="section-title">系统架构</h2>
+            <div class="architecture-diagram">
+                <div class="diagram-box">配置层</div>
+                <span class="arrow">↓</span>
+                <div class="diagram-box">数据采集 Agent</div>
+                <span class="arrow">↓</span>
+                <div class="diagram-box">信号检测 Agent</div>
+                <span class="arrow">↓</span>
+                <div class="diagram-box">分析推理 Agent</div>
+                <span class="arrow">↓</span>
+                <div class="diagram-box">告警推送 Agent</div>
+            </div>
+        </div>
+
+        <div class="cta-section">
+            <h2 style="margin-bottom: 20px;">立即体验</h2>
+            <p style="color: #a0a0a0; margin-bottom: 30px;">打开项目文档，了解详细使用说明</p>
+            <a href="../README.md" class="cta-button">项目文档</a>
+            <a href="../RUN_SUMMARY.md" class="cta-button">运行总结</a>
+            <a href="../DELIVERY.md" class="cta-button">交付文档</a>
+        </div>
+
+        <footer class="footer">
+            <p>金融信号监控项目 v1.0.0 | 由 WorkBuddy Agent 自动生成</p>
+            <p>作者: 李宗原 | 日期: 2026-04-29</p>
+        </footer>
+    </div>
+</body>
+</html>

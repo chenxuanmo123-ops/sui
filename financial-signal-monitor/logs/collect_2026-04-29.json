@@ -1,0 +1,59 @@
+[
+  {
+    "stock": {
+      "code": "sh600519",
+      "name": "贵州茅台",
+      "market": "A股"
+    },
+    "data": {
+      "westock": null,
+      "neodata": {
+        "code": "neodata-query",
+        "stockName": "贵州茅台",
+        "source": "neodata-financial-search",
+        "query": "贵州茅台 最新行情 资金流向 技术指标",
+        "note": "此数据源需要通过 WorkBuddy Agent 调用 neodata-financial-search skill"
+      }
+    },
+    "collectTime": "2026-04-29T13:49:51.676Z",
+    "status": "partial"
+  },
+  {
+    "stock": {
+      "code": "sz000001",
+      "name": "平安银行",
+      "market": "A股"
+    },
+    "data": {
+      "westock": null,
+      "neodata": {
+        "code": "neodata-query",
+        "stockName": "平安银行",
+        "source": "neodata-financial-search",
+        "query": "平安银行 最新行情 资金流向 技术指标",
+        "note": "此数据源需要通过 WorkBuddy Agent 调用 neodata-financial-search skill"
+      }
+    },
+    "collectTime": "2026-04-29T13:49:51.689Z",
+    "status": "partial"
+  },
+  {
+    "stock": {
+      "code": "hk00700",
+      "name": "腾讯控股",
+      "market": "港股"
+    },
+    "data": {
+      "westock": null,
+      "neodata": {
+        "code": "neodata-query",
+        "stockName": "腾讯控股",
+        "source": "neodata-financial-search",
+        "query": "腾讯控股 最新行情 资金流向 技术指标",
+        "note": "此数据源需要通过 WorkBuddy Agent 调用 neodata-financial-search skill"
+      }
+    },
+    "collectTime": "2026-04-29T13:49:51.702Z",
+    "status": "partial"
+  }
+]
