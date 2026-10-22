@@ -1,0 +1,19 @@
+# Free preview service; review availability and cost before changing plan.
+services:
+  - type: web
+    name: shujian-agent
+    runtime: node
+    plan: free
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeployTrigger: off
+    envVars:
+      - key: NODE_VERSION
+        value: 24.16.0
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+# Add LLM_BASE_URL / LLM_API_KEY / LLM_MODEL in the hosting dashboard.
+# PORT is assigned by the platform. Never commit real credentials here.

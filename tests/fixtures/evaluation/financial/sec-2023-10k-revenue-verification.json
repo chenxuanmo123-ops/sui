@@ -1,0 +1,18 @@
+{
+  "sourceUrl": "https://www.sec.gov/Archives/edgar/data/320193/000032019323000106/aapl-20230930.htm",
+  "retrievedAt": "2026-10-17T14:56:25.729Z",
+  "sourceHttpStatus": 200,
+  "sourceBytes": 1559400,
+  "sourceSha256": "d5be689cda14b01d3c0b9fe37ebaa6d90b688634b753efbe2bdeb9710fdfffcd",
+  "verificationScope": "Revenue facts only; this record does not claim independent cross-checks for every selected metric.",
+  "fact": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+  "reportedMillionsUsd": {
+    "FY2023": 383285,
+    "FY2022": 394328,
+    "FY2021": 365817
+  },
+  "notes": [
+    "The filing HTML contains the same revenue facts in USD with scale 6, so the displayed millions are converted to the fixture's raw USD values.",
+    "The SEC Company Facts fixture retains the raw USD values and reported period dates; this file records the primary-filing cross-check only."
+  ]
+}

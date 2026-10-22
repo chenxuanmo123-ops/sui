@@ -1,0 +1,4 @@
+* text=auto eol=lf
+# Preserve exact source bytes used by provenance/hash tests.
+tests/fixtures/** -text
+*.png -text

@@ -1,0 +1,26 @@
+{
+  "title": "Stack Overflow questions tagged data-analysis, January 2024",
+  "source": "Stack Exchange API v2.3, Stack Overflow questions endpoint",
+  "sourceUrl": "https://api.stackexchange.com/2.3/questions?fromdate=1704067200&todate=1706745599&order=desc&sort=creation&tagged=data-analysis&site=stackoverflow&pagesize=100&page=1",
+  "site": "stackoverflow",
+  "queryWindow": {
+    "from": "2024-01-01T00:00:00Z",
+    "to": "2024-01-31T23:59:59Z"
+  },
+  "selection": "All 61 records on the first and only API page for the fixed tag/date query (has_more=false); ordered question IDs are pinned by SHA-256 to prevent silent fixture drift.",
+  "orderedQuestionIdsSha256": "457afc79b38d000e8f422da8c41ebd6ca8032b2964881d099d8c37f716b021d2",
+  "sourceSnapshotSha256": "88d7795355580c28e9d7b8b772a6ad3efa664dedcb19447ce5ce6c2ecb07d9dd",
+  "sourceSnapshotBytes": 28163,
+  "sourceSnapshotFile": "stackoverflow-api-selected-snapshot.json",
+  "sourceSnapshotDescription": "Deterministically selected API fields only; this is not the complete API response. Owner/profile fields are intentionally excluded.",
+  "retrievedOn": "2026-10-17",
+  "rows": 61,
+  "fixtureSha256": "e7909bc2381a532b1cb16b63c6c611bc639764b01331f84798327da760c852e7",
+  "notes": [
+    "Each row is a public question-creation event, not a user, account, or platform-wide usage record.",
+    "Tags describe the question metadata; they do not measure population preference or market share.",
+    "The fixture is suitable for testing event counting, date grouping, tag presence, source linkage, and scope warnings.",
+    "The API reports each post content_license; Stack Overflow content is generally CC BY-SA according to its licensing help. Retain source attribution and links; review license and attribution requirements before redistribution.",
+    "This evaluation snapshot is not product seed data; public release or commercial redistribution requires a separate license and attribution review."
+  ]
+}

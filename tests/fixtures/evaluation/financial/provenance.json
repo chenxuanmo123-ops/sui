@@ -1,0 +1,48 @@
+{
+  "title": "Apple Inc. SEC Company Facts, FY2021-FY2023 facts from FY2023 10-K",
+  "source": "U.S. Securities and Exchange Commission, Company Facts API",
+  "sourceUrl": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json",
+  "cik": "0000320193",
+  "accession": "0000320193-23-000106",
+  "accessionUrl": "https://www.sec.gov/Archives/edgar/data/320193/000032019323000106/",
+  "retrievedAt": "2026-10-17T14:33:00.493Z",
+  "selection": "Only us-gaap facts whose filing accession is 0000320193-23-000106, form 10-K, fiscal year 2021-2023, and one of the listed tags.",
+  "sourceResponseSha256": "73a86c6aedc31f77cac2ea4df5f80f0b3bd7e6eb58bb4e01444fbedf3afb9c43",
+  "sourceResponseBytes": 3789099,
+  "sourceResponseFile": "apple-sec-company-facts-response.json",
+  "metricTypes": {
+    "flow": "Duration fact; the selected period is retained in start/end.",
+    "stock": "Instant fact; end is the as-of date and start is empty."
+  },
+  "tags": {
+    "revenue": {
+      "tag": "RevenueFromContractWithCustomerExcludingAssessedTax",
+      "factType": "flow"
+    },
+    "net_income": {
+      "tag": "NetIncomeLoss",
+      "factType": "flow"
+    },
+    "operating_income": {
+      "tag": "OperatingIncomeLoss",
+      "factType": "flow"
+    },
+    "assets": {
+      "tag": "Assets",
+      "factType": "stock"
+    },
+    "cash_and_cash_equivalents": {
+      "tag": "CashAndCashEquivalentsAtCarryingValue",
+      "factType": "stock"
+    }
+  },
+  "rows": 13,
+  "fixtureSha256": "aad68b7a5afce62305ea672679b9c74acc64da071e8499c94e75f0bb1243bc7b",
+  "notes": [
+    "Source values are copied without scaling or currency conversion.",
+    "A company-facts response can contain the same economic period in multiple filings; this fixture selects one filing accession to avoid silently mixing contexts.",
+    "The API filing fiscal-year fields are retained separately from the reported period label; Apple fiscal years do not equal calendar years.",
+    "Stock facts such as assets and cash are point-in-time values and must not be summed across years.",
+    "This fixture tests financial-data grain and computation, not investment advice or accounting interpretation."
+  ]
+}

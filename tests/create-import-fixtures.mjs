@@ -1,0 +1,13 @@
+import fs from 'node:fs';
+import XLSX from 'xlsx';
+XLSX.set_fs(fs);
+fs.mkdirSync('artifacts',{recursive:true});
+const rows=fs.readFileSync('tests/fixtures/owid-China-2015-2022.csv','utf8').trim().split(/\r?\n/).filter(Boolean).map(x=>x.split(','));
+const numeric=rows.map((row,i)=>row.map((v,c)=>i && c!==1 ? Number(v):v));
+const wb=XLSX.utils.book_new();
+XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['OWID real data subset - original values'],...numeric]),'Energy');
+const title=wb.Sheets.Energy; title['!merges']=[{s:{r:0,c:0},e:{r:0,c:4}}];
+XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(numeric),'Same source');
+XLSX.writeFile(wb,'artifacts/owid-real-subset.xlsx');
+XLSX.writeFile(wb,'artifacts/owid-real-subset.xls',{bookType:'biff8'});
+console.log('Created XLSX / XLS fixtures converted from the cached real OWID subset.');

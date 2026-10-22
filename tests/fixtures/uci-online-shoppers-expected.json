@@ -1,0 +1,226 @@
+{
+  "rows": 12330,
+  "sha256": "b3055ee355f59134d851d32641183cb4a8b45def7124d2f50442a042f358e0d9",
+  "numerator": 1908,
+  "denominator": 12330,
+  "groups": {
+    "VisitorType": {
+      "Returning_Visitor": {
+        "numerator": 1470,
+        "denominator": 10551,
+        "excluded": 0,
+        "value": 13.93232868922377
+      },
+      "New_Visitor": {
+        "numerator": 422,
+        "denominator": 1694,
+        "excluded": 0,
+        "value": 24.911452184179456
+      },
+      "Other": {
+        "numerator": 16,
+        "denominator": 85,
+        "excluded": 0,
+        "value": 18.823529411764707
+      }
+    },
+    "TrafficType": {
+      "1": {
+        "numerator": 262,
+        "denominator": 2451,
+        "excluded": 0,
+        "value": 10.689514483884128
+      },
+      "2": {
+        "numerator": 847,
+        "denominator": 3913,
+        "excluded": 0,
+        "value": 21.645796064400717
+      },
+      "3": {
+        "numerator": 180,
+        "denominator": 2052,
+        "excluded": 0,
+        "value": 8.771929824561402
+      },
+      "4": {
+        "numerator": 165,
+        "denominator": 1069,
+        "excluded": 0,
+        "value": 15.434985968194576
+      },
+      "5": {
+        "numerator": 56,
+        "denominator": 260,
+        "excluded": 0,
+        "value": 21.53846153846154
+      },
+      "6": {
+        "numerator": 53,
+        "denominator": 444,
+        "excluded": 0,
+        "value": 11.936936936936938
+      },
+      "7": {
+        "numerator": 12,
+        "denominator": 40,
+        "excluded": 0,
+        "value": 30
+      },
+      "8": {
+        "numerator": 95,
+        "denominator": 343,
+        "excluded": 0,
+        "value": 27.696793002915456
+      },
+      "9": {
+        "numerator": 4,
+        "denominator": 42,
+        "excluded": 0,
+        "value": 9.523809523809524
+      },
+      "10": {
+        "numerator": 90,
+        "denominator": 450,
+        "excluded": 0,
+        "value": 20
+      },
+      "11": {
+        "numerator": 47,
+        "denominator": 247,
+        "excluded": 0,
+        "value": 19.02834008097166
+      },
+      "12": {
+        "numerator": 0,
+        "denominator": 1,
+        "excluded": 0,
+        "value": 0
+      },
+      "13": {
+        "numerator": 43,
+        "denominator": 738,
+        "excluded": 0,
+        "value": 5.826558265582656
+      },
+      "14": {
+        "numerator": 2,
+        "denominator": 13,
+        "excluded": 0,
+        "value": 15.384615384615385
+      },
+      "15": {
+        "numerator": 0,
+        "denominator": 38,
+        "excluded": 0,
+        "value": 0
+      },
+      "16": {
+        "numerator": 1,
+        "denominator": 3,
+        "excluded": 0,
+        "value": 33.33333333333333
+      },
+      "17": {
+        "numerator": 0,
+        "denominator": 1,
+        "excluded": 0,
+        "value": 0
+      },
+      "18": {
+        "numerator": 0,
+        "denominator": 10,
+        "excluded": 0,
+        "value": 0
+      },
+      "19": {
+        "numerator": 1,
+        "denominator": 17,
+        "excluded": 0,
+        "value": 5.88235294117647
+      },
+      "20": {
+        "numerator": 50,
+        "denominator": 198,
+        "excluded": 0,
+        "value": 25.252525252525253
+      }
+    },
+    "Month": {
+      "Feb": {
+        "numerator": 3,
+        "denominator": 184,
+        "excluded": 0,
+        "value": 1.6304347826086956
+      },
+      "Mar": {
+        "numerator": 192,
+        "denominator": 1907,
+        "excluded": 0,
+        "value": 10.068169900367069
+      },
+      "May": {
+        "numerator": 365,
+        "denominator": 3364,
+        "excluded": 0,
+        "value": 10.850178359096315
+      },
+      "Oct": {
+        "numerator": 115,
+        "denominator": 549,
+        "excluded": 0,
+        "value": 20.9471766848816
+      },
+      "June": {
+        "numerator": 29,
+        "denominator": 288,
+        "excluded": 0,
+        "value": 10.069444444444445
+      },
+      "Jul": {
+        "numerator": 66,
+        "denominator": 432,
+        "excluded": 0,
+        "value": 15.277777777777779
+      },
+      "Aug": {
+        "numerator": 76,
+        "denominator": 433,
+        "excluded": 0,
+        "value": 17.551963048498845
+      },
+      "Nov": {
+        "numerator": 760,
+        "denominator": 2998,
+        "excluded": 0,
+        "value": 25.350233488992664
+      },
+      "Sep": {
+        "numerator": 86,
+        "denominator": 448,
+        "excluded": 0,
+        "value": 19.196428571428573
+      },
+      "Dec": {
+        "numerator": 216,
+        "denominator": 1727,
+        "excluded": 0,
+        "value": 12.507237984944991
+      }
+    },
+    "Weekend": {
+      "FALSE": {
+        "numerator": 1409,
+        "denominator": 9462,
+        "excluded": 0,
+        "value": 14.89114352145424
+      },
+      "TRUE": {
+        "numerator": 499,
+        "denominator": 2868,
+        "excluded": 0,
+        "value": 17.398884239888424
+      }
+    }
+  }
+}

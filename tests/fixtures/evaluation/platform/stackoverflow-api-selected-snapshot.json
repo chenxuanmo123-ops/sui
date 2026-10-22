@@ -1,0 +1,879 @@
+{
+  "items": [
+    {
+      "question_id": 77916364,
+      "creation_date": 1706734573,
+      "title": "How to select multiple columns in power Bi using slicer",
+      "tags": [
+        "powerbi",
+        "dax",
+        "data-analysis"
+      ],
+      "is_answered": false,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77916364/how-to-select-multiple-columns-in-power-bi-using-slicer"
+    },
+    {
+      "question_id": 77911843,
+      "creation_date": 1706690054,
+      "title": "Not getting the expected answer from the code I wrote for probability assignment",
+      "tags": [
+        "python-3.x",
+        "data-analysis",
+        "probability"
+      ],
+      "is_answered": false,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77911843/not-getting-the-expected-answer-from-the-code-i-wrote-for-probability-assignment"
+    },
+    {
+      "question_id": 77907716,
+      "creation_date": 1706630371,
+      "title": "Getting Output as FALSE in python function",
+      "tags": [
+        "python",
+        "pandas",
+        "dataframe",
+        "numpy",
+        "data-analysis"
+      ],
+      "is_answered": false,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77907716/getting-output-as-false-in-python-function"
+    },
+    {
+      "question_id": 77904831,
+      "creation_date": 1706603062,
+      "title": "Unable to Use RELATED in a measure",
+      "tags": [
+        "powerbi",
+        "dax",
+        "data-analysis",
+        "powerbi-desktop",
+        "measure"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77904831/unable-to-use-related-in-a-measure"
+    },
+    {
+      "question_id": 77903631,
+      "creation_date": 1706582108,
+      "title": "Wondering what statistical test(s) to run on my particular geospatial data?",
+      "tags": [
+        "python",
+        "statistics",
+        "data-analysis",
+        "probability"
+      ],
+      "is_answered": false,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77903631/wondering-what-statistical-tests-to-run-on-my-particular-geospatial-data"
+    },
+    {
+      "question_id": 77899899,
+      "creation_date": 1706533173,
+      "title": "Best way to match strings from different systems",
+      "tags": [
+        "c#",
+        "string",
+        "data-analysis",
+        "fuzzy-search",
+        "fuzzy-comparison"
+      ],
+      "is_answered": true,
+      "content_license": "",
+      "link": "https://stackoverflow.com/questions/77899899/best-way-to-match-strings-from-different-systems"
+    },
+    {
+      "question_id": 77896856,
+      "creation_date": 1706486372,
+      "title": "Label the exponential value of a data point on a secondary y axis in Matplotlib",
+      "tags": [
+        "python",
+        "matplotlib",
+        "plot",
+        "data-analysis"
+      ],
+      "is_answered": false,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77896856/label-the-exponential-value-of-a-data-point-on-a-secondary-y-axis-in-matplotlib"
+    },
+    {
+      "question_id": 77893213,
+      "creation_date": 1706399096,
+      "title": "How to print from a dictionary?",
+      "tags": [
+        "python-3.x",
+        "pandas",
+        "csv",
+        "beautifulsoup",
+        "data-analysis"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77893213/how-to-print-from-a-dictionary"
+    },
+    {
+      "question_id": 77887533,
+      "creation_date": 1706285166,
+      "title": "how can replace underscore with minus sign in an entire column?",
+      "tags": [
+        "python",
+        "pandas",
+        "dataframe",
+        "list",
+        "data-analysis"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77887533/how-can-replace-underscore-with-minus-sign-in-an-entire-column"
+    },
+    {
+      "question_id": 77882491,
+      "creation_date": 1706211141,
+      "title": "Create table by combination two another table",
+      "tags": [
+        "powerbi",
+        "powerquery",
+        "data-analysis",
+        "powerbi-desktop",
+        "m"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77882491/create-table-by-combination-two-another-table"
+    },
+    {
+      "question_id": 77882407,
+      "creation_date": 1706210035,
+      "title": "Seaborn futurewarning caused by pandas dataframe",
+      "tags": [
+        "python-3.x",
+        "pandas",
+        "seaborn",
+        "data-analysis"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77882407/seaborn-futurewarning-caused-by-pandas-dataframe"
+    },
+    {
+      "question_id": 77880322,
+      "creation_date": 1706189214,
+      "title": "Excel: a matrix table with 1 and 0",
+      "tags": [
+        "excel",
+        "powerquery",
+        "data-analysis"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77880322/excel-a-matrix-table-with-1-and-0"
+    },
+    {
+      "question_id": 77879396,
+      "creation_date": 1706180403,
+      "title": "Seaborn warning message",
+      "tags": [
+        "python-3.x",
+        "matplotlib",
+        "seaborn",
+        "data-analysis"
+      ],
+      "is_answered": false,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77879396/seaborn-warning-message"
+    },
+    {
+      "question_id": 77878616,
+      "creation_date": 1706173054,
+      "title": "power bi - calculate from 2 tables, with date comparison at the same time",
+      "tags": [
+        "date",
+        "powerbi",
+        "dax",
+        "powerquery",
+        "data-analysis"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77878616/power-bi-calculate-from-2-tables-with-date-comparison-at-the-same-time"
+    },
+    {
+      "question_id": 77875177,
+      "creation_date": 1706118144,
+      "title": "Fill a data table by matching column values from onother table (lookup table), and interpolate on another variable",
+      "tags": [
+        "r",
+        "dplyr",
+        "data.table",
+        "data-analysis",
+        "exploratory-data-analysis"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77875177/fill-a-data-table-by-matching-column-values-from-onother-table-lookup-table-a"
+    },
+    {
+      "question_id": 77873233,
+      "creation_date": 1706100990,
+      "title": "Reordering Columns in a Power BI Matrix",
+      "tags": [
+        "powerbi",
+        "visualization",
+        "analytics",
+        "data-analysis",
+        "powerbi-desktop"
+      ],
+      "is_answered": false,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77873233/reordering-columns-in-a-power-bi-matrix"
+    },
+    {
+      "question_id": 77872022,
+      "creation_date": 1706090237,
+      "title": "Power BI report adding thousands separator in two of the columns",
+      "tags": [
+        "powerbi",
+        "data-analysis",
+        "powerbi-desktop",
+        "powerbi-datasource",
+        "power-bi-report-server"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77872022/power-bi-report-adding-thousands-separator-in-two-of-the-columns"
+    },
+    {
+      "question_id": 77868334,
+      "creation_date": 1706032323,
+      "title": "Related() with 2 differents Tables",
+      "tags": [
+        "powerbi",
+        "dax",
+        "data-analysis",
+        "powerbi-desktop",
+        "data-cleaning"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77868334/related-with-2-differents-tables"
+    },
+    {
+      "question_id": 77868138,
+      "creation_date": 1706030329,
+      "title": "Filter table to show only records which apply to all conditions",
+      "tags": [
+        "powerbi",
+        "dax",
+        "data-analysis",
+        "powerbi-desktop",
+        "measure"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77868138/filter-table-to-show-only-records-which-apply-to-all-conditions"
+    },
+    {
+      "question_id": 77864953,
+      "creation_date": 1705999396,
+      "title": "How to add a column or change data in each group after using group by in Pandas?",
+      "tags": [
+        "python",
+        "pandas",
+        "group-by",
+        "data-analysis"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77864953/how-to-add-a-column-or-change-data-in-each-group-after-using-group-by-in-pandas"
+    },
+    {
+      "question_id": 77862408,
+      "creation_date": 1705953029,
+      "title": "Excel: Transposing the table when having group and subgroup",
+      "tags": [
+        "excel",
+        "powerquery",
+        "analytics",
+        "data-analysis"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77862408/excel-transposing-the-table-when-having-group-and-subgroup"
+    },
+    {
+      "question_id": 77859954,
+      "creation_date": 1705927482,
+      "title": "Loop within predefined window in Pandas",
+      "tags": [
+        "pandas",
+        "for-loop",
+        "data-analysis"
+      ],
+      "is_answered": false,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77859954/loop-within-predefined-window-in-pandas"
+    },
+    {
+      "question_id": 77858550,
+      "creation_date": 1705912693,
+      "title": "How to pivot a table in excel from long to wide",
+      "tags": [
+        "excel",
+        "powerquery",
+        "data-analysis",
+        "data-cleaning",
+        "m"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77858550/how-to-pivot-a-table-in-excel-from-long-to-wide"
+    },
+    {
+      "question_id": 77853321,
+      "creation_date": 1705799955,
+      "title": "How to make a Secondary plot based on bins in a Histogram",
+      "tags": [
+        "python",
+        "pandas",
+        "matplotlib",
+        "data-analysis"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77853321/how-to-make-a-secondary-plot-based-on-bins-in-a-histogram"
+    },
+    {
+      "question_id": 77850234,
+      "creation_date": 1705737789,
+      "title": "How to split a DataFrame into separate groups based on a Value(Difference Value of Time)",
+      "tags": [
+        "python",
+        "pandas",
+        "split",
+        "slice",
+        "data-analysis"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77850234/how-to-split-a-dataframe-into-separate-groups-based-on-a-valuedifference-value"
+    },
+    {
+      "question_id": 77849577,
+      "creation_date": 1705715276,
+      "title": "trying to use a combination of countifs to determine number of transactions per customer in excel",
+      "tags": [
+        "excel-formula",
+        "data-analysis"
+      ],
+      "is_answered": false,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77849577/trying-to-use-a-combination-of-countifs-to-determine-number-of-transactions-per"
+    },
+    {
+      "question_id": 77839151,
+      "creation_date": 1705578625,
+      "title": "power bi line graph with x and y axes crossing at zero",
+      "tags": [
+        "powerbi",
+        "visualization",
+        "data-analysis",
+        "powerbi-desktop",
+        "linechart"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77839151/power-bi-line-graph-with-x-and-y-axes-crossing-at-zero"
+    },
+    {
+      "question_id": 77835737,
+      "creation_date": 1705528527,
+      "title": "How to get the last value in a table in Power BI using DAX",
+      "tags": [
+        "powerbi",
+        "dax",
+        "data-analysis",
+        "powerbi-desktop",
+        "measure"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77835737/how-to-get-the-last-value-in-a-table-in-power-bi-using-dax"
+    },
+    {
+      "question_id": 77834586,
+      "creation_date": 1705514385,
+      "title": "Power BI DAX Not getting correct results when counting rows with FILTER and USERELATIONSHIP",
+      "tags": [
+        "powerbi",
+        "dax",
+        "data-analysis",
+        "powerbi-desktop",
+        "measure"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77834586/power-bi-dax-not-getting-correct-results-when-counting-rows-with-filter-and-user"
+    },
+    {
+      "question_id": 77833543,
+      "creation_date": 1705504538,
+      "title": "Initial table formatting for multiple tables in Power BI simultaneously?",
+      "tags": [
+        "powerbi",
+        "powerquery",
+        "data-analysis",
+        "powerbi-desktop",
+        "m"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77833543/initial-table-formatting-for-multiple-tables-in-power-bi-simultaneously"
+    },
+    {
+      "question_id": 77832303,
+      "creation_date": 1705493151,
+      "title": "Reference a Column in a Table Variable in Function",
+      "tags": [
+        "powerbi",
+        "dax",
+        "data-analysis",
+        "powerbi-desktop",
+        "measure"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77832303/reference-a-column-in-a-table-variable-in-function"
+    },
+    {
+      "question_id": 77826498,
+      "creation_date": 1705415455,
+      "title": "Show the text value of a column based on the max of another",
+      "tags": [
+        "powerbi",
+        "dax",
+        "data-analysis",
+        "powerbi-desktop",
+        "measure"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77826498/show-the-text-value-of-a-column-based-on-the-max-of-another"
+    },
+    {
+      "question_id": 77826151,
+      "creation_date": 1705412334,
+      "title": "Plotting 3D Surface Graph",
+      "tags": [
+        "matlab",
+        "matrix",
+        "3d",
+        "visualization",
+        "data-analysis"
+      ],
+      "is_answered": false,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77826151/plotting-3d-surface-graph"
+    },
+    {
+      "question_id": 77823619,
+      "creation_date": 1705383105,
+      "title": "Why is the data on my updated line chart empty and not producing any output?",
+      "tags": [
+        "python",
+        "matplotlib",
+        "data-analysis"
+      ],
+      "is_answered": false,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77823619/why-is-the-data-on-my-updated-line-chart-empty-and-not-producing-any-output"
+    },
+    {
+      "question_id": 77822024,
+      "creation_date": 1705347904,
+      "title": "How I can get the result of a price in web-scraping?",
+      "tags": [
+        "python",
+        "web-scraping",
+        "beautifulsoup",
+        "python-requests",
+        "data-analysis"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77822024/how-i-can-get-the-result-of-a-price-in-web-scraping"
+    },
+    {
+      "question_id": 77821060,
+      "creation_date": 1705335658,
+      "title": "Order of summation in custom fields in Looker Studio",
+      "tags": [
+        "google-analytics",
+        "data-analysis",
+        "looker-studio",
+        "web-analytics"
+      ],
+      "is_answered": false,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77821060/order-of-summation-in-custom-fields-in-looker-studio"
+    },
+    {
+      "question_id": 77819792,
+      "creation_date": 1705321728,
+      "title": "Table to Table relationship in Google Relationship",
+      "tags": [
+        "google-sheets",
+        "pivot-table",
+        "data-analysis",
+        "table-relationships"
+      ],
+      "is_answered": false,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77819792/table-to-table-relationship-in-google-relationship"
+    },
+    {
+      "question_id": 77808915,
+      "creation_date": 1705087949,
+      "title": "Multiple histograms for each value in column with graph object using Plotly",
+      "tags": [
+        "python",
+        "python-3.x",
+        "data-analysis",
+        "plotly"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77808915/multiple-histograms-for-each-value-in-column-with-graph-object-using-plotly"
+    },
+    {
+      "question_id": 77806907,
+      "creation_date": 1705066117,
+      "title": "Power Query: Web.Content request fails with dynamic property values",
+      "tags": [
+        "excel",
+        "powerquery",
+        "data-analysis",
+        "data-cleaning",
+        "m"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77806907/power-query-web-content-request-fails-with-dynamic-property-values"
+    },
+    {
+      "question_id": 77804956,
+      "creation_date": 1705044049,
+      "title": "How to sum overlapping data ranges with INDEX(MATCH()) in Google Sheets?",
+      "tags": [
+        "google-sheets",
+        "google-sheets-formula",
+        "data-analysis"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77804956/how-to-sum-overlapping-data-ranges-with-indexmatch-in-google-sheets"
+    },
+    {
+      "question_id": 77799703,
+      "creation_date": 1704972627,
+      "title": "PowerBI Power automate error while adding the refresh button",
+      "tags": [
+        "database",
+        "powerbi",
+        "data-analysis",
+        "power-automate"
+      ],
+      "is_answered": false,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77799703/powerbi-power-automate-error-while-adding-the-refresh-button"
+    },
+    {
+      "question_id": 77795788,
+      "creation_date": 1704912943,
+      "title": "Visualize Two Measures coming from Different tables into a single chart",
+      "tags": [
+        "powerbi",
+        "dax",
+        "data-analysis",
+        "powerbi-desktop",
+        "measure"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77795788/visualize-two-measures-coming-from-different-tables-into-a-single-chart"
+    },
+    {
+      "question_id": 77794444,
+      "creation_date": 1704899923,
+      "title": "Power BI: The lowest value between two columns",
+      "tags": [
+        "powerbi",
+        "dax",
+        "powerquery",
+        "data-analysis",
+        "powerbi-desktop"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77794444/power-bi-the-lowest-value-between-two-columns"
+    },
+    {
+      "question_id": 77793682,
+      "creation_date": 1704892562,
+      "title": "How to remove duplicates in a column and keep the last occurence?",
+      "tags": [
+        "excel",
+        "powerquery",
+        "data-analysis",
+        "data-cleaning",
+        "m"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77793682/how-to-remove-duplicates-in-a-column-and-keep-the-last-occurence"
+    },
+    {
+      "question_id": 77788255,
+      "creation_date": 1704817323,
+      "title": "How to divide a value in a Cell with the Sum of an entire column in Power BI",
+      "tags": [
+        "powerbi",
+        "data-analysis",
+        "powerbi-desktop"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77788255/how-to-divide-a-value-in-a-cell-with-the-sum-of-an-entire-column-in-power-bi"
+    },
+    {
+      "question_id": 77786950,
+      "creation_date": 1704805021,
+      "title": "Total row of my table : how to not Display my indicator?",
+      "tags": [
+        "powerbi",
+        "dax",
+        "data-analysis",
+        "powerbi-desktop",
+        "measure"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77786950/total-row-of-my-table-how-to-not-display-my-indicator"
+    },
+    {
+      "question_id": 77786943,
+      "creation_date": 1704804914,
+      "title": "data analysis of java bytecode",
+      "tags": [
+        "jvm",
+        "data-analysis",
+        "bytecode"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77786943/data-analysis-of-java-bytecode"
+    },
+    {
+      "question_id": 77786876,
+      "creation_date": 1704804334,
+      "title": "How to avoid redundancy when at least two queries share common steps?",
+      "tags": [
+        "excel",
+        "powerbi",
+        "powerquery",
+        "data-analysis",
+        "m"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77786876/how-to-avoid-redundancy-when-at-least-two-queries-share-common-steps"
+    },
+    {
+      "question_id": 77785844,
+      "creation_date": 1704794330,
+      "title": "How to unzip GZ files using Power Query?",
+      "tags": [
+        "excel",
+        "gzip",
+        "powerquery",
+        "data-analysis",
+        "m"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77785844/how-to-unzip-gz-files-using-power-query"
+    },
+    {
+      "question_id": 77778971,
+      "creation_date": 1704710703,
+      "title": "Calculate the SUMIFS on Calculated Column in Power BI",
+      "tags": [
+        "excel",
+        "powerbi",
+        "dax",
+        "data-analysis",
+        "powerbi-desktop"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77778971/calculate-the-sumifs-on-calculated-column-in-power-bi"
+    },
+    {
+      "question_id": 77778596,
+      "creation_date": 1704707478,
+      "title": "Using a variable range to select columns in R",
+      "tags": [
+        "r",
+        "data-analysis",
+        "data-manipulation"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77778596/using-a-variable-range-to-select-columns-in-r"
+    },
+    {
+      "question_id": 77775968,
+      "creation_date": 1704680754,
+      "title": "Changing Title of Legend in ggplot2 Creates a Second Legend?",
+      "tags": [
+        "r",
+        "ggplot2",
+        "visualization",
+        "legend",
+        "data-analysis"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77775968/changing-title-of-legend-in-ggplot2-creates-a-second-legend"
+    },
+    {
+      "question_id": 77774930,
+      "creation_date": 1704662302,
+      "title": "Appending data is inturrepted by incomplete data , error of &quot;cannot set a row with mismatched columns&quot;",
+      "tags": [
+        "python",
+        "html",
+        "web-scraping",
+        "beautifulsoup",
+        "data-analysis"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77774930/appending-data-is-inturrepted-by-incomplete-data-error-of-cannot-set-a-row-wi"
+    },
+    {
+      "question_id": 77769894,
+      "creation_date": 1704553422,
+      "title": "The Output of this python code is not what I am expecting",
+      "tags": [
+        "python",
+        "data-analysis",
+        "data-mining"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77769894/the-output-of-this-python-code-is-not-what-i-am-expecting"
+    },
+    {
+      "question_id": 77768744,
+      "creation_date": 1704530130,
+      "title": "Count the number of rows with values between two dates, in multiple columns",
+      "tags": [
+        "python",
+        "pandas",
+        "dataframe",
+        "data-analysis"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77768744/count-the-number-of-rows-with-values-between-two-dates-in-multiple-columns"
+    },
+    {
+      "question_id": 77767517,
+      "creation_date": 1704494187,
+      "title": "Combine rows and columns to create a 2x2 table for Fisher&#39;s exact test",
+      "tags": [
+        "python",
+        "scipy",
+        "statistics",
+        "data-analysis"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77767517/combine-rows-and-columns-to-create-a-2x2-table-for-fishers-exact-test"
+    },
+    {
+      "question_id": 77765000,
+      "creation_date": 1704462273,
+      "title": "Power BI: Finding earliest price per category",
+      "tags": [
+        "powerbi",
+        "dax",
+        "data-analysis",
+        "powerbi-desktop",
+        "measure"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77765000/power-bi-finding-earliest-price-per-category"
+    },
+    {
+      "question_id": 77764162,
+      "creation_date": 1704453029,
+      "title": "Power BI: Add a column that is a level ahead of the related column",
+      "tags": [
+        "powerbi",
+        "dax",
+        "powerquery",
+        "data-analysis",
+        "powerbi-desktop"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77764162/power-bi-add-a-column-that-is-a-level-ahead-of-the-related-column"
+    },
+    {
+      "question_id": 77753851,
+      "creation_date": 1704305070,
+      "title": "SQL: Return true if condition is met only one time in query",
+      "tags": [
+        "sql",
+        "data-analysis"
+      ],
+      "is_answered": false,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77753851/sql-return-true-if-condition-is-met-only-one-time-in-query"
+    },
+    {
+      "question_id": 77746548,
+      "creation_date": 1704204111,
+      "title": "Create multiple records for the same company",
+      "tags": [
+        "sql",
+        "google-bigquery",
+        "data-analysis",
+        "data-warehouse"
+      ],
+      "is_answered": false,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77746548/create-multiple-records-for-the-same-company"
+    },
+    {
+      "question_id": 77742047,
+      "creation_date": 1704116026,
+      "title": "Total current month disappeared with the new year",
+      "tags": [
+        "powerbi",
+        "dax",
+        "data-analysis",
+        "powerbi-desktop",
+        "measure"
+      ],
+      "is_answered": true,
+      "content_license": "CC BY-SA 4.0",
+      "link": "https://stackoverflow.com/questions/77742047/total-current-month-disappeared-with-the-new-year"
+    }
+  ]
+}

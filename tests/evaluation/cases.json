@@ -1,0 +1,206 @@
+{
+  "version": 1,
+  "purpose": "pinned real-data calculation checks and captured-plan evaluation; semantic review remains human, no automatic model accuracy score",
+  "cases": [
+    {
+      "id": "sec-apple-annual-financial-facts",
+      "fixture": "tests/fixtures/evaluation/financial/apple-sec-company-facts-fy2021-2023.csv",
+      "provenance": "tests/fixtures/evaluation/financial/provenance.json",
+      "checks": [
+        "distinguish duration flows from instant stocks",
+        "keep reported period dates and filing accession visible",
+        "calculate annual revenue values exactly",
+        "do not present summing year-end assets or cash as a meaningful total",
+        "do not infer causes for year-over-year changes from this table"
+      ],
+      "gold": {
+        "revenue_USD": {
+          "FY2021": 365817000000,
+          "FY2022": 394328000000,
+          "FY2023": 383285000000
+        },
+        "net_income_USD": {
+          "FY2021": 94680000000,
+          "FY2022": 99803000000,
+          "FY2023": 96995000000
+        },
+        "assets_USD_instant": {
+          "FY2022": 352755000000,
+          "FY2023": 352583000000
+        },
+        "cash_and_cash_equivalents_USD_instant": {
+          "FY2022": 23646000000,
+          "FY2023": 29965000000
+        }
+      },
+      "negative_claims": [
+        "FY2023 filing fiscal-year metadata means every comparative fact is FY2023",
+        "year-end cash balances should be added across years",
+        "the observed revenue decline is caused by a specific product or channel"
+      ],
+      "modelEvaluation": {
+        "question": "按 period_label 分别比较年度 revenue 和期末 cash_and_cash_equivalents，保留每期原值。不要合并不同指标或把余额跨期相加。",
+        "context": "SEC 固定同一申报编号的财务事实，每行一个指标和披露期间，value 的单位为 USD，metric 表示指标。filing_fy 是申报元数据，不是比较期；period_label 是披露期。fact_type=flow 是期间流量，stock 是期末存量。",
+        "targets": [
+          {
+            "id": "revenue_USD",
+            "x": "period_label",
+            "metric": "value",
+            "equals": {
+              "metric": "revenue"
+            },
+            "values": {
+              "FY2021": 365817000000,
+              "FY2022": 394328000000,
+              "FY2023": 383285000000
+            }
+          },
+          {
+            "id": "cash_and_cash_equivalents_USD_instant",
+            "x": "period_label",
+            "metric": "value",
+            "equals": {
+              "metric": "cash_and_cash_equivalents"
+            },
+            "values": {
+              "FY2022": 23646000000,
+              "FY2023": 29965000000
+            }
+          }
+        ],
+        "humanReview": [
+          "粒度和 filing_fy/period_label 是否区分清楚？",
+          "是否按 metric 分开呈现 revenue 和 cash_and_cash_equivalents，未合并余额？",
+          "单位是否保留 USD，是否避免无证据的变化原因？"
+        ]
+      }
+    },
+    {
+      "id": "owid-china-energy-time-series",
+      "fixture": "tests/fixtures/owid-China-2015-2022.csv",
+      "provenance": "tests/fixtures/owid-provenance.json",
+      "checks": [
+        "calculate the eight annual values against independent gold",
+        "retain exact source-row linkage",
+        "state that this is a country-year subset, not global energy data"
+      ],
+      "gold": {
+        "renewables_electricity_TWh": {
+          "2015": 1393.66,
+          "2016": 1522.79,
+          "2017": 1667.06,
+          "2018": 1835.39,
+          "2019": 2014.64,
+          "2020": 2185.01,
+          "2021": 2448.8,
+          "2022": 2670.66
+        }
+      },
+      "negative_claims": [
+        "the uploaded country subset represents all countries",
+        "the trend alone proves why generation changed"
+      ],
+      "modelEvaluation": {
+        "question": "按 year 比较上传数据中中国 2015—2022 年每年的 renewables_electricity 原始总量。",
+        "context": "OWID 公开能源数据的中国子集，每行一个国家一年；renewables_electricity 单位 TWh。只描述这个子集，不能推断全球情况或变化原因。",
+        "targets": [
+          {
+            "id": "renewables_electricity_TWh",
+            "x": "year",
+            "metric": "renewables_electricity",
+            "values": {
+              "2015": 1393.66,
+              "2016": 1522.79,
+              "2017": 1667.06,
+              "2018": 1835.39,
+              "2019": 2014.64,
+              "2020": 2185.01,
+              "2021": 2448.8,
+              "2022": 2670.66
+            }
+          }
+        ],
+        "humanReview": [
+          "是否明确只代表上传的中国年度子集？",
+          "是否保留 TWh 单位和年粒度？",
+          "是否把描述性变化和因果解释区分开？"
+        ]
+      }
+    },
+    {
+      "id": "stackoverflow-question-events",
+      "fixture": "tests/fixtures/evaluation/platform/stackoverflow-data-analysis-2024-01.csv",
+      "provenance": "tests/fixtures/evaluation/platform/provenance.json",
+      "checks": [
+        "count public question-creation events by date",
+        "retain question IDs, tags, links, and content license",
+        "state that the tag-filtered 61-row query is not the platform population",
+        "do not turn tag frequency into user preference or market share"
+      ],
+      "gold": {
+        "ordered_question_ids_sha256": "457afc79b38d000e8f422da8c41ebd6ca8032b2964881d099d8c37f716b021d2",
+        "rows": 61,
+        "nonempty_event_dates": 27,
+        "event_window": [
+          "2024-01-01",
+          "2024-01-31"
+        ]
+      },
+      "negative_claims": [
+        "the 61 questions represent all Stack Overflow users",
+        "data-analysis tag counts measure platform-wide user preference",
+        "question-event counts equal the number of unique platform users"
+      ],
+      "modelEvaluation": {
+        "question": "按 event_date 统计每天的问题创建事件条数，按日显示，不按月合并；没有记录的日期不要自行补零。",
+        "context": "Stack Exchange 官方 API 固定查询得到的 data-analysis 标签过滤问题事件，每行一个 question_id；事件日期为 UTC，不是用户数。不代表所有平台活动、用户偏好或市场份额。标签和回答状态是抓取时元数据。",
+        "targets": [
+          {
+            "id": "daily_question_events",
+            "x": "event_date",
+            "metric": "question_id",
+            "values": {
+              "2024-01-01": 1,
+              "2024-01-02": 1,
+              "2024-01-03": 1,
+              "2024-01-05": 3,
+              "2024-01-06": 2,
+              "2024-01-07": 1,
+              "2024-01-08": 3,
+              "2024-01-09": 5,
+              "2024-01-10": 3,
+              "2024-01-11": 1,
+              "2024-01-12": 3,
+              "2024-01-15": 3,
+              "2024-01-16": 3,
+              "2024-01-17": 4,
+              "2024-01-18": 1,
+              "2024-01-20": 2,
+              "2024-01-21": 1,
+              "2024-01-22": 3,
+              "2024-01-23": 3,
+              "2024-01-24": 3,
+              "2024-01-25": 5,
+              "2024-01-26": 1,
+              "2024-01-27": 1,
+              "2024-01-28": 1,
+              "2024-01-29": 1,
+              "2024-01-30": 3,
+              "2024-01-31": 2
+            }
+          }
+        ],
+        "humanReview": [
+          "是否识别问题事件粒度，而非用户人数？",
+          "是否明确标签过滤查询的范围和抓取时元数据边界？",
+          "是否避免偏好、市场份额和无记录日期即零值的推断？"
+        ]
+      }
+    }
+  ],
+  "planned_but_not_yet_sourced": [
+    "survey microdata with documented weights and multi-select structure",
+    "platform/operational records with explicit sampling scope and row grain",
+    "scanned and text-based PDF tables with independently checked transcription"
+  ]
+}

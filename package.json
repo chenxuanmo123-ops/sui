@@ -1,0 +1,39 @@
+{
+  "name": "shujian-agent",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "start": "node server/serve.mjs",
+    "test:ai": "node --test tests/*.test.mjs",
+    "test:core": "vitest run tests/core-analysis.test.ts tests/ai-execution.test.ts tests/rate-analysis.test.ts tests/provenance.test.ts tests/follow-up.test.ts tests/workspace.test.ts tests/chart-model.test.ts",
+    "test:evaluation": "vitest run tests/evaluation",
+    "evaluate:plan": "node tests/evaluation/evaluate-plan-cli.mjs",
+    "evaluate:model": "node tests/evaluation/capture-model-cli.mjs",
+    "test:production": "node tests/production-server-smoke.mjs"
+  },
+  "dependencies": {
+    "echarts": "^6.1.0",
+    "lucide-react": "^0.468.0",
+    "pdfjs-dist": "^6.4.299",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "sql.js": "^1.15.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "@types/sql.js": "^1.4.11",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "~5.7.2",
+    "vite": "^6.0.5",
+    "vitest": "^5.0.4"
+  },
+  "engines": {
+    "node": ">=24.16.0 <25"
+  }
+}

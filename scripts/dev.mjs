@@ -1,0 +1,10 @@
+import { createServer } from 'vite';
+import { createAiHandler } from '../server/ai.mjs';
+import { loadProviders } from '../server/config.mjs';
+const providers = loadProviders();
+const handler = createAiHandler(providers);
+const server = await createServer({ server: { host: process.env.HOST || '127.0.0.1', port: Number(process.env.PORT || 5173) }, plugins: [{ name: 'shujian-ai-api', configureServer(vite) { vite.middlewares.use((req, res, next) => { if (req.url?.startsWith('/api/ai/')) void handler(req, res); else next(); }); } }] });
+await server.listen();
+server.printUrls();
+console.log(providers.length ? 'AI 模型已配置：' + providers.map(p => p.name).join('、') : 'AI 服务已就绪：在网页“模型连接”中填写 API 地址、密钥与模型 ID。保存后可跨重启使用，也支持 .env 默认模型。');
+for (const event of ['SIGINT', 'SIGTERM']) process.on(event, async () => { await server.close(); process.exit(0); });

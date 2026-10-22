@@ -1,0 +1,838 @@
+{
+  "version": "2.21",
+  "children": [
+    {
+      "type": "frame",
+      "id": "JSx1t",
+      "x": 0,
+      "y": 0,
+      "name": "数鉴 Agent 工作台",
+      "clip": true,
+      "width": 1440,
+      "height": 1024,
+      "fill": "#F4F7FB",
+      "children": [
+        {
+          "type": "frame",
+          "id": "a0Cl51",
+          "name": "侧边导航",
+          "width": 224,
+          "height": "fill_container",
+          "fill": "#122033",
+          "layout": "vertical",
+          "gap": 24,
+          "padding": [
+            28,
+            18,
+            24,
+            18
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "aI43Q",
+              "name": "品牌标识",
+              "gap": 10,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "jgzZo",
+                  "name": "品牌图标",
+                  "width": 34,
+                  "height": 34,
+                  "fill": "#FFFFFF",
+                  "cornerRadius": 9,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "h11QE",
+                      "name": "品牌文字",
+                      "fill": "#14213D",
+                      "content": "数",
+                      "fontFamily": "Inter",
+                      "fontSize": 18,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "ELAY1",
+                  "name": "品牌名称",
+                  "fill": "#FFFFFF",
+                  "content": "数鉴",
+                  "fontFamily": "Inter",
+                  "fontSize": 20,
+                  "fontWeight": "700"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "o6WvJ",
+              "name": "新增分析",
+              "width": "fill_container",
+              "height": 44,
+              "fill": "#2563EB",
+              "cornerRadius": 8,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "nUigB",
+                  "name": "新增分析文字",
+                  "fill": "#FFFFFF",
+                  "content": "+ 新建分析",
+                  "fontFamily": "Inter",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "vXTpJ",
+              "name": "导航菜单",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 6,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "z6yVBl",
+                  "name": "分析工作台",
+                  "width": "fill_container",
+                  "height": 42,
+                  "fill": "#203858",
+                  "cornerRadius": 7,
+                  "padding": [
+                    0,
+                    10
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "OUoLI",
+                      "name": "分析工作台文字",
+                      "fill": "#FFFFFF",
+                      "content": "分析工作台",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "CVBOk",
+                  "name": "分析分支",
+                  "width": "fill_container",
+                  "height": 42,
+                  "fill": "#122033",
+                  "cornerRadius": 7,
+                  "padding": [
+                    0,
+                    10
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "AAkDQ",
+                      "name": "分析分支文字",
+                      "fill": "#ADBBD0",
+                      "content": "分析分支",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "G8g4a",
+                  "name": "数据与来源",
+                  "width": "fill_container",
+                  "height": 42,
+                  "fill": "#122033",
+                  "cornerRadius": 7,
+                  "padding": [
+                    0,
+                    10
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "O8GAlQ",
+                      "name": "数据与来源文字",
+                      "fill": "#ADBBD0",
+                      "content": "数据与来源",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "n5fLMJ",
+              "name": "当前数据集",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 8,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "jV2kK",
+                  "name": "数据集标题",
+                  "fill": "#93A4BE",
+                  "content": "当前数据集",
+                  "fontFamily": "Inter",
+                  "fontSize": 12,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "frame",
+                  "id": "XyPVi",
+                  "name": "数据集信息",
+                  "width": "fill_container",
+                  "height": 54,
+                  "fill": "#192B45",
+                  "cornerRadius": 7,
+                  "layout": "vertical",
+                  "gap": 4,
+                  "padding": 10
+                },
+                {
+                  "type": "text",
+                  "id": "PYOuK",
+                  "name": "数据集名称",
+                  "fill": "#EFF6FF",
+                  "content": "OWID Energy Data",
+                  "fontFamily": "Inter",
+                  "fontSize": 12,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "text",
+                  "id": "wfglZ",
+                  "name": "数据集规模",
+                  "fill": "#8FA0BA",
+                  "content": "真实加载后显示规模",
+                  "fontFamily": "Inter",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "IgnLp",
+              "name": "分析器状态",
+              "fill": "#A9B8CD",
+              "content": "规则分析器在线\n当前不调用模型",
+              "fontFamily": "Inter",
+              "fontSize": 12,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "y2nThi",
+          "name": "主工作区",
+          "width": "fill_container",
+          "height": "fill_container",
+          "fill": "#F4F7FB",
+          "layout": "vertical",
+          "children": [
+            {
+              "type": "frame",
+              "id": "oEnrC",
+              "name": "顶部工具栏",
+              "width": "fill_container",
+              "height": 68,
+              "fill": "#FFFFFF",
+              "padding": [
+                0,
+                34
+              ],
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "neYsc",
+                  "name": "面包屑",
+                  "fill": "#64748B",
+                  "content": "分析工作台 / OWID Energy Data",
+                  "fontFamily": "Inter",
+                  "fontSize": 13,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "KJ6Ts",
+                  "name": "头部动作",
+                  "fill": "#2563EB",
+                  "content": "导入 CSV    帮助",
+                  "fontFamily": "Inter",
+                  "fontSize": 13,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "B3IgM5",
+              "name": "分析内容",
+              "width": "fill_container",
+              "height": "fill_container",
+              "layout": "vertical",
+              "gap": 18,
+              "padding": [
+                28,
+                34
+              ],
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "XMLlX",
+                  "name": "工作台标题",
+                  "width": "fill_container",
+                  "justifyContent": "space_between",
+                  "alignItems": "end",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "LufPA",
+                      "name": "标题说明",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 6,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "YNgIv",
+                          "name": "页面标题",
+                          "fill": "#14213D",
+                          "content": "分析工作台",
+                          "fontFamily": "Inter",
+                          "fontSize": 28,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "text",
+                          "id": "onkKc",
+                          "name": "页面说明",
+                          "fill": "#64748B",
+                          "content": "字段、计算、图表和证据保持在同一条可审阅链路中。",
+                          "fontFamily": "Inter",
+                          "fontSize": 14,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "lwlJI",
+                      "name": "数据来源",
+                      "width": 240,
+                      "fill": "#FFFFFF",
+                      "cornerRadius": 8,
+                      "layout": "vertical",
+                      "gap": 3,
+                      "padding": 10,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "P3PVv",
+                          "name": "公开来源",
+                          "fill": "#14213D",
+                          "content": "公开数据 · OWID",
+                          "fontFamily": "Inter",
+                          "fontSize": 13,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "text",
+                          "id": "WcAoj",
+                          "name": "来源说明",
+                          "fill": "#52627A",
+                          "content": "实际载入后显示来源与快照",
+                          "fontFamily": "Inter",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "sAqJh",
+                  "name": "数据摘要",
+                  "width": "fill_container",
+                  "gap": 12,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "Shhqx",
+                      "name": "行数",
+                      "width": "fill_container",
+                      "height": 78,
+                      "fill": "#FFFFFF",
+                      "cornerRadius": 8,
+                      "layout": "vertical",
+                      "gap": 5,
+                      "padding": [
+                        12,
+                        14
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "GQNtX",
+                          "name": "行数标签",
+                          "fill": "#64748B",
+                          "content": "行数",
+                          "fontFamily": "Inter",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "UaL4r",
+                          "name": "行数数值",
+                          "fill": "#14213D",
+                          "content": "—",
+                          "fontFamily": "Inter",
+                          "fontSize": 22,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "oeUVw",
+                      "name": "字段",
+                      "width": "fill_container",
+                      "height": 78,
+                      "fill": "#FFFFFF",
+                      "cornerRadius": 8,
+                      "layout": "vertical",
+                      "gap": 5,
+                      "padding": [
+                        12,
+                        14
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "Jiuzo",
+                          "name": "字段标签",
+                          "fill": "#64748B",
+                          "content": "字段",
+                          "fontFamily": "Inter",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "F9wLk",
+                          "name": "字段数值",
+                          "fill": "#14213D",
+                          "content": "—",
+                          "fontFamily": "Inter",
+                          "fontSize": 22,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Ac97t",
+                      "name": "可计算字段",
+                      "width": "fill_container",
+                      "height": 78,
+                      "fill": "#FFFFFF",
+                      "cornerRadius": 8,
+                      "layout": "vertical",
+                      "gap": 5,
+                      "padding": [
+                        12,
+                        14
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "UJV8D",
+                          "name": "可计算字段标签",
+                          "fill": "#64748B",
+                          "content": "可计算字段",
+                          "fontFamily": "Inter",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "j1CfLE",
+                          "name": "可计算字段数值",
+                          "fill": "#14213D",
+                          "content": "—",
+                          "fontFamily": "Inter",
+                          "fontSize": 22,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "F0lfD",
+                      "name": "缺失率",
+                      "width": "fill_container",
+                      "height": 78,
+                      "fill": "#FFFFFF",
+                      "cornerRadius": 8,
+                      "layout": "vertical",
+                      "gap": 5,
+                      "padding": [
+                        12,
+                        14
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "G6WBs2",
+                          "name": "缺失率标签",
+                          "fill": "#64748B",
+                          "content": "缺失率",
+                          "fontFamily": "Inter",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "KagSR",
+                          "name": "缺失率数值",
+                          "fill": "#14213D",
+                          "content": "—",
+                          "fontFamily": "Inter",
+                          "fontSize": 22,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "IZOIH",
+                  "name": "问题输入",
+                  "width": "fill_container",
+                  "height": 94,
+                  "fill": "#FFFFFF",
+                  "cornerRadius": 8,
+                  "layout": "vertical",
+                  "gap": 10,
+                  "padding": 16,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "NI5Ml",
+                      "name": "问题标题",
+                      "fill": "#14213D",
+                      "content": "分析问题",
+                      "fontFamily": "Inter",
+                      "fontSize": 13,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "a6m9f3",
+                      "name": "问题输入控件",
+                      "width": "fill_container",
+                      "height": 42,
+                      "fill": "#F8FAFC",
+                      "cornerRadius": 6,
+                      "padding": [
+                        0,
+                        10
+                      ],
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "ERJZJ",
+                          "name": "问题示例",
+                          "fill": "#52627A",
+                          "content": "2015—2022 年中国可再生能源发电量如何变化？",
+                          "fontFamily": "Inter",
+                          "fontSize": 13,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "EH4JK",
+                          "name": "分析按钮",
+                          "fill": "#2563EB",
+                          "cornerRadius": 5,
+                          "padding": [
+                            8,
+                            12
+                          ],
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "Ch6em",
+                              "name": "分析按钮文字",
+                              "fill": "#FFFFFF",
+                              "content": "解析并分析",
+                              "fontFamily": "Inter",
+                              "fontSize": 13,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "eVcRs",
+                  "name": "分析主体",
+                  "width": "fill_container",
+                  "height": "fill_container",
+                  "gap": 18,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "CqjyQ",
+                      "name": "结果区",
+                      "width": "fill_container",
+                      "height": "fill_container",
+                      "layout": "vertical",
+                      "gap": 14,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "KVu5j",
+                          "name": "趋势图与字段口径",
+                          "width": "fill_container",
+                          "height": 360,
+                          "fill": "#FFFFFF",
+                          "cornerRadius": 8,
+                          "layout": "vertical",
+                          "gap": 12,
+                          "padding": 18,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "m2NpOX",
+                              "name": "图表标题",
+                              "fill": "#14213D",
+                              "content": "中国可再生能源发电量",
+                              "fontFamily": "Inter",
+                              "fontSize": 17,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "uLRGj",
+                              "name": "图表说明",
+                              "fill": "#64748B",
+                              "content": "2015—2022 · TWh · 按年汇总",
+                              "fontFamily": "Inter",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "V4LQ5",
+                              "name": "趋势线区域",
+                              "width": "fill_container",
+                              "height": 250,
+                              "fill": "#F8FAFC",
+                              "cornerRadius": 6,
+                              "layout": "vertical",
+                              "gap": 8,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "Q9RMdV",
+                                  "name": "真实计算空状态标题",
+                                  "fill": "#14213D",
+                                  "content": "图表从真实计算开始",
+                                  "fontFamily": "Inter",
+                                  "fontSize": 16,
+                                  "fontWeight": "600"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "wTijd",
+                                  "name": "真实计算空状态说明",
+                                  "fill": "#52627A",
+                                  "content": "确认字段口径后执行分析，不预填业务数字",
+                                  "fontFamily": "Inter",
+                                  "fontSize": 12,
+                                  "fontWeight": "normal"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "e0Ht05",
+                      "name": "证据区",
+                      "width": 330,
+                      "height": "fill_container",
+                      "layout": "vertical",
+                      "gap": 14,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "hZXth",
+                          "name": "分析计划",
+                          "width": "fill_container",
+                          "height": 190,
+                          "fill": "#FFFFFF",
+                          "cornerRadius": 8,
+                          "layout": "vertical",
+                          "gap": 10,
+                          "padding": 16,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "lm7Qr",
+                              "name": "计划标题",
+                              "fill": "#14213D",
+                              "content": "分析计划",
+                              "fontFamily": "Inter",
+                              "fontSize": 15,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "VZpKb",
+                              "name": "检查数据 · 等待执行",
+                              "fill": "#64748B",
+                              "content": "检查数据 · 等待执行",
+                              "fontFamily": "Inter",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "uMki4",
+                              "name": "确认口径 · 等待执行",
+                              "fill": "#64748B",
+                              "content": "确认口径 · 等待执行",
+                              "fontFamily": "Inter",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "Y3QPsJ",
+                              "name": "执行计算 · 等待执行",
+                              "fill": "#64748B",
+                              "content": "执行计算 · 等待执行",
+                              "fontFamily": "Inter",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "Ok6E6",
+                              "name": "生成可视化 · 等待执行",
+                              "fill": "#64748B",
+                              "content": "生成可视化 · 等待执行",
+                              "fontFamily": "Inter",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Hcyrx",
+                          "name": "证据检查器",
+                          "width": "fill_container",
+                          "height": 270,
+                          "fill": "#FFFFFF",
+                          "cornerRadius": 8,
+                          "layout": "vertical",
+                          "gap": 10,
+                          "padding": 16,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "lTWwR",
+                              "name": "证据标题",
+                              "fill": "#14213D",
+                              "content": "证据检查器",
+                              "fontFamily": "Inter",
+                              "fontSize": 15,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "Jpl9x",
+                              "name": "证据查询",
+                              "width": "fill_container",
+                              "height": 110,
+                              "fill": "#0F172A",
+                              "cornerRadius": 6,
+                              "layout": "vertical",
+                              "gap": 4,
+                              "padding": 12
+                            },
+                            {
+                              "type": "text",
+                              "id": "egtQf",
+                              "name": "证据查询文本",
+                              "fill": "#D6E4FF",
+                              "content": "FILTER country = China\nGROUP BY year\nMEASURE renewables_electricity",
+                              "fontFamily": "Fira Code",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "text",
+                              "id": "Ozjly",
+                              "name": "证据状态",
+                              "fill": "#15803D",
+                              "content": "运行后显示结果行和来源行",
+                              "fontFamily": "Inter",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

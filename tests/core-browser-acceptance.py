@@ -1,0 +1,48 @@
+import sys,os,json,csv,io,math
+from pathlib import Path
+root=Path(__file__).resolve().parents[1];sys.path.insert(0,str(root/'.tools/python'))
+from playwright.sync_api import sync_playwright,expect
+(root/'artifacts').mkdir(exist_ok=True)
+sys.stdout.reconfigure(encoding='utf-8')
+url=os.environ.get('TEST_BASE_URL','http://127.0.0.1:5182');checks=[]
+expect.set_options(timeout=30000)
+def passed(text):checks.append(text);print('PASS '+text,flush=True)
+with sync_playwright() as p:
+ browser=p.chromium.launch(headless=True,channel='msedge');page=browser.new_page(viewport={'width':1440,'height':1100},accept_downloads=True);errors=[];page.on('pageerror',lambda e:errors.append(str(e)))
+ page.goto(url,wait_until='networkidle')
+ page.locator('#file-upload').set_input_files(str(root/'tests/fixtures/owid-China-2015-2022.csv'))
+ expect(page.locator('.dataset-name strong')).to_have_text('owid-China-2015-2022.csv')
+ page.get_by_role('button',name='数据处理',exact=True).click();expect(page.get_by_role('heading',name='数据质量与处理',exact=True)).to_be_visible()
+ expect(page.locator('.quality-overview')).to_contain_text('8');page.get_by_label('处理字段',exact=True).select_option('renewables_electricity')
+ expect(page.locator('.field-statistics')).to_contain_text('1,925.015');passed('真实全量字段画像、中位数和质量页面可用')
+ page.get_by_role('button',name='进入探索分析',exact=True).click()
+ page.get_by_label('探索分组字段').select_option('year');page.get_by_label('探索指标字段').select_option('renewables_electricity')
+ page.get_by_role('button',name='执行探索分析',exact=True).click();expect(page.locator('.exploration-results tbody tr')).to_have_count(8);expect(page.locator('.exploration-chart svg')).to_be_visible()
+ expect(page.locator('.sql-code').first).to_contain_text('SUM(strict_number');passed('Worker SQL 聚合与 ECharts 柱状图真实执行')
+ page.get_by_role('button',name='查看 1 条来源',exact=True).first.click();expect(page.locator('.explore-evidence')).to_contain_text('1393.66');passed('图表结果表可定位真实来源记录')
+ page.get_by_role('button',name='折线图',exact=True).click();expect(page.locator('.core-warning')).to_contain_text('配置已变化');page.get_by_role('button',name='执行探索分析',exact=True).click();expect(page.locator('.explore-output h3').first).to_contain_text('折线图')
+ page.get_by_role('button',name='散点图',exact=True).click();page.get_by_label('探索分组字段').select_option('renewables_electricity');page.get_by_label('探索第二字段').select_option('solar_electricity');page.get_by_role('button',name='执行探索分析',exact=True).click();expect(page.locator('.explore-output h3').first).to_contain_text('散点图');expect(page.locator('.exploration-results tbody tr')).to_have_count(8);passed('折线、散点图切换后重新计算且保留来源')
+ page.get_by_role('button',name='热力图',exact=True).click();page.get_by_label('探索分组字段').select_option('year');page.get_by_label('探索第二字段').select_option('country');page.get_by_role('button',name='执行探索分析',exact=True).click();expect(page.locator('.explore-output h3').first).to_contain_text('热力图');expect(page.locator('.exploration-results tbody tr').first).to_contain_text('China');expect(page.locator('.exploration-chart svg')).to_be_visible();passed('二维热力图计算与 SVG 渲染可用')
+ with page.expect_download() as dl:page.get_by_role('button',name='导出 HTML 证据报告',exact=True).click()
+ target=root/'artifacts/core-exploration-report.html';dl.value.save_as(target);text=target.read_text(encoding='utf-8');assert 'GROUP BY' in text and '<svg' in text and '1393.66' in text;passed('单文件探索报告含 SVG、SQL 与真实数据')
+ page.get_by_role('button',name='结果表',exact=True).click();page.get_by_label('探索统计方式').select_option('count');page.get_by_role('button',name='执行探索分析',exact=True).click();expect(page.locator('.explore-output h3').first).to_contain_text('结果表');expect(page.locator('.exploration-chart')).to_have_count(0);expect(page.locator('.exploration-results tbody tr')).to_have_count(8);passed('记录数与独立结果表可用')
+ page.get_by_role('button',name='对比诊断',exact=True).click();page.get_by_label('对比期间字段').select_option('year');page.get_by_label('对比拆解维度').select_option('country');page.get_by_label('对比分析指标').select_option('renewables_electricity')
+ for label,value in [('基准期起点','2015'),('基准期终点','2018'),('当前期起点','2019'),('当前期终点','2022')]:page.get_by_label(label,exact=True).fill(value)
+ expect(page.get_by_role('button',name='执行期间对比',exact=True)).to_be_disabled();page.get_by_label('我已确认两期可比、行粒度与可加口径').check();page.get_by_role('button',name='执行期间对比',exact=True).click();expect(page.get_by_role('button',name='核对两期来源',exact=True)).to_be_visible();expect(page.locator('.explore-output')).to_contain_text('2,900.21');page.get_by_role('button',name='核对两期来源',exact=True).click();expect(page.get_by_role('heading',name='基准期 · 4 条（预览前 100 条）',exact=True)).to_be_visible();passed('两期对比确认、真实差额及双方来源可用')
+ with page.expect_download() as dl:page.get_by_role('button',name='导出对比证据报告',exact=True).click()
+ target=root/'artifacts/core-comparison-report.html';dl.value.save_as(target);text=target.read_text(encoding='utf-8');assert '基准期' in text and '<svg' in text and '1393.66' in text;passed('期间对比证据报告含图表、SQL与真实来源值')
+ page.get_by_role('button',name='探索分析',exact=True).click();expect(page.locator('.exploration-results tbody tr')).to_have_count(8);expect(page.get_by_label('探索统计方式')).to_have_value('count');page.get_by_role('button',name='对比诊断',exact=True).click();expect(page.locator('.explore-output')).to_contain_text('2,900.21');expect(page.get_by_label('基准期起点',exact=True)).to_have_value('2015');passed('导航切换保留探索配置、计算结果和期间对比证据')
+ page.get_by_label('当前期起点',exact=True).fill('2017');page.get_by_label('我已确认两期可比、行粒度与可加口径').check();page.get_by_role('button',name='执行期间对比',exact=True).click();expect(page.get_by_role('alert')).to_contain_text('重叠');passed('重叠期间拒绝并保留已有结果')
+ # Format-only leading/trailing whitespace on a real file, for cleaning contract verification.
+ raw=(root/'tests/fixtures/owid-China-2015-2022.csv').read_text(encoding='utf-8');rows=list(csv.DictReader(io.StringIO(raw)));fields=list(rows[0]);rows[0]['country']=' China ';out=io.StringIO();writer=csv.DictWriter(out,fieldnames=fields);writer.writeheader();writer.writerows(rows)
+ page.locator('#file-upload').set_input_files({'name':'real-owid-format-boundary.csv','mimeType':'text/csv','buffer':out.getvalue().encode()});expect(page.locator('.dataset-name strong')).to_have_text('real-owid-format-boundary.csv');page.get_by_role('button',name='数据处理',exact=True).click();page.get_by_label('处理字段',exact=True).select_option('country');page.get_by_label('修剪所选字段首尾空白',exact=True).check();page.get_by_role('button',name='预览处理影响',exact=True).click();expect(page.locator('.cleaning-preview')).to_contain_text('将修改 1 个单元格');expect(page.get_by_role('button',name='应用处理',exact=True)).to_be_disabled();page.get_by_label('我已核对处理影响与数据粒度',exact=True).check();page.get_by_role('button',name='应用处理',exact=True).click();expect(page.get_by_role('heading',name='已确认的处理记录',exact=True)).to_be_visible();expect(page.get_by_role('button',name='撤销上次处理',exact=True)).to_be_enabled();passed('清理先预览再确认，生成新快照和处理记录')
+ page.get_by_role('button',name='撤销上次处理',exact=True).click();expect(page.get_by_role('button',name='撤销上次处理',exact=True)).to_be_disabled();expect(page.locator('.quality-overview')).to_contain_text('0');expect(page.locator('.core-table-wrap tbody tr').filter(has_text='country')).to_contain_text('1');passed('撤销恢复原快照，确认步骤清除')
+ for width in [375,768,1024,1440]:
+  page.set_viewport_size({'width':width,'height':1000});assert page.evaluate('document.documentElement.scrollWidth <= innerWidth+1'),str(width)
+ page.screenshot(path=str(root/'artifacts/core-quality-workspace.png'),full_page=True);passed('375/768/1024/1440 质量页面无整体横向溢出')
+ page.set_viewport_size({'width':1440,'height':1100});page.get_by_role('button',name='探索分析',exact=True).click();page.get_by_label('探索分组字段').select_option('year');page.get_by_label('探索指标字段').select_option('renewables_electricity');page.get_by_role('button',name='执行探索分析',exact=True).click();expect(page.locator('.exploration-results tbody tr')).to_have_count(8)
+ for width in [375,768,1024,1440]:
+  page.set_viewport_size({'width':width,'height':1000});assert page.evaluate('document.documentElement.scrollWidth <= innerWidth+1'),str(width)
+ page.screenshot(path=str(root/'artifacts/core-exploration-workspace.png'),full_page=True);passed('375/768/1024/1440 探索画布无整体横向溢出')
+ assert not errors,errors;passed('无未捕获浏览器错误')
+ (root/'artifacts/core-browser-acceptance.json').write_text(json.dumps({'checks':checks,'errors':errors,'model':'未调用实际模型','source':'OWID 真实公开数据子集'},ensure_ascii=False,indent=2),encoding='utf-8');browser.close()

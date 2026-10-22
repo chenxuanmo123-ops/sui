@@ -1,0 +1,22 @@
+{
+  "name": "Our World in Data energy-data: China 2015-2022, five columns",
+  "verifiedDate": "2026-10-15",
+  "repository": "https://github.com/owid/energy-data",
+  "upstreamCommit": "e7897aed55b514b8d16e0a3d8f1518789ac3de31",
+  "sourceCsv": "https://raw.githubusercontent.com/owid/energy-data/e7897aed55b514b8d16e0a3d8f1518789ac3de31/owid-energy-data.csv",
+  "filter": {
+    "country": "China",
+    "yearFrom": "2015",
+    "yearTo": "2022",
+    "columns": [
+      "year",
+      "country",
+      "renewables_electricity",
+      "solar_electricity",
+      "wind_electricity"
+    ]
+  },
+  "fixtureSHA256": "6b0942ac9ab28308c2c7d65cd7044e5cc4c46efc438200d8857e254076c4e27e",
+  "verification": "All 40 fixture cell values equal pinned upstream CSV; no business values invented",
+  "licenseNotes": "Consult upstream README and original provider attribution; dataset combines multiple sources."
+}
