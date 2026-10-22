@@ -840,3 +840,9 @@ ExplorationChart统一四类图与来源联动、Ctrl滚轮缩放及缩放条，
 本次验证：构建通过（Excel/ECharts 大分包警告仍在）；core73、evaluation14、AI接口22通过；生产冒烟33检查通过，覆盖HTML/JS/CSS/WASM/PDF Worker、健康接口、缓存、私有路径、远程管理拒绝等。均未调用真实付费模型，不新增模型准确率结论。生产测试使用独立临时配置；远程 Host 测试使用原生 HTTP，避免 Node fetch 重写 Host 使测试误判。
 
 Render/Docker 配置不代表已经公网上线。实际云账号尚未连接，公网 URL、默认模型环境变量与线上全流程验收未完成；Docker 引擎本机不可用，不能声称镜像已构建验证。Render 免费实例会休眠，须按评审持续可用要求选择实际部署资源；不擅自购买服务。公网限流仍按 socket 地址，代理后多人可能共享限额。团队正式名称/成员/学校与最终视频、PDF尚需补齐。Git push 和公网实际状态应以随后工具返回为准。
+
+### 本轮实际上传结果（2026-10-22）
+
+项目已正常提交并推送 main 到 https://github.com/chenxuanmo123-ops/sui ，代码提交为 64913adb0940d068f830e9c54b82b408974be521。git ls-remote 已核对远端一致，工作区当时干净。GitHub Actions 39730111719 对该提交已 completed/success，构建、core、evaluation、AI接口与production均通过；这是Linux云端验证，不代表真实模型质量或线上网页已部署。原仓库历史完整保留，没有force push。
+
+另增加 .gitattributes，测试来源夹具禁用换行规范化，并检查工作区与Git索引字节一致，避免Windows autocrlf改变真实CSV的SHA-256。Git首次推送遇到一次连接超时，正常推送随后成功，不能把此前超时继续当作当前阻塞。仓库作者信息沿用远端既有维护账号与公开邮箱，仅配置本仓库。下一步需要部署平台账号/仓库授权与服务端模型环境配置；不要索取用户密码、验证码或在聊天中索取API密钥。公网域名尚未产生。
