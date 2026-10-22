@@ -415,14 +415,14 @@ AI 结论引用不在证据集合内时，必须被拒绝或降级为待核实�
 
 ### 6.3 文档和研究记录
 
-- `docs/PRD.md`、`docs/PRD-V1.3.md`、`docs/PRD-V2.0.md`、`docs/PRD-V2.1.md`：历史 PRD 和比赛基线；
-- `docs/赛规驱动-方向基调与决策核对稿.md`：比赛规则、方向和决策边界；
-- `docs/数鉴Agent-第一版实施方案.md`：早期实施方案；
-- `docs/数据处理分析与可视化核心升级-2026-10-15.md`：数据核心升级记录；
-- `docs/Excel-PDF与工作台改版验收-2026-10-15.md`：Excel/PDF 和工作台验收记录；
-- `docs/GitHub开源对标与源码学习-2026-09-26.md`：GitHub 对标研究；
-- `docs/GitHub源码借鉴落实-2026-10-15.md`：固定版本、源码位置和落实情况；
-- `docs/本地比赛版增量-窗口助手与初步定位.md`：窗口助手和初步定位记录；
+- `docs/archive/PRD.md`、`docs/archive/PRD-V1.3.md`、`docs/archive/PRD-V2.0.md`、`docs/archive/PRD-V2.1.md`：历史 PRD 和比赛基线；
+- `docs/archive/赛规驱动-方向基调与决策核对稿.md`：比赛规则、方向和决策边界；
+- `docs/archive/数鉴Agent-第一版实施方案.md`：早期实施方案；
+- `docs/archive/数据处理分析与可视化核心升级-2026-10-15.md`：数据核心升级记录；
+- `docs/archive/Excel-PDF与工作台改版验收-2026-10-15.md`：Excel/PDF 和工作台验收记录；
+- `docs/archive/GitHub开源对标与源码学习-2026-09-26.md`：GitHub 对标研究；
+- `docs/archive/GitHub源码借鉴落实-2026-10-15.md`：固定版本、源码位置和落实情况；
+- `docs/archive/本地比赛版增量-窗口助手与初步定位.md`：窗口助手和初步定位记录；
 - `docs/数鉴Agent-项目长期上下文.md`：本文，后续优先读取。
 
 ## 7. 开源项目借鉴的真实范围
@@ -716,7 +716,7 @@ npm run evaluate:model -- --case=<case-id> --base-url=http://127.0.0.1:5174
 
 ## 2026-10-19 新增：真实世界银行网页验收与格式恢复
 
-详细记录见 `docs/真实公开数据验收-世界银行GDP-2026-10-19.md`。原始世界银行XLS（非加工样本）直接上传，默认真实deepseek-flash生成两个年份GDP比较和一个行数核查任务，真实SQL、review、原始Data第5/6行及两份单任务报告均验收。四个金额与世界银行独立API核对正确。真实模型解读仍质疑已声明USD、限制冗余并标partial，不能宣称语义全部通过。
+详细记录见 `docs/archive/真实公开数据验收-世界银行GDP-2026-10-19.md`。原始世界银行XLS（非加工样本）直接上传，默认真实deepseek-flash生成两个年份GDP比较和一个行数核查任务，真实SQL、review、原始Data第5/6行及两份单任务报告均验收。四个金额与世界银行独立API核对正确。真实模型解读仍质疑已声明USD、限制冗余并标partial，不能宣称语义全部通过。
 
 新增 `tests/real-worldbank-browser.py` 不拦截任何AI路由，真实调用已保存连接；`tests/real-worldbank-chart-browser.py` 独立人工确认USD、真实SQL、不调用模型。证据在ignored的 `artifacts/real-data-acceptance/`，保留失败脚本记录、第一版计划、真实成功记录和修复后图表，不改写旧记录为成功。首轮自动表头误判1，手动改4后跑通；现结构候选改进已在同一原始XLS验证默认4，导入14回归通过。SVG大金额纵轴万/亿/万亿缩放明确标注，原数值不动；375/768/1440及文字边界通过。
 
@@ -741,7 +741,7 @@ npm run evaluate:model -- --case=<case-id> --base-url=http://127.0.0.1:5174
 
 验证：core51、AI22、evaluation14，导入浏览器14、部分失败修正浏览器13通过；后者明确使用模型测试替身。真实电商浏览器和报告检查通过，构建通过但大资源警告仍在。复现脚本 tests/verify-ecommerce-data.py、tests/real-ecommerce-browser.py、tests/rate-analysis.test.ts；夹具期望值已进入tests/fixtures，不依赖被忽略的artifacts运行核心测试。
 
-详情：docs/真实公开数据验收-电商转化率-2026-10-19.md；证据与HTML：artifacts/real-ecommerce-acceptance/。本地服务最新为 http://127.0.0.1:5174/，服务重启以加载server提示词，未触碰保存密钥。下一步优先图表筛选范围传入AI追问、分支关系与更多真实领域评测；MCP暂缓，公网最后。
+详情：docs/archive/真实公开数据验收-电商转化率-2026-10-19.md；证据与HTML：artifacts/real-ecommerce-acceptance/。本地服务最新为 http://127.0.0.1:5174/，服务重启以加载server提示词，未触碰保存密钥。下一步优先图表筛选范围传入AI追问、分支关系与更多真实领域评测；MCP暂缓，公网最后。
 
 
 ## 2026-10-19 数据出处完善（实际实现）
@@ -767,7 +767,7 @@ npm run evaluate:model -- --case=<case-id> --base-url=http://127.0.0.1:5174
 
 最新验证：core65通过；分组追问浏览器7项测试替身检查和7项真实模型检查均通过，后者在最终UI修改后复测通过；原失败修正浏览器13项通过；最终生产构建通过，既有大资源警告未消除。390/768/1440宽度无整页横向溢出。tests/follow-up.test.ts有明确标注的缺失值故障注入，未作为真实业务案例。
 
-验收文档：docs/图表分组追问与分析路径验收-2026-10-19.md；真实截图/报告/记录：artifacts/follow-up-real-acceptance/；替身记录独立在artifacts/follow-up-ui-acceptance/。服务仍为http://127.0.0.1:5174/，未改保存凭据。探索/期间对比的范围联动、跨会话历史、完整多假设引擎、更多领域模型评测、比赛材料和综合验收尚未完成；MCP暂缓，公网最后。
+验收文档：docs/archive/图表分组追问与分析路径验收-2026-10-19.md；真实截图/报告/记录：artifacts/follow-up-real-acceptance/；替身记录独立在artifacts/follow-up-ui-acceptance/。服务仍为http://127.0.0.1:5174/，未改保存凭据。探索/期间对比的范围联动、跨会话历史、完整多假设引擎、更多领域模型评测、比赛材料和综合验收尚未完成；MCP暂缓，公网最后。
 
 
 ## 2026-10-19 最新落地：本机工作区持久化
@@ -780,7 +780,7 @@ npm run evaluate:model -- --case=<case-id> --base-url=http://127.0.0.1:5174
 
 验证：核心69项通过（新增4项工作区完整性测试）；python tests/follow-up-browser.py --workspace 共15项通过，使用明确AI替身和原始UCI真实SQL，包含刷新恢复/无重复AI/继续1215行子范围追问/报告/出处/配额故障与重试/清除后刷新/处理后刷新撤销/未知版本保护。出处浏览器5项、Excel/PDF导入14项均通过；生产构建通过，大资源警告仍在。此轮没有新增真实模型准确率评测，之前真实模型证据仍单独保留。测试中额度故障、未知版本和去重撤销均明确为机制验证，不是伪造业务数据或判定访问应去重。
 
-复现服务仍为http://127.0.0.1:5174，浏览器脚本设TEST_BASE_URL。文档：docs/本机工作区保存与恢复验收-2026-10-19.md；证据：artifacts/workspace-acceptance/。初步定位候选和未提交助手草稿仍不保存；同浏览器同origin一份工作区，localhost/127.0.0.1/端口不同不会共享。尚未做多标签页冲突保护、云同步、多工作区列表或极限存储性能测试，建议同址仅开一个编辑页。下一步仍需扩大真实场景验收、整合探索/对比与AI动作、完善比赛材料和全产品综合验收。MCP暂缓，公网最后。
+复现服务仍为http://127.0.0.1:5174，浏览器脚本设TEST_BASE_URL。文档：docs/archive/本机工作区保存与恢复验收-2026-10-19.md；证据：artifacts/workspace-acceptance/。初步定位候选和未提交助手草稿仍不保存；同浏览器同origin一份工作区，localhost/127.0.0.1/端口不同不会共享。尚未做多标签页冲突保护、云同步、多工作区列表或极限存储性能测试，建议同址仅开一个编辑页。下一步仍需扩大真实场景验收、整合探索/对比与AI动作、完善比赛材料和全产品综合验收。MCP暂缓，公网最后。
 
 
 ## 2026-10-19 最新落地：图表交互调整
@@ -789,7 +789,7 @@ npm run evaluate:model -- --case=<case-id> --base-url=http://127.0.0.1:5174
 
 ExplorationChart统一四类图与来源联动、Ctrl滚轮缩放及缩放条，保留其他组可读；热力图空白组合不补零。ExploreView传selected，对比图通过标签映射有效差额组，稳定图表对象不因选行重建。探索／对比报告说明保留当前缩放，完整查询表仍附带。README与出处说明中旧的“不持久化”文字已修正。
 
-验收：核心73项通过；可视化浏览器8项通过；工作区追问浏览器15项通过；最终构建通过。浏览器使用明确AI替身、原始UCI文件与真实SQLite并独立Python核算，不新增真实模型准确率结论。来源保持1908/12330及新访客422/1694，20组TrafficType完整分段／导出。截图、报告与记录在artifacts/visualization-acceptance/；说明见docs/图表交互与可视化验收-2026-10-19.md。Excel/ECharts大资源警告仍在，图表显示选项未持久化；探索／对比未统一进入自动工具循环。服务仍http://127.0.0.1:5174/，未读取修改凭据，MCP暂缓，公网最后。
+验收：核心73项通过；可视化浏览器8项通过；工作区追问浏览器15项通过；最终构建通过。浏览器使用明确AI替身、原始UCI文件与真实SQLite并独立Python核算，不新增真实模型准确率结论。来源保持1908/12330及新访客422/1694，20组TrafficType完整分段／导出。截图、报告与记录在artifacts/visualization-acceptance/；说明见docs/archive/图表交互与可视化验收-2026-10-19.md。Excel/ECharts大资源警告仍在，图表显示选项未持久化；探索／对比未统一进入自动工具循环。服务仍http://127.0.0.1:5174/，未读取修改凭据，MCP暂缓，公网最后。
 
 
 ## 2026-10-20 最新落地：工作台功能分区与视觉重做
@@ -802,7 +802,7 @@ ExplorationChart统一四类图与来源联动、Ctrl滚轮缩放及缩放条，
 
 验证：生产构建通过；核心73项、可视化浏览器8项、工作区/追问15项通过。新增 tests/interface-redesign-browser.py，5组检查通过：真实12330行18列字段速览；提问进入助手及分区保留草稿/搜索；真实SQL与独立CSV逐组核算、1694条新访客来源跳转与HTML报告；清除取消；3种宽度无横向溢出/运行错误。新增分区验收禁用AI请求；其余浏览器AI请求使用明确测试替身，不能据此宣称模型准确。真实UCI原文件与来源验证复用原链路，不生成假业务数据。
 
-截图与报告：artifacts/interface-redesign/，新版本以 redesigned- 前缀为准，acceptance.json 保存验收记录。旧的 before-/after- 截图属于本轮早期迭代，不代表最终效果。说明 docs/工作台分区与视觉改版验收-2026-10-20.md。大体积Excel/ECharts分包构建警告仍在；尚未扩大真实模型评测、未完成比赛最终综合验收；MCP继续暂缓，公网部署仍放最后。
+截图与报告：artifacts/interface-redesign/，新版本以 redesigned- 前缀为准，acceptance.json 保存验收记录。旧的 before-/after- 截图属于本轮早期迭代，不代表最终效果。说明 docs/archive/工作台分区与视觉改版验收-2026-10-20.md。大体积Excel/ECharts分包构建警告仍在；尚未扩大真实模型评测、未完成比赛最终综合验收；MCP继续暂缓，公网部署仍放最后。
 
 
 ## 2026-10-20 后续修订：用户否定仅改颜色，已重构桌面布局
@@ -813,7 +813,7 @@ ExplorationChart统一四类图与来源联动、Ctrl滚轮缩放及缩放条，
 
 涉及src/FieldShelf.tsx、src/AnalysisStart.tsx、src/studio.css、src/App.tsx、src/AssistantWindow.tsx、src/main.tsx。当前截图为artifacts/interface-redesign/studio-*.png；redesigned-*.png是此前用户否定版本。
 
-验证：生产构建通过（既有大分包警告仍在）、core73通过、新布局5组通过、可视化8组通过、工作区15组通过。真实UCI文件12330行18列，人工SQL逐组独立核算，1694条新访客证据和报告可用；布局测试AI禁用，其他两套浏览器回归明确使用AI测试替身，不是模型质量评价。回归发现处理页AI遮挡撤销按钮后已修复并复测。详见docs/工作台分区与视觉改版验收-2026-10-20.md。
+验证：生产构建通过（既有大分包警告仍在）、core73通过、新布局5组通过、可视化8组通过、工作区15组通过。真实UCI文件12330行18列，人工SQL逐组独立核算，1694条新访客证据和报告可用；布局测试AI禁用，其他两套浏览器回归明确使用AI测试替身，不是模型质量评价。回归发现处理页AI遮挡撤销按钮后已修复并复测。详见docs/archive/工作台分区与视觉改版验收-2026-10-20.md。
 
 
 ## 2026-10-20 当前界面：按分析任务重构，取代此前常驻三栏
@@ -828,7 +828,7 @@ ExplorationChart统一四类图与来源联动、Ctrl滚轮缩放及缩放条，
 
 验收：新界面5组通过；图表交互9组通过（新增两任务聚焦切换、全部22分组完整报告）；追问/工作区15组通过；生产构建通过。此前本轮核心73项通过。真实UCI文件12330行18列，SQL独立CSV核算，总体1908/12330、新访客422/1694、恢复后子范围1215条均保持。界面专项禁用AI；图表和追问专项使用明确AI测试替身，只证明UI及真实计算链路，不新增真实模型质量结论。
 
-当前截图 artifacts/investigation-redesign/{welcome,data-review,manual-result,result-390,result-768,result-1280,result-1440,evidence}.png；多任务图 artifacts/visualization-acceptance/05-focused-tasks.png。以这些为当前截图，勿再用旧studio图交付。详情 docs/任务式分析界面验收-2026-10-20.md。Excel/ECharts大分包警告仍在；审美是否满足用户要求仍需由用户实际判断，不能用测试通过代替产品认可。本地服务 http://127.0.0.1:5174/ 持续运行，无需另起服务。
+当前截图 artifacts/investigation-redesign/{welcome,data-review,manual-result,result-390,result-768,result-1280,result-1440,evidence}.png；多任务图 artifacts/visualization-acceptance/05-focused-tasks.png。以这些为当前截图，勿再用旧studio图交付。详情 docs/archive/任务式分析界面验收-2026-10-20.md。Excel/ECharts大分包警告仍在；审美是否满足用户要求仍需由用户实际判断，不能用测试通过代替产品认可。本地服务 http://127.0.0.1:5174/ 持续运行，无需另起服务。
 
 
 ## 2026-10-22：开始代码交付与公网部署准备
@@ -846,3 +846,10 @@ Render/Docker 配置不代表已经公网上线。实际云账号尚未连接，
 项目已正常提交并推送 main 到 https://github.com/chenxuanmo123-ops/sui ，代码提交为 64913adb0940d068f830e9c54b82b408974be521。git ls-remote 已核对远端一致，工作区当时干净。GitHub Actions 39730111719 对该提交已 completed/success，构建、core、evaluation、AI接口与production均通过；这是Linux云端验证，不代表真实模型质量或线上网页已部署。原仓库历史完整保留，没有force push。
 
 另增加 .gitattributes，测试来源夹具禁用换行规范化，并检查工作区与Git索引字节一致，避免Windows autocrlf改变真实CSV的SHA-256。Git首次推送遇到一次连接超时，正常推送随后成功，不能把此前超时继续当作当前阻塞。仓库作者信息沿用远端既有维护账号与公开邮箱，仅配置本仓库。下一步需要部署平台账号/仓库授权与服务端模型环境配置；不要索取用户密码、验证码或在聊天中索取API密钥。公网域名尚未产生。
+
+
+## 2026-10-22：仓库首页与部署入口整理
+
+用户明确要求公网产品，反对把源码下载等同于上线。主 README 已重写为产品介绍、真实界面截图、功能、部署入口及简短开发说明；历史 PRD、调研与阶段验收共 20 份移入 docs/archive/，长期上下文本文件保持原路径。新增 docs/使用指南.md 和 docs/README.md；产品截图取自当前实际工作台，UCI 结果图为真实数据手动计算，不能称为真实 AI 输出。
+
+render.yaml 现提供默认模型三项环境变量的云平台输入占位，值需负责人在部署平台填写。公网服务尚未创建，不能将 Deploy 按钮或源码仓库称为在线演示地址。浏览器 Tabbit 注册失效、Pencil 未连接；当前没有可操作的云平台登录会话，需账号接入才能继续创建服务。后续以实际工具核验的推送及部署结果为准。

@@ -15,5 +15,10 @@ services:
         value: production
       - key: HOST
         value: 0.0.0.0
-# Add LLM_BASE_URL / LLM_API_KEY / LLM_MODEL in the hosting dashboard.
+      - key: LLM_BASE_URL
+        sync: false
+      - key: LLM_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        sync: false
 # PORT is assigned by the platform. Never commit real credentials here.
