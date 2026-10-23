@@ -880,3 +880,11 @@ render.yaml 现提供默认模型三项环境变量的云平台输入占位，�
 - 2026-10-23 14:31 后的更新：推送 `d46c56d` 触发 Pages 自动构建，公网资源已变为 `index-DFhTVNJn.js` / `index-CuruAucx.css`，与本地 `dist` 一致；上一条“公网产物不是当前工作区构建”只适用于 14:19 之前。
 - 同轮新增 Pages Functions：`functions/api/ai/[[path]].js`、`functions/api/health.js`、`functions/api/[[path]].js`；`server/ai.mjs` 拆成运行时中立的 `createAiService` 与 Node 适配器，两个运行时共用计划/解读校验、提示词、限流和来源检查。`server/model-client.mjs` 去掉了 Buffer 与 AbortSignal.any。
 - 尚未部署验证：提交 `86a9479` 推送时 github.com:443 超时；Pages 环境变量 `LLM_BASE_URL`/`LLM_API_KEY`/`LLM_MODEL` 需要在 Cloudflare 配置。未核对 `/api/health` 返回 JSON 前，不写“公网 AI 已上线”。
+
+## 2026-10-23 18:35：Pages Functions 验证、空白口径与开发入口修复
+
+- `86a9479` 已推送并在公网生效；`npm run verify:public` 7/7。`/api/health` 返回 JSON 且 `aiConfigured:false`，模型环境变量仍未配置，**公网 AI 不可用**。
+- 提交 `917de33`：纯空白单元格只计 missing，不再同时进入 whitespace 记录；记录总数与 `FieldSummary` 一致。
+- 提交 `3579bc1`：修复 `scripts/dev.mjs` 未传 `createProfileStore()` 导致 `npm run dev` 启动崩溃；新增 `tests/dev-server.test.mjs`。
+- 本轮实际通过：核心 90、AI 31、评测 14、生产 33；浏览器核心 16、导入 14（需 dev 服务）、部分失败恢复 13、追问 7、质量 6、取消 4。均为本机真实文件 + 真实 SQLite，AI 相关脚本使用明确替身，不代表模型准确率。
+- 公网首页资源 `index-CCFsSr3k.js` 与本地 `dist` 一致；未对公网做完整浏览器人工验收，也未配置真实模型。
