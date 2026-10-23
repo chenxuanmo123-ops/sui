@@ -481,7 +481,7 @@ AI 结论引用不在证据集合内时，必须被拒绝或降级为待核实�
 
 ### 8.1 已通过的检查
 
-截至 2026-10-19（**2026-10-23 更新：核心 116 项、AI 31 项、评测 14 项、生产 33 项通过；新增数字规范化、中位数/四分位聚合、可复现 SQL 包、只读 SQL 控制台与会话级多表 JOIN，并完成真实 Airbnb / OWID 数据复验，详见交接文档 7.6—7.9**）：
+截至 2026-10-19（**2026-10-23 更新：核心 117 项、AI 31 项、评测 14 项、生产 33 项通过；新增数字规范化、中位数/四分位聚合、可复现 SQL 包、只读 SQL 控制台与会话级多表 JOIN，并完成真实 Airbnb / OWID 数据复验，详见交接文档 7.6—7.9**）：
 
 - `npm run test:ai`：21 项通过；
 - `npm run test:core`：46 项通过；覆盖任务隔离、类别预算、失败修正合并及证据绑定。计算使用真实 SEC 文件和 SQLite；浏览器 Worker 边界在单测中替换；
@@ -927,7 +927,8 @@ render.yaml 现提供默认模型三项环境变量的云平台输入占位，�
 - 只读校验分两层：字符扫描先把字符串、标识符、注释替换为空格，再拒绝写/DDL/PRAGMA/事务/文件函数/参数/`sqlite_*` 与内部分号；Worker 连接同时保持 `PRAGMA query_only=ON`。结果 500 行封顶、30 秒超时终止 Worker。
 - 多表 JOIN：可上传会话级第二张 CSV（30 MB，沿用 `parseCSV` 的 200 列 / 100,000 行 / 重复列名校验），固定装载为 `extra`（`_row`+cN）与 `extra_readable`；支持更换、移除，移除会同步从 Worker `DROP`，避免界面显示已移除但 SQL 仍能查到。关联表不写入快照、不进入分析/图表/证据链。
 - JOIN 示例不假设两表第一列同名：抽样关联表首列 200 个值，在主表前 500 行里找真实共同值；找不到时明确提示需要手动改连接键，而不是编造连接。
-- 测试：`tests/sql-console.test.ts` 6 项通过；核心合计 116 项。真实 OWID 数据浏览器脚本 6 项 PASS（默认 8 行、聚合 15738.01 / 205.01、拒绝写与多语句、JOIN 示例 8 行、`readable`×`extra_readable` 得到 China/Asia/8、移除后 `no such table`）；`npm run build` 通过。
+- 结果图：新增 `src/sql-chart.ts` 与懒加载 `src/SqlResultChart.tsx`。横轴可选列或结果行号，纵轴只接受严格数值列（`$1,234`、`12%`、空值不算数字）；柱形/折线均从 0 起，不重新聚合、不插补缺失值、不绑定来源。纯文本结果明确显示无可绘制数值列。
+- 测试：`tests/sql-console.test.ts` 7 项通过；核心合计 117 项。真实 OWID 数据浏览器脚本 8 项 PASS（默认 8 行、聚合 15738.01 / 205.01、结果图由真实返回值绘制、拒绝写与多语句、纯文本不生成数值图、JOIN 示例 8 行、`readable`×`extra_readable` 得到 China/Asia/8、移除后 `no such table`）；`npm run build` 通过。
 - 限制：SQLite 方言；`data` 上不存在的双引号列名会被 DQS 当作字符串字面量，示例优先 `readable`；JOIN 行号需人工核对，控制台不判断连接口径业务上是否合理。
 - 浏览器脚本的 `page.goto` 从 `networkidle` 改为 `load`：本机到 Pages 的连接多次出现超时与空闲等待卡住，`load` + 元素自动等待更稳定；本地与公网均复跑通过，不是放宽断言。
 - 推送与公网：`fb7450f` 首次推送成功；公网 `index-D9IvAP52.js` / `index-BBCD495j.css` 与本地 `dist` 一致，Worker 与 wasm 均 200；`verify:public` 重试后 7/7；公网复跑 SQL 控制台 6 项 PASS。`aiConfigured:false` 未变。

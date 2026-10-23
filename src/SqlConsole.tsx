@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertCircle, ArrowDownToLine, Code2, Link2, LoaderCircle, Play, ShieldCheck, Trash2, Upload } from 'lucide-react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { AlertCircle, ArrowDownToLine, BarChart3, Code2, Link2, LoaderCircle, Play, ShieldCheck, Trash2, Upload } from 'lucide-react'
 import type { Dataset } from './data'
 import { download, parseCSV } from './data'
 import { clearConsoleTable, loadConsoleTable, queryDataset } from './engine'
 import type { ConsoleResult, ExtraTable } from './sql-console'
 import { exportColumnNames } from './sql-names'
+
+const SqlResultChart = lazy(() => import('./SqlResultChart'))
 
 const EXAMPLE = 'SELECT "c0" AS 分组, COUNT(*) AS 记录数\nFROM data\nGROUP BY "c0"\nORDER BY 记录数 DESC\nLIMIT 20'
 const numericExample = (dataset: Dataset) => 'SELECT "c0" AS 分组, strict_number("c' + (dataset.headers.length > 1 ? 1 : 0) + '") AS 数值\nFROM data\nWHERE strict_number("c' + (dataset.headers.length > 1 ? 1 : 0) + '") IS NOT NULL\nORDER BY 数值 DESC\nLIMIT 20'
@@ -32,6 +34,7 @@ export default function SqlConsole({ dataset, table, onTable }: Props) {
   const extraNames = useMemo(() => table ? exportColumnNames(table, '_row') : [], [table])
   const [sql, setSql] = useState('SELECT * FROM readable LIMIT 20')
   const [result, setResult] = useState<ConsoleResult | null>(null)
+  const [showChart, setShowChart] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [tableBusy, setTableBusy] = useState(false)
@@ -138,8 +141,9 @@ export default function SqlConsole({ dataset, table, onTable }: Props) {
           {error && <p className="ai-error" role="alert"><AlertCircle size={16} />{error}</p>}
         </section>
         {result && <section className="panel core-panel">
-          <div className="section-heading"><div><h3>查询结果</h3><p className="core-muted">{result.rows.length} 行 · {result.elapsedMs} ms · {result.columns.length} 列{result.truncated ? ' · 已截断，仅显示前 500 行' : ''}</p></div><button className="secondary" onClick={csv} disabled={!result.rows.length}><ArrowDownToLine size={15} />结果 CSV</button></div>
+          <div className="section-heading"><div><h3>查询结果</h3><p className="core-muted">{result.rows.length} 行 · {result.elapsedMs} ms · {result.columns.length} 列{result.truncated ? ' · 已截断，仅显示前 500 行' : ''}</p></div><div className="core-actions"><button className="secondary" aria-expanded={showChart} onClick={() => setShowChart(value => !value)} disabled={!result.rows.length}><BarChart3 size={15} />{showChart ? '收起图表' : '结果图表'}</button><button className="secondary" onClick={csv} disabled={!result.rows.length}><ArrowDownToLine size={15} />结果 CSV</button></div></div>
           {result.truncated && <p className="core-warning">结果超过 500 行，当前仅显示前 500 行；导出 CSV 也只包含这些行。请加 WHERE 或 LIMIT 缩小范围。</p>}
+          {showChart && result.rows.length > 0 && <Suspense fallback={<p className="core-muted">正在加载图表引擎…</p>}><SqlResultChart columns={result.columns} rows={result.rows} /></Suspense>}
           {result.rows.length === 0 ? <p className="small-empty">查询执行成功，但没有返回行。</p> : <div className="core-table-wrap console-results"><table><thead><tr>{result.columns.map((column, i) => <th key={i}>{column}</th>)}</tr></thead><tbody>{result.rows.map((row, i) => <tr key={i}>{row.map((value, j) => <td key={j}>{value === null ? '∅' : String(value)}</td>)}</tr>)}</tbody></table></div>}
           <p className="core-muted">以上是本次 SQL 的直接结果。控制台不自动建立图表或来源绑定；需要回查记录时，请选择 <code>_record</code> 并对照片段来源。JOIN 结果的两侧行号需自行核对，控制台不替你判断连接是否合理。</p>
         </section>}

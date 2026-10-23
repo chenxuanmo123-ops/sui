@@ -49,6 +49,14 @@ with sync_playwright() as p:
     expect(page.locator(".console-results tbody tr")).to_contain_text("205.01")
     check("聚合、UDF 与 readable 表头在 Worker 中真实执行")
 
+    page.get_by_role("button", name="结果图表", exact=True).click()
+    expect(page.locator(".sql-result-chart svg")).to_be_visible()
+    expect(page.locator(".sql-result-chart")).to_contain_text("China")
+    expect(page.locator(".sql-result-chart")).to_contain_text("total")
+    page.get_by_role("button", name="收起图表", exact=True).click()
+    expect(page.locator(".sql-result-chart")).to_have_count(0)
+    check("查询结果图在浏览器内由真实返回值绘制")
+
     textarea.fill("DELETE FROM data")
     page.get_by_role("button", name="运行查询", exact=True).click()
     expect(page.locator(".ai-error")).to_contain_text("只允许 SELECT")
@@ -59,6 +67,11 @@ with sync_playwright() as p:
     page.get_by_role("button", name="运行查询", exact=True).click()
     expect(page.locator(".console-results tbody tr")).to_contain_text("DELETE; DROP TABLE data")
     check("写操作和多语句被拒绝，字符串中的关键字可正常查询")
+
+    page.get_by_role("button", name="结果图表", exact=True).click()
+    expect(page.locator(".sql-chart-empty")).to_contain_text("没有可作为纵轴的数值列")
+    page.get_by_role("button", name="收起图表", exact=True).click()
+    check("纯文本结果不生成数值图表")
 
     page.get_by_label("上传关联表 CSV").set_input_files(str(root / "tests/fixtures/country-region.csv"))
     expect(page.locator(".console-table-state")).to_contain_text("1 行 × 2 列")

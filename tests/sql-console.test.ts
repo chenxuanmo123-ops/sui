@@ -5,6 +5,7 @@ import { resolve } from 'node:path'
 import type { Dataset } from '../src/data'
 import { installSQL } from '../src/analytics'
 import { dropExtraTable, installExtraTable, maskSql, runConsoleQuery, validateReadOnlyQuery } from '../src/sql-console'
+import { numericCell, numericColumns, sqlChartDefaults, sqlChartSeries } from '../src/sql-chart'
 
 let SQL: SqlJsStatic
 beforeAll(async () => { SQL = await initSqlJs({ locateFile: f => resolve('node_modules/sql.js/dist', f) }) })
@@ -79,6 +80,22 @@ describe('只读 SQL 控制台', () => {
       expect(installExtraTable(db, { headers: ['组', '组'], rows: [{ 组: '1' }] }).names).toEqual(['c0', 'c1'])
       expect(runConsoleQuery(db, 'SELECT "c1" FROM extra_readable').columns).toEqual(['c1'])
     })
+  })
+
+  it('结果图表只接受真实数值，并选择明确横纵轴', () => {
+    const columns = ['country', 'n', 'total']
+    const rows: (string | number | null)[][] = [['China', 8, '15738.01'], ['India', 8, '205.01']]
+    expect(numericColumns(columns, rows)).toEqual([1, 2])
+    expect(sqlChartDefaults(columns, rows)).toEqual({ x: 0, y: 1, kind: 'bar' })
+    expect(sqlChartSeries({ x: 0, y: 2, kind: 'bar' }, rows)).toEqual({ labels: ['China', 'India'], values: [15738.01, 205.01] })
+    expect(sqlChartDefaults(['n'], [['3'], ['4']])).toEqual({ x: -1, y: 0, kind: 'bar' })
+    expect(sqlChartDefaults(['name'], [['a']])).toEqual({ x: 0, y: -1, kind: 'bar' })
+    expect(numericColumns(['v'], [['1'], [null], ['3']])).toEqual([0])
+    expect(numericColumns(['v'], [['1'], ['$2']])).toEqual([])
+    expect(numericCell('1,234')).toBe(null)
+    expect(numericCell('1e3')).toBe(1000)
+    expect(numericCell('')).toBe(null)
+    expect(sqlChartSeries({ x: -1, y: 0, kind: 'line' }, [['5'], [null]])).toEqual({ labels: ['第 1 行', '第 2 行'], values: [5, null] })
   })
 
   it('行数上限明确截断，且底层连接仍是只读', () => {

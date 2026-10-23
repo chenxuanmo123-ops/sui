@@ -87,3 +87,6 @@
 .console-table-state{margin:8px 0;font-size:12px;color:#385778}.console-table-state strong{color:#173d74}
 .console-table-actions{display:flex;gap:14px;align-items:center;flex-wrap:wrap}.console-table-actions .text-button{display:inline-flex;gap:5px;align-items:center}
 .danger-text{color:#a33a2b}.danger-text:hover{color:#7d2a1f}
+.sql-result-chart{margin:6px 0 18px;border:1px solid #e3eaf4;border-radius:8px;padding:0 14px 10px;background:#fbfcff}
+.sql-chart-empty{margin:6px 0 18px;padding:16px 18px;border:1px solid #f0dfbd;background:#fff9ec;border-radius:8px;font-size:12px;line-height:1.9;color:#7b5a22}
+.sql-chart-empty p{margin:0 0 6px}
