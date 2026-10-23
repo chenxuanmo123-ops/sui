@@ -1,5 +1,6 @@
 import type { SourceNotes } from './provenance'
 import { aggregateDataset } from './engine'
+import type { TimeTrend } from './statistics'
 export type Row = Record<string, string | null>
 export type ImportOrigin = { format: string; fileHash: string; sheet?: string; page?: number; headerRow: number; method: string; warnings: string[]; locations: string[]; reviewed: boolean; pageImage?: string }
 export type Dataset = { sourceNotes?: SourceNotes; originalFileHash?: string; originalFileName?: string; preparation?: { parentHash: string; steps: string[] }; sourceRecords?: number[]; origin?: ImportOrigin; title: string; sourceUrl: string; rows: Row[]; headers: string[]; loadedAt: string; fingerprint: string; isPublic: boolean }
@@ -10,7 +11,7 @@ export type Mapping = { rate?: RateDefinition; x: string; metric: string; filter
 export type RateCounts = { numerator: number; denominator: number; excluded: number }
 export type AnalysisScope = { datasetHash: string; loadedAt: string; parentAnalysisId: number; parentTitle: string; label: string; rowIds: number[]; baseline: { metric: string; aggregate: Mapping['aggregate']; unit: string; value: number; rate?: RateDefinition; counts?: RateCounts } }
 export type Point = { scopeRowIds?: number[]; excludedRowIds?: number[]; rate?: RateCounts; label: string; value: number; rowIds: number[] }
-export type Analysis = { scope?: AnalysisScope; rateSummary?: RateCounts & { value: number }; unavailableGroups?: { label: string; excluded: number; rowIds: number[] }[]; sql?: string; parameters?: (string | number | null)[]; id: number; question: string; mapping: Mapping; points: Point[]; usedRows: number; skipped: number; matched: number; createdAt: string; datasetHash: string; finding: string; operations: string[]; ai?: { goal: string; taskId: string; taskTitle: string; model: string; plannedAt: string } }
+export type Analysis = { scope?: AnalysisScope; rateSummary?: RateCounts & { value: number }; unavailableGroups?: { label: string; excluded: number; rowIds: number[] }[]; sql?: string; parameters?: (string | number | null)[]; id: number; question: string; mapping: Mapping; points: Point[]; usedRows: number; skipped: number; matched: number; createdAt: string; datasetHash: string; finding: string; operations: string[]; trend?: TimeTrend; ai?: { goal: string; taskId: string; taskTitle: string; model: string; plannedAt: string } }
 export const PUBLIC_DATA_URL = 'https://raw.githubusercontent.com/owid/energy-data/master/owid-energy-data.csv'
 export const PUBLIC_SOURCE_URL = 'https://github.com/owid/energy-data'
 export const initialQuestion = '2015—2022 年中国可再生能源发电量如何变化？'

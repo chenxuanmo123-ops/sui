@@ -3,9 +3,11 @@ import { bucketLabel, compareLabels, numberValue, summarize, aggregateNames } fr
 import type { Analysis, AnalysisScope, Dataset, Mapping } from './data'
 import { validateScope, validateScopedMapping } from './follow-up'
 import { exportColumnNames } from './sql-names'
+import { linearTrend, timeIndex } from './statistics'
+import type { TimeTrend } from './statistics'
 export type ChartKind = 'line' | 'bar' | 'scatter' | 'heatmap' | 'table'
 export type ExploreSpec = { kind: ChartKind; x: string; y: string; metric: string; aggregate: Mapping['aggregate']; filter: string; value: string; bucket: Mapping['timeBucket']; sort: 'label' | 'desc'; limit: number }
-export type ExploreResult = { columns: string[]; rows: (string | number | null)[][]; rowIds: number[][]; sql: string; parameters: SqlValue[]; total: number; excluded: number; truncated: boolean; datasetHash: string; spec: ExploreSpec }
+export type ExploreResult = { columns: string[]; rows: (string | number | null)[][]; rowIds: number[][]; sql: string; parameters: SqlValue[]; total: number; excluded: number; truncated: boolean; datasetHash: string; spec: ExploreSpec; trend?: TimeTrend }
 export const col = (d: Dataset, key: string) => { const i = d.headers.indexOf(key); if (i < 0) throw new Error('字段不存在：' + key); return '"c' + i + '"' }
 export function installSQL(db: Database, d: Dataset) {
  db.create_function('strict_number', (v: SqlValue) => { const n = numberValue(v === null ? null : String(v)); return Number.isFinite(n) ? n : null })
@@ -77,8 +79,14 @@ export function runAggregate(db: Database, d: Dataset, m: Mapping, question: str
  const allGroupRows=new Map(rows(db,scope+' SELECT label, GROUP_CONCAT(_record) FROM selected GROUP BY label',params).map(r=>[String(r[0]),String(r[1]).split(',').map(Number)]))
  const points=result.map(r=>({label:String(r[0]),value:Number(r[1]),rowIds:String(r[2]).split(',').map(Number),scopeRowIds:allGroupRows.get(String(r[0]))})).sort((a,b)=>compareLabels(a.label,b.label))
  if(points.some(p=>!Number.isFinite(p.value))) throw new Error('计算结果超出有效数值范围。')
+ let trend: TimeTrend | undefined
+ if((m.timeBucket==='year'||m.timeBucket==='month') && points.length>=3) {
+  const period=m.timeBucket
+  const fitted=linearTrend(points.map(p=>{const x=timeIndex(p.label,period);return {x:x??NaN,y:p.value}}).filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)))
+  if(fitted) trend={...fitted,period}
+ }
  const stats=rows(db,scope+' SELECT (SELECT COUNT(*) FROM selected), (SELECT COUNT(*) FROM scoped WHERE label IS NULL) + (SELECT COUNT(*) FROM selected WHERE NOT ('+valid+'))',params)[0]
- return {scope:rowScope ? structuredClone(rowScope) : undefined,id,question,mapping:structuredClone(m),points,usedRows:points.reduce((n,p)=>n+p.rowIds.length,0),matched:Number(stats[0]),skipped:Number(stats[1]),createdAt:new Date().toISOString(),datasetHash:d.fingerprint,finding:summarize(points,m.unit),sql:preamble(d)+sql,parameters:params as (string|number|null)[],operations:['SQLite / sql.js 真实执行参数化只读查询', '数据快照：'+d.fingerprint, aggregateNames[m.aggregate]+'；空值不替换为零', 'SQL 列映射及参数见下方，来源记录号对应当前快照']}
+ return {scope:rowScope ? structuredClone(rowScope) : undefined,id,question,mapping:structuredClone(m),points,usedRows:points.reduce((n,p)=>n+p.rowIds.length,0),matched:Number(stats[0]),skipped:Number(stats[1]),createdAt:new Date().toISOString(),datasetHash:d.fingerprint,finding:summarize(points,m.unit),sql:preamble(d)+sql,parameters:params as (string|number|null)[],operations:['SQLite / sql.js 真实执行参数化只读查询', '数据快照：'+d.fingerprint, aggregateNames[m.aggregate]+'；空值不替换为零', 'SQL 列映射及参数见下方，来源记录号对应当前快照'],...(trend?{trend}:{})}
 }
 export function runExplore(db: Database,d: Dataset,s: ExploreSpec): ExploreResult {
  if(!['line','bar','scatter','heatmap','table'].includes(s.kind) || !['label','desc'].includes(s.sort) || !Number.isInteger(s.limit) || s.limit<1 || s.limit>200) throw new Error('图表配置无效')
@@ -111,7 +119,13 @@ export function runExplore(db: Database,d: Dataset,s: ExploreSpec): ExploreResul
  if(limited.some(r=>r.slice(0,-1).some(v=>typeof v==='number'&&!Number.isFinite(v))))throw new Error('计算结果超出有效数值范围，请缩小范围或核对单位')
  // Count valid rows independently; do not confuse display limits with excluded data.
  const validCount=Number(rows(db,'SELECT COUNT(*) '+filtered+(filters.length?' AND ':' WHERE ')+valid,s.filter?[s.value]:[])[0][0])
- return {columns,rows:limited.map(r=>r.slice(0,-1) as (string|number|null)[]),rowIds:limited.map(r=>String(r.at(-1)).split(',').map(Number)),sql:preamble(d)+sql,parameters:params,total,excluded:total-validCount,truncated,datasetHash:d.fingerprint,spec:structuredClone(s)}
+ let trend: TimeTrend | undefined
+ if (s.kind==='line' && (s.bucket==='year' || s.bucket==='month')) {
+  const period=s.bucket
+  const fitted=linearTrend(limited.map(r=>{const x=timeIndex(String(r[0]??''),period);const y=Number(r[1]);return {x:x??NaN,y}}).filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)))
+  if (fitted) trend={...fitted,period}
+ }
+ return {columns,rows:limited.map(r=>r.slice(0,-1) as (string|number|null)[]),rowIds:limited.map(r=>String(r.at(-1)).split(',').map(Number)),sql:preamble(d)+sql,parameters:params,total,excluded:total-validCount,truncated,datasetHash:d.fingerprint,spec:structuredClone(s),...(trend?{trend}:{})}
 }
 export type ComparisonSpec={period:string;dimension:string;metric:string;aggregate:'sum'|'count';baselineFrom:string;baselineTo:string;currentFrom:string;currentTo:string}
 export type ComparisonResult={spec:ComparisonSpec;sql:string;parameters:SqlValue[];groups:{label:string;baseline:number|null;current:number|null;delta:number|null;rate:number|null;contribution:number|null;baselineIds:number[];currentIds:number[]}[];baselineTotal:number|null;currentTotal:number|null;delta:number|null;excluded:number;comparable:boolean;datasetHash:string}
