@@ -955,5 +955,6 @@ render.yaml 现提供默认模型三项环境变量的云平台输入占位，�
 - AI 结果：`Analysis` 增加可选 `trend`，时间分桶且至少三个分组的计划任务会在结果卡片与完整 HTML 报告中显示同一趋势说明；不改变真实计算结果与证据绑定。
 - 文案边界：明确“仅描述图中聚合值，不是预测、显著性检验或因果结论”；缺失时间点、不等距和口径变化会影响斜率。
 - 测试：核心 128 项通过；真实 OWID 浏览器脚本 `scripts/real-data-analysis/trend-check.py` 3 项 PASS（显示斜率 182.1685 与独立 Python OLS 一致、降序排序不改变斜率、取消分桶不显示趋势）。
+- 推送与公网：`2da93ac` 首次推送成功；公网资源 `index-BXc5AeuC.js` / `index-BLXLWT6W.css` 与本地 `dist` 一致；`verify:public` 7/7；公网趋势脚本前三次 `page.goto` 超时，第 4 次 3 项 PASS。`aiConfigured:false` 未变。
 - 限制：不提供标准误、置信区间、显著性检验、预测区间或外推；不判断趋势由何因素造成。
 - 下一步候选：相关分析（Pearson/Spearman，同样只作描述性关联）、流式输出、向量检索或交付材料。

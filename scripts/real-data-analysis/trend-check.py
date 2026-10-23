@@ -1,5 +1,6 @@
 """End-to-end check of the descriptive time trend on real OWID data."""
 import csv
+import os
 import re
 import sys
 from pathlib import Path
@@ -10,6 +11,7 @@ from playwright.sync_api import sync_playwright, expect
 
 sys.stdout.reconfigure(encoding="utf-8")
 data = root / "tests/fixtures/owid-China-2015-2022.csv"
+url = os.environ.get("TEST_BASE_URL", "http://127.0.0.1:5175")
 xs, ys = [], []
 with data.open(encoding="utf-8-sig", newline="") as handle:
     for row in csv.DictReader(handle):
@@ -37,7 +39,7 @@ with sync_playwright() as p:
     page = browser.new_page(viewport={"width": 1440, "height": 1100})
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
-    page.goto("http://127.0.0.1:5175", wait_until="load", timeout=120000)
+    page.goto(url, wait_until="load", timeout=120000)
     page.locator("#file-upload").set_input_files(str(data))
     expect(page.locator(".dataset-name strong")).to_have_text("owid-China-2015-2022.csv")
 
