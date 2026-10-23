@@ -30,7 +30,9 @@ test('Pages 健康检查返回 JSON 而不是 SPA HTML', async () => {
   const response = await call(healthFunction, '/api/health');
   assert.equal(response.status, 200);
   assert.match(response.headers.get('content-type'), /application\/json/);
-  assert.deepEqual(await response.json(), { status: 'ok', service: 'shujian-agent' });
+  assert.deepEqual(await response.json(), { status: 'ok', service: 'shujian-agent', aiConfigured: false });
+  const configured = await call(healthFunction, '/api/health', { env: { LLM_BASE_URL: 'https://api.example.com/v1', LLM_API_KEY: 'k', LLM_MODEL: 'm' } });
+  assert.equal((await configured.json()).aiConfigured, true);
   assert.equal((await call(healthFunction, '/api/health', { method: 'HEAD' })).status, 200);
   assert.equal((await call(healthFunction, '/api/health', { method: 'POST' })).status, 405);
 });

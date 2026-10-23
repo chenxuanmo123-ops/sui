@@ -29,13 +29,13 @@
 
 ## 在线部署
 
-**当前状态：静态前端已部署到 Cloudflare Pages：<https://sui-ae9.pages.dev/>。**
+**当前状态：前端已部署到 Cloudflare Pages：<https://sui-ae9.pages.dev/>；同源 AI 接口以 Pages Functions 随仓库部署。**
 
-该地址可打开页面、导入文件并使用浏览器内计算；但当前部署没有同源 Node AI 接口，`/api/ai/status` 返回 SPA 的 HTML 而不是 JSON，AI 计划与解读不可用。因此它是前端预览，**不是完整的在线服务**，不能作为“AI 已上线”的证据。
+`/api/ai/*`、`/api/health` 由 `functions/api/` 处理，与 Node 服务共用同一套计划校验、证据绑定、拒绝规则和限流；模型配置只能写在 Cloudflare 环境变量（`LLM_BASE_URL`、`LLM_API_KEY`、`LLM_MODEL`），浏览器拿不到密钥。未配置模型时，导入、浏览器内计算和图表仍可用，状态栏会提示站点尚未配置模型。
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/chenxuanmo123-ops/sui)
 
-如需网页与 Node AI 接口一起运行，可用上方 Render 按钮创建完整 Web 服务；默认模型通过云平台环境变量配置，费用与额度由部署者承担。Cloudflare Pages 上的同源 AI 接口方案尚未实现。配置与上线核对见[部署指南](docs/部署与交付.md)。
+Render 方案保留为完整 Node 服务备选；默认模型同样通过云平台环境变量配置，费用与额度由部署者承担。两种部署的配置项、限制与验收步骤见[部署指南](docs/部署与交付.md)。
 
 ## 本地开发
 

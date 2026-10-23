@@ -26,12 +26,14 @@ AI Web 网页开发挑战赛参赛作品，赛道为 **AI 数据分析与可视�
 
 ## 当前状态（2026-10-23 核对）
 
-- 本地 `main` 与 `origin/main` 同步于提交 `88d87cb`（GitHub: `chenxuanmo123-ops/sui`）。
-- 工作区有未提交改动：计算取消/续算、逐任务进度、质量诊断面板及对应测试；另新增自动交接机制（`.claude/`）。
-- 已核对的本地结果：`test:core` 90 项、`test:ai` 22 项、`test:evaluation` 14 项、`test:production` 33 项通过；`npm run build` 通过（仍有 >500 kB 分包警告）。
+- 仓库：`chenxuanmo123-ops/sui`。提交 `d46c56d` 已推送并触发 Pages 自动部署；其后 `86a9479`（Pages Functions）推送时 github.com 连接超时，尚未确认远端收到。
+- 工作区有未提交改动：部署文档、README、`.env.example` 与健康检查的 `aiConfigured` 字段。
+- 已核对的本地结果：`test:core` 90 项、`test:ai` 30 项（含新增 Pages Functions 8 项）、`test:evaluation` 14 项、`test:production` 33 项通过；`npm run build` 通过（仍有 >500 kB 分包警告）。
 - `tests/quality-diagnostics-browser.py` 6 项、`tests/ai-cancellation-browser.py` 4 项已在隔离配置的本地服务上通过；其余浏览器脚本本轮未运行。不能把测试通过写成真实模型质量或公网可用。
-- 已部署 Cloudflare Pages 静态站点 `https://sui-ae9.pages.dev/`。实测 `/api/health`、`/api/ai/status` 返回 SPA 的 `index.html`（HTTP 200），说明当前部署没有同源 Node AI 后端；AI 计划/解读不可用，导入与浏览器内计算仍可用。该静态部署不是完整产品验收。
-- 公网资源哈希与本地 `dist` 不同，公网产物不是当前工作区构建；需在 Cloudflare 控制台核对提交与构建配置。`render.yaml` 与 Dockerfile 仍保留，Docker 镜像未实际构建。
+- Cloudflare Pages 站点 `https://sui-ae9.pages.dev/` 在 2026-10-23 14:31 的推送后，公网资源变为 `index-DFhTVNJn.js` / `index-CuruAucx.css`，与本地 `dist` 一致，确认推送会触发自动构建。
+- 仓库新增 `functions/api/`：`/api/ai/*`、`/api/health`、未知 `/api/*` 的 JSON 404 由 Pages Functions 处理，与 Node 服务共用 `server/ai.mjs`。部署后需要在 Pages 环境变量配置 `LLM_BASE_URL`、`LLM_API_KEY`、`LLM_MODEL`；未配置时状态接口返回 `configured: false`，页面明确提示。
+- Pages Functions 没有文件系统：公网保存/删除模型连接返回 403 属预期；自带密钥需要 `LLM_ALLOWED_HOSTS`。`render.yaml` 与 Dockerfile 仍保留，Docker 镜像未实际构建。
+- 在推送成功并用真实地址核对 `/api/health` 返回 JSON 之前，不能声称公网 AI 已上线。
 
 ## 上下文交接自动化
 
