@@ -1,4 +1,5 @@
 // OpenAI-compatible transport. Credentials and upstream bodies never enter diagnostics.
+// Web-standard APIs only, so the same code runs on Node and in Cloudflare Workers.
 export const MODEL_TIMEOUT_MS = 180000;
 export function normalizeBaseURL(value) {
   return value.trim().replace(/\/+$/, '').replace(/\/(chat\/completions|models)$/, '');
@@ -21,12 +22,24 @@ const explanations = {
   502: '模型服务网关故障，请稍后重试',
   503: '模型服务繁忙，请稍后重试',
 };
+function decodeChunks(chunks) {
+  let total = 0;
+  for (const chunk of chunks) total += chunk.byteLength;
+  const merged = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) { merged.set(chunk, offset); offset += chunk.byteLength; }
+  return new TextDecoder().decode(merged);
+}
 export async function requestModel(provider, { signal, action = 'chat', body, timeoutMs = MODEL_TIMEOUT_MS }) {
-  const timeout = AbortSignal.timeout(timeoutMs);
-  const combined = AbortSignal.any([signal, timeout]);
+  const controller = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => { timedOut = true; controller.abort(); }, timeoutMs);
+  const forward = () => controller.abort();
+  if (signal.aborted) controller.abort();
+  else signal.addEventListener('abort', forward, { once: true });
   try {
     const response = await fetch(normalizeBaseURL(provider.baseURL) + (action === 'models' ? '/models' : '/chat/completions'), {
-      method: action === 'models' ? 'GET' : 'POST', redirect: 'error', signal: combined,
+      method: action === 'models' ? 'GET' : 'POST', redirect: 'error', signal: controller.signal,
       headers: { Authorization: 'Bearer ' + provider.apiKey, 'Content-Type': 'application/json' },
       ...(action === 'models' ? {} : { body: JSON.stringify(body) }),
     });
@@ -46,18 +59,21 @@ export async function requestModel(provider, { signal, action = 'chat', body, ti
       }
     } finally { reader.releaseLock(); }
     let result;
-    try { result = JSON.parse(Buffer.concat(chunks).toString('utf8')); }
+    try { result = JSON.parse(decodeChunks(chunks)); }
     catch { throw new Error('接口返回了非 JSON 内容，请核对 API 根地址；不要填写聊天网页地址。'); }
     if (!result || typeof result !== 'object' || Array.isArray(result)) throw new Error('模型服务返回了无效响应。');
     return result;
   } catch (error) {
     if (signal.aborted) throw new Error('请求已取消。');
-    if (timeout.aborted) throw new Error('模型等待超时，请重试或切换更快的模型。');
+    if (timedOut) throw new Error('模型等待超时，请重试或切换更快的模型。');
     const code = error.cause?.code;
     if (['ENOTFOUND', 'EAI_AGAIN'].includes(code)) throw new Error('无法解析模型服务域名，请检查 API 地址与 DNS。');
     if (['ECONNREFUSED', 'ETIMEDOUT', 'UND_ERR_CONNECT_TIMEOUT', 'ECONNRESET'].includes(code)) throw new Error('无法连接模型服务，请检查网络、代理或本机服务是否启动。');
     if (error instanceof TypeError) throw new Error('无法连接模型服务，请检查网络、代理、证书与 API 地址。');
     throw error;
+  } finally {
+    clearTimeout(timer);
+    signal.removeEventListener('abort', forward);
   }
 }
 export class ModelContentError extends Error {

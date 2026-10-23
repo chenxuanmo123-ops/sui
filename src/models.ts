@@ -3,7 +3,7 @@ import { aiRequest } from './ai';
 import type { Provider } from './ai';
 export type ModelProfile = Provider & { source: 'browser' | 'server'; baseURL?: string; apiKey?: string; jsonMode?: boolean; revision?: number; editable?: boolean; keyConfigured?: boolean };
 export type ModelRequest = { providerId: string } | { provider: { id: string; name: string; baseURL: string; apiKey: string; model: string; jsonMode: boolean } };
-type Status = { providers: Omit<ModelProfile, 'source'>[]; defaultProviderId?: string; canManage?: boolean };
+type Status = { providers: Omit<ModelProfile, 'source'>[]; defaultProviderId?: string; canManage?: boolean; configured?: boolean };
 const storageKey = 'shujian.model-profiles.v1';
 const selectionKey = 'shujian.selected-model.v1';
 function remembered(): ModelProfile[] {
@@ -29,7 +29,9 @@ export function useModelProfiles() {
     setServer(profiles); setDefaultId(data.defaultProviderId || profiles[0]?.id || ''); setCanManage(data.canManage === true);
     setPersonal(old => old.filter(p => !profiles.some(s => s.id === p.id)));
     setSelectedId(id => profiles.some(p => p.id === id) || remembered().some(p => p.id === id) ? id : data.defaultProviderId || profiles[0]?.id || '');
-    setStatus('分析服务已就绪');
+    setStatus(data.configured === false
+      ? (data.canManage ? '尚未配置 AI 模型，请在“模型连接”中填写接口、密钥和模型 ID' : '当前站点尚未配置 AI 模型；本地处理、计算与图表仍可用')
+      : '分析服务已就绪');
   }
   useEffect(() => {
     const c = new AbortController();

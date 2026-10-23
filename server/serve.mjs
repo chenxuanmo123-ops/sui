@@ -2,8 +2,9 @@ import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, resolve, sep } from 'node:path';
 import { createAiHandler } from './ai.mjs';
+import { createProfileStore } from './profile-store.mjs';
 import { loadProviders } from './config.mjs';
-const handler = createAiHandler(loadProviders());
+const handler = createAiHandler(loadProviders(), { store: createProfileStore() });
 const root = resolve('dist');
 const mime = { '.wasm': 'application/wasm', '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.json': 'application/json' };
 const server = createServer(async (req, res) => {
