@@ -41,7 +41,8 @@ try {
   record('未知 API 返回 JSON 404，而不是 HTML 200', unknown.response.status === 404 && unknown.type.includes('application/json'),
     `${unknown.response.status} ${unknown.type}`);
 } catch (error) {
-  record('网络请求', false, error instanceof Error ? error.message : String(error));
+  const cause = error?.cause?.code || error?.cause?.message;
+  record('网络请求', false, (error instanceof Error ? error.message : String(error)) + (cause ? ' (' + cause + ')' : ''));
 }
 
 for (const item of results) console.log(`${item.ok ? 'PASS' : 'FAIL'} ${item.name}${item.detail ? ' — ' + item.detail : ''}`);

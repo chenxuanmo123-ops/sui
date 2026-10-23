@@ -31,7 +31,7 @@
 
 **当前状态：前端已部署到 Cloudflare Pages：<https://sui-ae9.pages.dev/>；同源 AI 接口以 Pages Functions 随仓库部署。**
 
-`/api/ai/*`、`/api/health` 由 `functions/api/` 处理，与 Node 服务共用同一套计划校验、证据绑定、拒绝规则和限流；模型配置只能写在 Cloudflare 环境变量（`LLM_BASE_URL`、`LLM_API_KEY`、`LLM_MODEL`），浏览器拿不到密钥。未配置模型时，导入、浏览器内计算和图表仍可用，状态栏会提示站点尚未配置模型。
+`/api/ai/*`、`/api/health` 由 `functions/api/` 处理，与 Node 服务共用同一套计划校验、证据绑定、拒绝规则和限流；模型配置只能写在 Cloudflare 环境变量（`LLM_BASE_URL`、`LLM_API_KEY`、`LLM_MODEL`），浏览器拿不到密钥。当前线上尚未配置模型，`/api/health` 返回 `aiConfigured:false`：导入、浏览器内计算和图表可用，AI 计划与解读不可用；配置后运行 `npm run verify:public` 核对。
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/chenxuanmo123-ops/sui)
 
