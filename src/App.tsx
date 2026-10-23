@@ -18,6 +18,7 @@ import ExploreView from './ExploreView'
 import type { ExploreSession } from './ExploreView'
 import type { CompareSession } from './CompareView'
 import CompareView from './CompareView'
+import { buildBundle, workspaceReproResult } from './reproducible'
 import './core.css'
 import AiWorkbench from './AiWorkbench'
 import AssistantWindow from './AssistantWindow'
@@ -303,6 +304,25 @@ export default function App() {
     const quote = (v: string) => `"${v.replace(/"/g, '""')}"`
     download('\uFEFF' + [['group', active.mapping.metric, ...(active.mapping.rate ? ['numerator','denominator','excluded'] : []), 'source_record_ids'].map(quote).join(','), ...active.points.map(p => [p.label, String(p.value), ...(p.rate ? [String(p.rate.numerator),String(p.rate.denominator),String(p.rate.excluded)] : []), p.rowIds.join(';')].map(quote).join(','))].join('\r\n'), 'text/csv;charset=utf-8', `数鉴-分析${active.id}-结果.csv`); setNotice('结果 CSV 已导出，含来源记录号。')
   }
+  function exportReproBundle() {
+    if (!active || !dataset) return
+    if (!active.sql) { setNotice('当前结果没有可执行的 SQL，无法导出复现包。'); return }
+    try {
+      const bundle = buildBundle(dataset, {
+        kind: 'workspace',
+        title: `${active.question} · 分析 #${active.id}`,
+        question: active.question,
+        spec: active.mapping,
+        sql: active.sql,
+        parameters: (active.parameters ?? []) as (string | number | null)[],
+        ...workspaceReproResult(active),
+      })
+      download(bundle.zip, 'application/zip', bundle.name)
+      setNotice('可复现 SQL 包已导出：含清洗后 CSV、schema.sql、analysis.sql、expected.json 与本地复跑脚本。')
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : '复现包生成失败')
+    }
+  }
   function exportReport() {
     if (!active || !dataset) return
     const h = escapeHTML, ids = active.points.flatMap(p => p.rowIds), columns = [...new Set([active.mapping.x, active.mapping.filter, active.mapping.metric, ...(active.mapping.conditions ?? []).map(c => c.field)].filter(Boolean))]
@@ -384,7 +404,7 @@ export default function App() {
               <section className="panel process-panel"><div className="section-heading"><h2>分析执行记录</h2><span className="tag">{active ? `#${active.id}` : '待执行'}</span></div><ol className="process-list">{[{ title: '检查数据', detail: dataset ? `${dataset.rows.length} 行，${dataset.headers.length} 列，保留原始值` : '等待导入', done: !!dataset }, { title: '确认字段口径', detail: active ? `${active.mapping.x} → ${active.mapping.metric}` : '等待选择并执行', done: !!active }, { title: '执行本地计算', detail: active ? `${active.usedRows} 条有效记录 → ${active.points.length} 个分组` : '尚未执行', done: !!active }, { title: '绑定图表与证据', detail: active ? '图表、结论与来源记录共用结果' : '等待真实结果', done: !!active }].map((s, i) => <li key={s.title}><span className={`step-icon ${s.done ? 'done' : ''}`}>{s.done ? <Check size={13} /> : i + 1}</span><div><strong>{s.title}</strong><p>{s.detail}</p></div></li>)}</ol><p className="process-note">此处记录当前计算结果；AI 请求状态与澄清问题见右下角 AI 助手。</p></section>
               <section id="evidence" className="panel evidence-panel"><div className="section-heading"><h2>证据检查器</h2><ShieldCheck size={18} /></div><div className="tabs" aria-label="证据类型"><button aria-pressed={evidenceTab === 'method'} className={evidenceTab === 'method' ? 'active' : ''} onClick={() => setEvidenceTab('method')}>计算方法</button><button aria-pressed={evidenceTab === 'rows'} className={evidenceTab === 'rows' ? 'active' : ''} onClick={() => setEvidenceTab('rows')}>来源记录</button></div>{active ? <div className="evidence-body">{evidenceTab === 'method' ? <><div className="engine-label">SQLite / sql.js 执行 · 参数化只读 SQL</div><pre className="sql-code">{active.sql}</pre><pre className="sql-code">参数：{JSON.stringify(active.parameters)}</pre><ol className="method-list">{active.operations.map((op, i) => <li key={i}>{op}</li>)}</ol><div className="snapshot"><span>数据 SHA-256</span><code title={active.datasetHash}>{active.datasetHash.slice(0, 16)}…</code><span>计算于 {new Date(active.createdAt).toLocaleTimeString('zh-CN', { hour12: false })}</span></div></> : <><label className="evidence-filter">分组<select value={selectedPoint} onChange={e => setSelectedPoint(e.target.value)}><option value="">全部有效来源</option>{active.points.map(p => <option key={p.label}>{p.label}</option>)}</select></label><p className="subtle">共 {scopedRowIds.length} 条，预览前 8 条</p><div className="source-list">{scopedRowIds.slice(0, 8).map(id => <div key={id}><span>{dataset?.origin?.locations[id - 2] || `来源记录 #${dataset?.sourceRecords?.[id - 2] ?? id}`}</span><strong>{dataset!.rows[id - 2][active.mapping.x]} · {dataset!.rows[id - 2][active.mapping.metric]} {active.mapping.unit}</strong>{active.mapping.filter && <small>{active.mapping.filter} = {dataset!.rows[id - 2][active.mapping.filter]}</small>}</div>)}</div><p className="subtle">来源位置随导入方式保留。完整绑定信息可导出报告查看。</p></>}</div> : <div className="small-empty"><ShieldCheck size={23} /><p>执行分析后，检查每个结果的计算方法与来源记录。</p></div>}</section>
               <section className="panel followup-panel" hidden={!dataset?.isPublic}><div className="section-heading"><h2>公开数据规则追问</h2><GitBranch size={18} /></div><div className="chat-thread" aria-live="polite">{!chat.length && <p className="subtle">公开数据可追问“改看风能”或“2018—2020 年呢”，继承上一口径并真实重算。</p>}{chat.map((item, i) => <div className="chat-pair" key={i}><p className="user-message">{item.text}</p><p className="agent-message"><span>{item.run ? `规则分析 · #${item.run}` : '未执行计算'}</span>{item.answer}</p></div>)}</div><form className="followup-input" onSubmit={followUp}><label className="sr-only" htmlFor="followup">输入追问</label><input id="followup" value={chatInput} onChange={e => setChatInput(e.target.value)} placeholder={active ? '改看风能' : '先完成一次分析'} disabled={!active} /><button className="primary icon-only" type="submit" aria-label="发送追问" disabled={!active || !chatInput.trim() || loading}><ArrowUpRight size={18} /></button></form></section>
-              <div className="report-action"><button className="secondary" onClick={exportReport} disabled={!active}><ArrowDownToLine size={18} />导出证据报告</button><p>单文件 HTML · 内嵌 SVG 与来源记录</p></div>
+              <div className="report-action"><button className="secondary" onClick={exportReport} disabled={!active}><ArrowDownToLine size={18} />导出证据报告</button><button className="secondary" style={{ marginTop: 8 }} onClick={exportReproBundle} disabled={!active}><ArrowDownToLine size={18} />导出可复现 SQL 包</button><p>单文件 HTML · 内嵌 SVG 与来源记录；SQL 包含清洗后数据与预期结果</p></div>
             </aside>
           </section>
         </div>

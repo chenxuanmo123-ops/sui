@@ -481,7 +481,7 @@ AI 结论引用不在证据集合内时，必须被拒绝或降级为待核实�
 
 ### 8.1 已通过的检查
 
-截至 2026-10-19（**2026-10-23 更新：核心 105 项、AI 31 项、评测 14 项、生产 33 项通过；新增数字规范化、中位数/四分位聚合与真实 Airbnb 数据复验，详见交接文档 7.6、7.7**）：
+截至 2026-10-19（**2026-10-23 更新：核心 110 项、AI 31 项、评测 14 项、生产 33 项通过；新增数字规范化、中位数/四分位聚合、可复现 SQL 包与真实 Airbnb 数据复验，详见交接文档 7.6、7.7、7.8**）：
 
 - `npm run test:ai`：21 项通过；
 - `npm run test:core`：46 项通过；覆盖任务隔离、类别预算、失败修正合并及证据绑定。计算使用真实 SEC 文件和 SQLite；浏览器 Worker 边界在单测中替换；
@@ -910,3 +910,12 @@ render.yaml 现提供默认模型三项环境变量的云平台输入占位，�
 - 验证：核心 105、AI 31、评测 14 通过。真实 Airbnb CSV 房型中位数 332/176.1/190/63.5、P25 250.475/132/146.5/46、P75 455.7525/238/243.2/96.5；全表 285.25/202/407，与 Python 独立计算一致。
 - 公网：资源 `index-Bxc10GiO.js` 与本地 `dist` 一致，`verify:public` 7/7；公网 Worker 中位数实测 1,925.015（8 条来源）。`aiConfigured:false`，AI 仍不可用。
 - 仍未做：可移植可复现 SQL 包、只读 SQL 控制台、多表 JOIN、DuckDB-WASM 评估；RAG、MCP、流式输出仍未实现。
+
+## 2026-10-23 20:15：可复现 SQL 包
+
+- 新增 `src/reproducible.ts`：应用内导出 ZIP，含清洗后 `data.csv`、SQLite `schema.sql`（`data` 视图映射 `c0..cN`）、参数内联的 `analysis.sql`、`expected.json`、README 与仅依赖 Python 标准库的 `run_analysis.py`；`fflate` 在浏览器内打包。
+- 工作台“证据与报告”和探索分析页均有“导出可复现 SQL 包”。参数内联逐字符扫描，跳过字符串/标识符/注释中的 `?`；列名大小写冲突时回退 `cN`。
+- `expected.json` 记录快照指纹、原始文件哈希、清洗步骤、结果、来源记录、SQL 模板与参数；比例分析的零分母分组以 NULL 结果和空来源记录补回，避免复跑行数不一致。
+- 验证：核心 110 项通过；`scripts/real-data-analysis/repro-bundle-check.py` 用真实 Airbnb 清洗数据从两个入口下载 ZIP，独立 Python + SQLite 复跑均 PASS（4 行、来源记录已核对），结果 332/176.1/190/63.5，快照 `232cec9d…63bd3`。
+- 限制：一键复跑只保证 SQLite + Python 标准库；DuckDB/PostgreSQL 需自行实现 `strict_number`、`compare_labels`、`time_bucket`。中文自然排序与浏览器 `localeCompare('zh-CN')` 不完全等价。
+- 下一步：只读 SQL 控制台与多表 JOIN（原 P1），或按比赛评分补 RAG / MCP / 交付材料。

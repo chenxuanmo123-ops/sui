@@ -142,8 +142,8 @@ export async function fingerprint(text: string) {
   const buffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
   return [...new Uint8Array(buffer)].map(v => v.toString(16).padStart(2, '0')).join('')
 }
-export function download(content: string, type: string, name: string) {
-  const url = URL.createObjectURL(new Blob([content], { type }))
+export function download(content: string | Uint8Array, type: string, name: string) {
+  const url = URL.createObjectURL(new Blob([content as BlobPart], { type }))
   const link = document.createElement('a'); link.href = url; link.download = name; link.click()
   window.setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
