@@ -4,7 +4,7 @@ const optional = schema => ({ ...schema, optional: true });
 const object = properties => ({ type: 'object', properties, required: Object.keys(properties).filter(name => !properties[name].optional), additionalProperties: false });
 const choice = values => ({ type: 'string', enum: values });
 export const mappingSchema = object({
-  x: text(200), metric: text(200), aggregate: choice(['sum', 'average', 'count', 'distinct', 'min', 'max']),
+  x: text(200), metric: text(200), aggregate: choice(['sum', 'average', 'count', 'distinct', 'min', 'max', 'median', 'p25', 'p75']),
   filter: text(200), value: text(300), from: text(100), to: text(100), unit: text(40),
   timeBucket: choice(['none', 'month', 'year']),
   rate: optional(object({ successValue: text(300), eligibleValues: { ...list(text(300), 16), minItems: 1 } })),

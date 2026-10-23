@@ -56,6 +56,33 @@ with sync_playwright() as p:
     page.locator(".exploration-chart svg").first.wait_for(state="visible", timeout=60000)
     page.screenshot(path=str(shots / "03-街区均价探索.png"), full_page=True)
 
+    # Median / P25 / P75 must match numpy-style linear interpolation on the cleaned real prices.
+    page.get_by_label("探索分组字段").select_option("room_type")
+    page.get_by_label("探索时间分桶").select_option("none")
+    page.get_by_label("探索排序").select_option("label")
+    table = page.locator(".exploration-results")
+    for aggregate, expected in [
+        ("median", {"Entire home/apt": "332", "Private room": "176.1", "Hotel room": "190", "Shared room": "63.5"}),
+        ("p25", {"Entire home/apt": "250.475", "Private room": "132", "Hotel room": "146.5", "Shared room": "46"}),
+        ("p75", {"Entire home/apt": "455.7525", "Private room": "238", "Hotel room": "243.2", "Shared room": "96.5"}),
+    ]:
+        page.get_by_label("探索统计方式").select_option(aggregate)
+        page.get_by_role("button", name="执行探索分析", exact=True).click()
+        expect(page.locator(".exploration-results tbody tr")).to_have_count(4)
+        for label, value in expected.items():
+            row = page.locator(".exploration-results tbody tr").filter(has_text=label)
+            expect(row).to_have_count(1)
+            expect(row).to_contain_text(value)
+    page.screenshot(path=str(shots / "04-房价分位数.png"), full_page=True)
+
+    # Whole-table quartiles use the constant scrape_id as a single group.
+    page.get_by_label("探索分组字段").select_option("scrape_id")
+    for aggregate, value in [("median", "285.25"), ("p25", "202"), ("p75", "407")]:
+        page.get_by_label("探索统计方式").select_option(aggregate)
+        page.get_by_role("button", name="执行探索分析", exact=True).click()
+        expect(page.locator(".exploration-results tbody tr")).to_have_count(1)
+        expect(table).to_contain_text(value)
+
     assert not errors, errors
     print("PASS 26 MB real CSV: 6,039 prices normalized; 22 neighbourhood groups computed.")
     print("screenshots:", shots)

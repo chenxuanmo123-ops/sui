@@ -5,7 +5,8 @@ export type ImportOrigin = { format: string; fileHash: string; sheet?: string; p
 export type Dataset = { sourceNotes?: SourceNotes; originalFileHash?: string; originalFileName?: string; preparation?: { parentHash: string; steps: string[] }; sourceRecords?: number[]; origin?: ImportOrigin; title: string; sourceUrl: string; rows: Row[]; headers: string[]; loadedAt: string; fingerprint: string; isPublic: boolean }
 export type Profile = { key: string; kind: '数值' | '文本' | '时间候选'; missing: number; numeric: number; nonempty: number }
 export type RateDefinition = { successValue: string; eligibleValues: string[] }
-export type Mapping = { rate?: RateDefinition; x: string; metric: string; filter: string; value: string; from: string; to: string; unit: string; aggregate: 'sum' | 'average' | 'count' | 'distinct' | 'min' | 'max'; timeBucket?: 'none' | 'month' | 'year'; conditions?: { field: string; operator: 'eq' | 'gte' | 'lte'; value: string }[] }
+export type Aggregate = 'sum' | 'average' | 'count' | 'distinct' | 'min' | 'max' | 'median' | 'p25' | 'p75'
+export type Mapping = { rate?: RateDefinition; x: string; metric: string; filter: string; value: string; from: string; to: string; unit: string; aggregate: Aggregate; timeBucket?: 'none' | 'month' | 'year'; conditions?: { field: string; operator: 'eq' | 'gte' | 'lte'; value: string }[] }
 export type RateCounts = { numerator: number; denominator: number; excluded: number }
 export type AnalysisScope = { datasetHash: string; loadedAt: string; parentAnalysisId: number; parentTitle: string; label: string; rowIds: number[]; baseline: { metric: string; aggregate: Mapping['aggregate']; unit: string; value: number; rate?: RateDefinition; counts?: RateCounts } }
 export type Point = { scopeRowIds?: number[]; excludedRowIds?: number[]; rate?: RateCounts; label: string; value: number; rowIds: number[] }
@@ -107,7 +108,7 @@ export function bucketLabel(raw: string, bucket: Mapping['timeBucket']): string 
 export async function analyze(dataset: Dataset, mapping: Mapping, question: string, id: number, scope?: AnalysisScope, signal?: AbortSignal): Promise<Analysis> {
   return aggregateDataset(dataset, mapping, question, id, scope, signal)
 }
-export const aggregateNames = { sum: '求和', average: '均值', count: '记录数', distinct: '非空去重数', min: '最小值', max: '最大值' } as const
+export const aggregateNames = { sum: '求和', average: '均值', count: '记录数', distinct: '非空去重数', min: '最小值', max: '最大值', median: '中位数', p25: '下四分位 P25', p75: '上四分位 P75' } as const
 
 export function parsePublicQuestion(text: string, base: Mapping): Mapping {
   if (/为什么|原因|预测|贡献|归因|占比/.test(text)) throw new Error('此规则工具仅支持公开能源数据的字段与范围映射。业务分析请使用上方 AI 辅助工作区；本工具不能回答原因、贡献或预测问题。')
@@ -128,8 +129,11 @@ export function parsePublicQuestion(text: string, base: Mapping): Mapping {
   if (selectedMetrics.length) m.metric = selectedMetrics[0][1]
   if (selectedCountries.length) { m.filter = 'country'; m.value = selectedCountries[0][1] }
   if (years.length) { m.from = years[0]!; m.to = years[1] ?? years[0]! }
-  if (/平均/.test(text)) m.aggregate = 'average'
-  if (/求和/.test(text)) m.aggregate = 'sum'
+  if (/中位/.test(text)) m.aggregate = 'median'
+  else if (/下四分位|P25/i.test(text)) m.aggregate = 'p25'
+  else if (/上四分位|P75/i.test(text)) m.aggregate = 'p75'
+  else if (/平均/.test(text)) m.aggregate = 'average'
+  else if (/求和/.test(text)) m.aggregate = 'sum'
   m.x = 'year'; m.unit = 'TWh'
   return m
 }

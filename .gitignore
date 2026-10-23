@@ -26,3 +26,6 @@ __pycache__/
 # 真实数据样例只提交报告、图表、指标与下载说明；原始 CSV 体积大且含房东字段。
 demo-data/*/data/
 demo-data/*/*.csv.gz
+
+# 每轮改动前的完整工作副本备份；只留本机，不入 Git。
+backups/

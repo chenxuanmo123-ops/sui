@@ -17,9 +17,18 @@ export function installSQL(db: Database, d: Dataset) {
 const preamble = (d: Dataset) => d.headers.map((h,i) => '-- c'+i+' = '+JSON.stringify(h)).join('\n') + '\n'
 function rows(db: Database, sql: string, params: SqlValue[] = []) { const result = db.exec(sql,params); return result[0]?.values ?? [] }
 function agg(metric: string, aggregate: Mapping['aggregate']) {
- const expression = {sum:`SUM(strict_number(${metric}))`, average:`AVG(strict_number(${metric}))`, count:"COUNT(*)", distinct:`COUNT(DISTINCT CASE WHEN TRIM(${metric}) <> '' THEN ${metric} ELSE NULL END)`, min:`MIN(strict_number(${metric}))`, max:`MAX(strict_number(${metric}))`}[aggregate]
+ const expressions: Partial<Record<Mapping['aggregate'], string>> = {sum:`SUM(strict_number(${metric}))`, average:`AVG(strict_number(${metric}))`, count:"COUNT(*)", distinct:`COUNT(DISTINCT CASE WHEN TRIM(${metric}) <> '' THEN ${metric} ELSE NULL END)`, min:`MIN(strict_number(${metric}))`, max:`MAX(strict_number(${metric}))`}
+ const expression = expressions[aggregate]
  if (!expression) throw new Error('不支持的聚合方式'); return expression
 }
+const percentileP = { median: 0.5, p25: 0.25, p75: 0.75 } as const
+type PercentileAggregate = keyof typeof percentileP
+const isPercentile = (aggregate: Mapping['aggregate']): aggregate is PercentileAggregate => Object.hasOwn(percentileP, aggregate)
+// Linear interpolation, the same definition as numpy.quantile / DuckDB quantile_cont.
+// rank = 1 + (n - 1) * p; the lower and (when fractional) upper order statistics are averaged with the fraction.
+const percentileExpression = () => `SUM(CASE WHEN is_lower = 1 THEN value ELSE 0 END) + (MAX(p_rank) - CAST(MAX(p_rank) AS INTEGER)) * (SUM(CASE WHEN is_lower = 0 THEN value ELSE 0 END) - SUM(CASE WHEN is_lower = 1 THEN value ELSE 0 END))`
+const percentileCTE = (groups: string, join: string, p: number, valid: string, source: string) => `ranked AS (SELECT ${groups}, _record, strict_number(raw_value) AS value, ROW_NUMBER() OVER (PARTITION BY ${groups} ORDER BY strict_number(raw_value)) AS rn, COUNT(*) OVER (PARTITION BY ${groups}) AS n FROM ${source} WHERE ${valid}), bounds AS (SELECT ${groups}, n, 1.0 + (n - 1) * ${p.toFixed(2)} AS p_rank FROM ranked GROUP BY ${groups}, n), picked AS (SELECT ${groups.replace(/(^|, )/g, '$1r.')}, r._record, r.value, b.p_rank, CASE WHEN r.rn = CAST(b.p_rank AS INTEGER) THEN 1 ELSE 0 END AS is_lower FROM ranked r JOIN bounds b ON ${join} WHERE r.rn = CAST(b.p_rank AS INTEGER) OR (b.p_rank > CAST(b.p_rank AS INTEGER) AND r.rn = CAST(b.p_rank AS INTEGER) + 1))`
+
 export function runAggregate(db: Database, d: Dataset, m: Mapping, question: string, id: number, rowScope?: AnalysisScope): Analysis {
  if(rowScope) { validateScope(d,rowScope); validateScopedMapping(m,rowScope) }
  const x=col(d,m.x), metric=col(d,m.metric)
@@ -54,7 +63,9 @@ export function runAggregate(db: Database, d: Dataset, m: Mapping, question: str
  }
  const numeric=!['count','distinct'].includes(m.aggregate)
  const valid=numeric?'strict_number(raw_value) IS NOT NULL':m.aggregate==='distinct'?"NULLIF(TRIM(raw_value), '') IS NOT NULL":'1=1'
- const sql=scope+' SELECT label, '+agg('raw_value',m.aggregate)+' AS value, GROUP_CONCAT(_record) AS source_records FROM selected WHERE '+valid+' GROUP BY label LIMIT 201'
+ let sql=''
+ if(isPercentile(m.aggregate)) sql=scope+', '+percentileCTE('label','b.label = r.label',percentileP[m.aggregate],valid,'selected')+', records AS (SELECT label, GROUP_CONCAT(_record) AS all_records FROM ranked GROUP BY label) SELECT picked.label, '+percentileExpression()+' AS value, rec.all_records AS source_records FROM picked JOIN records rec ON rec.label = picked.label GROUP BY picked.label LIMIT 201'
+ else sql=scope+' SELECT label, '+agg('raw_value',m.aggregate)+' AS value, GROUP_CONCAT(_record) AS source_records FROM selected WHERE '+valid+' GROUP BY label LIMIT 201'
  const result=rows(db,sql,params)
  if(!result.length) throw new Error('当前口径没有有效数值。请检查字段、筛选值和范围；缺失值不会按 0 处理。')
  if(result.length>200) throw new Error('分组超过 200 个，请缩小范围或选择更粗的分组。')
@@ -81,7 +92,15 @@ export function runExplore(db: Database,d: Dataset,s: ExploreSpec): ExploreResul
   valid=`NULLIF(TRIM(${x}), '') IS NOT NULL`+(numeric?` AND strict_number(${metric}) IS NOT NULL`:s.aggregate==='distinct'?` AND NULLIF(TRIM(${metric}), '') IS NOT NULL`:'')
   let group=label;columns=[s.x,aggregateNames[s.aggregate]+' · '+s.metric]
   if(s.kind==='heatmap'){const y=col(d,s.y);valid+=` AND NULLIF(TRIM(${y}), '') IS NOT NULL`;group+=', '+y;columns=[s.x,s.y,columns[1]]}
-  sql='SELECT '+group+', '+agg(metric,s.aggregate)+' AS value, GROUP_CONCAT(_record) '+filtered+(filters.length?' AND ':' WHERE ')+valid+' GROUP BY '+(s.kind==='heatmap'?'1,2':'1')+' ORDER BY '+(s.sort==='desc'?'value DESC, 1':'1')+' LIMIT '+(s.limit+1)
+  if(isPercentile(s.aggregate)){
+   const ycol=col(d,s.y),pgroup=s.kind==='heatmap'?'label, '+ycol:'label'
+   const join=s.kind==='heatmap'?'b.label = r.label AND b.'+ycol+' = r.'+ycol:'b.label = r.label'
+   const recordJoin=s.kind==='heatmap'?'rec.label = picked.label AND rec.'+ycol+' = picked.'+ycol:'rec.label = picked.label'
+   const validInBase='label IS NOT NULL AND strict_number(raw_value) IS NOT NULL'+(s.kind==='heatmap'?` AND NULLIF(TRIM(${ycol}), '') IS NOT NULL`:'')
+   const base='SELECT '+label+' AS label'+(s.kind==='heatmap'?', '+ycol:'')+', _record, '+metric+' AS raw_value '+filtered
+   const qualified=pgroup.split(', ').map(part=>'picked.'+part).join(', ')
+   sql='WITH base AS ('+base+'), '+percentileCTE(pgroup,join,percentileP[s.aggregate],validInBase,'base')+', records AS (SELECT '+pgroup+', GROUP_CONCAT(_record) AS all_records FROM ranked GROUP BY '+pgroup+') SELECT '+qualified+', '+percentileExpression()+' AS value, rec.all_records FROM picked JOIN records rec ON '+recordJoin+' GROUP BY '+qualified+' ORDER BY '+(s.sort==='desc'?'value DESC, 1':'1')+' LIMIT '+(s.limit+1)
+  }else sql='SELECT '+group+', '+agg(metric,s.aggregate)+' AS value, GROUP_CONCAT(_record) '+filtered+(filters.length?' AND ':' WHERE ')+valid+' GROUP BY '+(s.kind==='heatmap'?'1,2':'1')+' ORDER BY '+(s.sort==='desc'?'value DESC, 1':'1')+' LIMIT '+(s.limit+1)
  }
  const output=rows(db,sql,params);const truncated=output.length>s.limit; const limited=output.slice(0,s.limit)
  if(limited.some(r=>r.slice(0,-1).some(v=>typeof v==='number'&&!Number.isFinite(v))))throw new Error('计算结果超出有效数值范围，请缩小范围或核对单位')
