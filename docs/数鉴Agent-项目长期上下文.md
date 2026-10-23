@@ -944,4 +944,6 @@ render.yaml 现提供默认模型三项环境变量的云平台输入占位，�
 - 测试：`tests/references.test.ts` 8 项（切分/重叠、中文二元组与英文词元、缺失值与因果召回、上传资料优先、无匹配返回空、数量与来源上限、ID/页码、`referenceKey`/`referenceQuery`）；`tests/ai-api.test.mjs` 新增单元与集成用例（合法/非法 `sanitizeReferences`、请求载荷含摘录、提示词含“不可信数据”、回显、伪造引用 ID 被拒）。核心合计 125 项、AI 33 项、评测 14 项、生产 33 项通过。
 - 真实浏览器脚本 `scripts/real-data-analysis/reference-retrieval-check.py` 在真实 OWID 数据上 4 组检查 + 总结 PASS：内置方法召回、上传 TXT 后英文/中文查询命中 TWh 摘录、移除后不再命中、两页 PDF 命中第 2 页 `terawatt`；并断言未发起任何 `/api/ai/*` 请求、无页面错误。
 - 限制：词法匹配无法理解同义改写；不做 OCR；资料不保证正确，仅供口径提示；引用编号只表示“模型声称使用了该段”，仍需人工核对。
-- 文档：README 能力表与限制、`docs/使用指南.md` §2、交接文档 7.10 已同步。下一步候选：DuckDB-WASM 评估（P2）、向量语义检索、或按比赛评分补交付材料。
+- 文档：README 能力表与限制、`docs/使用指南.md` §2、交接文档 7.10 已同步。
+- 推送与公网：`d7243bf` 首次推送成功；公网资源 `index-AD4hz1m0.js` / `index-C99pDy2-.css` 与本地 `dist` 一致；`verify:public` 7/7；公网 `reference-retrieval-check.py` 首次 `page.goto` 超时，重试后 5 项 PASS。`aiConfigured:false` 未变，检索功能不依赖模型。
+- 下一步候选：DuckDB-WASM 评估（P2）、向量语义检索、或按比赛评分补交付材料。
