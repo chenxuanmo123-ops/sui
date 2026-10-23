@@ -931,4 +931,5 @@ render.yaml 现提供默认模型三项环境变量的云平台输入占位，�
 - 测试：`tests/sql-console.test.ts` 7 项通过；核心合计 117 项。真实 OWID 数据浏览器脚本 8 项 PASS（默认 8 行、聚合 15738.01 / 205.01、结果图由真实返回值绘制、拒绝写与多语句、纯文本不生成数值图、JOIN 示例 8 行、`readable`×`extra_readable` 得到 China/Asia/8、移除后 `no such table`）；`npm run build` 通过。
 - 限制：SQLite 方言；`data` 上不存在的双引号列名会被 DQS 当作字符串字面量，示例优先 `readable`；JOIN 行号需人工核对，控制台不判断连接口径业务上是否合理。
 - 浏览器脚本的 `page.goto` 从 `networkidle` 改为 `load`：本机到 Pages 的连接多次出现超时与空闲等待卡住，`load` + 元素自动等待更稳定；本地与公网均复跑通过，不是放宽断言。
-- 推送与公网：`fb7450f` 首次推送成功；公网 `index-D9IvAP52.js` / `index-BBCD495j.css` 与本地 `dist` 一致，Worker 与 wasm 均 200；`verify:public` 重试后 7/7；公网复跑 SQL 控制台 6 项 PASS。`aiConfigured:false` 未变。
+- 真实规模：26 MB Airbnb 快照导入 3.2 s，房型分组 16 ms，20 个街区到绘图约 0.2 s；图表直接使用查询返回值。数量级与耗时记录在交接文档 7.9，原始 CSV 不入库。
+- 推送与公网：`fb7450f`、`a6e083f` 已推送；公网 `index-DH3emS_g.js` / `index-ewPqkYZp.css` 与本地 `dist` 一致；`verify:public` 7/7；公网复跑 SQL 控制台 8 项 PASS，本机生产服务 33 项通过。`aiConfigured:false` 未变。
