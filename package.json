@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "start": "node server/serve.mjs",
     "test:ai": "node --test tests/*.test.mjs",
-    "test:core": "vitest run tests/core-analysis.test.ts tests/ai-execution.test.ts tests/engine-cancellation.test.ts tests/quality-diagnostics.test.ts tests/rate-analysis.test.ts tests/provenance.test.ts tests/follow-up.test.ts tests/workspace.test.ts tests/chart-model.test.ts",
+    "test:core": "vitest run tests/core-analysis.test.ts tests/ai-execution.test.ts tests/engine-cancellation.test.ts tests/quality-diagnostics.test.ts tests/rate-analysis.test.ts tests/provenance.test.ts tests/follow-up.test.ts tests/workspace.test.ts tests/chart-model.test.ts tests/result-rows.test.ts",
     "test:evaluation": "vitest run tests/evaluation",
     "evaluate:plan": "node tests/evaluation/evaluate-plan-cli.mjs",
     "evaluate:model": "node tests/evaluation/capture-model-cli.mjs",

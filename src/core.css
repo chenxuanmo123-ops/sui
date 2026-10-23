@@ -65,3 +65,21 @@
 @media(max-width:480px){.result-data-details>summary span{display:block;margin:6px 0 0 14px}.result-detail .selected-group-actions{grid-template-columns:1fr}}
 
 .viz-dialog{width:min(1060px,94vw);max-width:94vw;max-height:90vh;margin:auto;padding:24px 30px;border:1px solid #dce5ef;border-radius:12px;color:#172d4e;background:white;box-shadow:0 20px 80px #172d4e26;overflow:auto}.viz-dialog::backdrop{background:#15253f66;backdrop-filter:blur(3px)}.viz-dialog>header{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;border-bottom:1px solid #e6edf5;padding-bottom:12px}.viz-dialog h3{margin:0;font-size:18px}.viz-dialog p{font-size:12px;line-height:1.7;color:#63758c}.viz-dialog .data-chart{max-height:62vh}.viz-dialog .viz-toolbar{margin-top:12px}@media(max-width:650px){.viz-dialog{padding:16px;width:94vw}.viz-dialog h3{font-size:15px}}
+
+.result-table-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;color:#52627a}
+.result-table-controls>label{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.result-table-controls select{min-height:30px;padding:4px 8px;border:1px solid #cfd9e6;border-radius:6px;background:#fff;color:#294468;font:inherit}
+.result-table-search{display:flex;align-items:center;gap:6px;padding:4px 9px;border:1px solid #cfd9e6;border-radius:6px;background:#fff;color:#63758c}
+.result-table-search:focus-within{border-color:#2563eb;box-shadow:0 0 0 2px #2563eb1f}
+.result-table-search input{width:140px;min-width:0;border:0;outline:0;background:transparent;color:#172d4e;font:inherit}
+.result-table-controls>span{margin-left:auto;color:#63758c;white-space:nowrap}
+.bundle-table-wrap>.result-table-controls{padding:0 0 10px}
+.result-table-empty{padding:18px 12px!important;text-align:center!important;color:#63758c!important;white-space:normal!important}
+.chart-bottom-actions{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+
+.app-error{max-width:680px;margin:10vh auto;padding:32px 36px;text-align:left;background:#fff;border:1px solid #dce5ef;border-radius:12px}
+.app-error h1{font-size:24px;margin:0 0 12px;color:#172d4e}
+.app-error>p{line-height:1.8;color:#52627a}
+.app-error details{margin:14px 0 20px;color:#52627a;font-size:13px}
+.app-error details p{overflow-wrap:anywhere;background:#f4f7fb;padding:10px 12px;border-radius:6px}
+.app-error .primary{margin-top:4px}

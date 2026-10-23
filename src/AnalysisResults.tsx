@@ -1,18 +1,35 @@
-import { useState } from 'react'
-import { ArrowUpRight, CornerDownRight, MousePointer2, X } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { ArrowUpRight, CornerDownRight, MousePointer2, Search, X } from 'lucide-react'
 import DataChart from './DataChart'
 import { analysisReference } from './chart-model'
 import { rateBaseline } from './follow-up'
 import { download, formatNumber } from './data'
+import { queryResultRows, sortResultRows } from './result-rows'
+import type { ResultSort } from './result-rows'
 import type { Analysis, AnalysisScope, Dataset } from './data'
 import type { Fact, PlanResponse, Review, PlanExecution } from './ai'
 export type AnalysisBundle = { id?: string; response: PlanResponse; results: Analysis[]; facts: Fact[]; review: Review | null; failures: PlanExecution['failures'] }
 export function ScopeSummary({ scope, onParent }: {scope: AnalysisScope; onParent?: (id:number)=>void}) {
  return <aside className="scope-summary" aria-label="本次追问范围"><span className="scope-eyebrow">分组追问 · 范围已锁定</span><div><strong>{scope.label}</strong><span>{scope.rowIds.length.toLocaleString()} 条匹配记录</span></div><p>来源：分析 #{scope.parentAnalysisId} · {scope.parentTitle}</p><p>原分组结果：{formatNumber(scope.baseline.value,4)}{scope.baseline.unit}{scope.baseline.counts ? '（分子 '+scope.baseline.counts.numerator+' / 分母 '+scope.baseline.counts.denominator+'；排除 '+scope.baseline.counts.excluded+'）' : ' · '+scope.baseline.metric}。以下各项均在该分组范围内计算，进一步筛选可能减少记录。</p>{onParent && <button className="text-button" onClick={()=>onParent(scope.parentAnalysisId)}>返回来源分析对照 <ArrowUpRight size={14}/></button>}</aside>
 }
-export function ResultTable({ result, onEvidence, onSelect, selected }: {result:Analysis; onEvidence?:(id:number,label?:string)=>void; onSelect?:(label:string)=>void; selected?:string}) {
+export function ResultTable({ result, onEvidence, onSelect, selected, controls = true }: {result:Analysis; onEvidence?:(id:number,label?:string)=>void; onSelect?:(label:string)=>void; selected?:string; controls?:boolean}) {
  const baseline=rateBaseline(result)
- return <div className="bundle-table"><table><thead><tr><th>分组</th><th>结果{result.mapping.unit && '（'+result.mapping.unit+'）'}</th>{result.mapping.rate && <><th>分子</th><th>分母</th><th>排除</th></>}{baseline!==undefined&&<th>较来源分组<small>（百分点）</small></th>}<th>来源</th></tr></thead><tbody>{result.points.map(p=><tr key={p.label} className={selected===p.label?'is-selected':''}><td>{onSelect?<button className="group-select" aria-pressed={selected===p.label} onClick={()=>onSelect(p.label)}>{p.label}</button>:p.label}</td><td>{formatNumber(p.value,4)}</td>{p.rate && <><td>{p.rate.numerator}</td><td>{p.rate.denominator}</td><td>{p.rate.excluded}</td></>}{baseline!==undefined&&<td className={p.value>=baseline?'delta-positive':'delta-negative'}>{p.value>baseline?'+':''}{formatNumber(p.value-baseline,2)}</td>}<td>{onEvidence?<button className="text-button" onClick={()=>onEvidence(result.id,p.label)}>{p.rowIds.length} 条记录</button>:p.rowIds.length+' 条记录'}</td></tr>)}{result.unavailableGroups?.map(p=><tr key={p.label}><td>{p.label}</td><td>无法计算</td><td>0</td><td>0</td><td>{p.excluded}</td>{baseline!==undefined&&<td>无法计算</td>}<td>分母为零</td></tr>)}</tbody></table></div>
+ const [query,setQuery]=useState('')
+ const [sort,setSort]=useState<ResultSort>('original')
+ // Filtering and sorting only change which calculated groups are shown, never their values.
+ const rows=useMemo(()=>sortResultRows(queryResultRows(result.points,query),sort),[result.points,query,sort])
+ const unavailable=useMemo(()=>queryResultRows(result.unavailableGroups??[],query),[result.unavailableGroups,query])
+ const total=result.points.length+(result.unavailableGroups?.length??0)
+ const shown=rows.length+unavailable.length
+ const columnCount=3+(result.mapping.rate?3:0)+(baseline!==undefined?1:0)
+ return <div className="bundle-table-wrap">
+  {controls && <div className="result-table-controls">
+   <label className="result-table-search"><Search size={14}/><span className="sr-only">搜索分组</span><input aria-label="搜索分组" value={query} onChange={e=>setQuery(e.target.value)} placeholder="搜索分组" /></label>
+   <label>排序<select aria-label="结果排序" value={sort} onChange={e=>setSort(e.target.value as ResultSort)}><option value="original">计算顺序</option><option value="desc">数值从高到低</option><option value="asc">数值从低到高</option><option value="label">分组名排序</option></select></label>
+   <span>{query.trim()?`显示 ${shown} / ${total} 个分组`:`共 ${total} 个分组`}</span>
+  </div>}
+  <div className="bundle-table"><table><thead><tr><th>分组</th><th>结果{result.mapping.unit && '（'+result.mapping.unit+'）'}</th>{result.mapping.rate && <><th>分子</th><th>分母</th><th>排除</th></>}{baseline!==undefined&&<th>较来源分组<small>（百分点）</small></th>}<th>来源</th></tr></thead><tbody>{rows.map(p=><tr key={p.label} className={selected===p.label?'is-selected':''}><td>{onSelect?<button className="group-select" aria-pressed={selected===p.label} onClick={()=>onSelect(p.label)}>{p.label}</button>:p.label}</td><td>{formatNumber(p.value,4)}</td>{p.rate && <><td>{p.rate.numerator}</td><td>{p.rate.denominator}</td><td>{p.rate.excluded}</td></>}{baseline!==undefined&&<td className={p.value>=baseline?'delta-positive':'delta-negative'}>{p.value>baseline?'+':''}{formatNumber(p.value-baseline,2)}</td>}<td>{onEvidence?<button className="text-button" onClick={()=>onEvidence(result.id,p.label)}>{p.rowIds.length} 条记录</button>:p.rowIds.length+' 条记录'}</td></tr>)}{unavailable.map(p=><tr key={'unavailable-'+p.label}><td>{p.label}</td><td>无法计算</td>{result.mapping.rate&&<><td>0</td><td>0</td><td>{p.excluded}</td></>}{baseline!==undefined&&<td>无法计算</td>}<td>分母为零</td></tr>)}{shown===0&&<tr><td colSpan={columnCount} className="result-table-empty">没有匹配的分组，请换一个关键词。</td></tr>}</tbody></table></div>
+ </div>
 }
 export function AnalysisResults({ bundle, dataset, onEvidence, onFollowUp, onParent }: {bundle:AnalysisBundle;dataset:Dataset;onEvidence:(id:number,label?:string)=>void;onFollowUp?:(result:Analysis,label:string)=>void;onParent?:(id:number)=>void}) {
  const [focused,setFocused]=useState(bundle.results[0]?.id)
