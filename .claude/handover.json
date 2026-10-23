@@ -1,0 +1,6 @@
+{
+  "intervalHours": 12,
+  "docPath": "docs/项目进度与交接说明.md",
+  "minNudgeMinutes": 30,
+  "headChangeMinMinutes": 30
+}

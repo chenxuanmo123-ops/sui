@@ -1,5 +1,7 @@
 # 数鉴 Agent｜项目长期上下文
 
+> 2026-10-23 接手提示：请优先阅读 [项目进度与交接说明](项目进度与交接说明.md)。新文档汇总了本文件历史、最新未提交改动及 Cloudflare 部署状态；本文件部分旧结论已被替代。
+
 > **用途**：这是数鉴 Agent 项目的持续开发上下文，不是新的 PRD，也不是宣传材料。后续开发、评审、修复和答辩准备前，先读取本文，再读取与当前任务直接相关的代码和测试。
 >
 > **更新时间**：2026-10-20
@@ -852,4 +854,26 @@ Render/Docker 配置不代表已经公网上线。实际云账号尚未连接，
 
 用户明确要求公网产品，反对把源码下载等同于上线。主 README 已重写为产品介绍、真实界面截图、功能、部署入口及简短开发说明；历史 PRD、调研与阶段验收共 20 份移入 docs/archive/，长期上下文本文件保持原路径。新增 docs/使用指南.md 和 docs/README.md；产品截图取自当前实际工作台，UCI 结果图为真实数据手动计算，不能称为真实 AI 输出。
 
-render.yaml 现提供默认模型三项环境变量的云平台输入占位，值需负责人在部署平台填写。公网服务尚未创建，不能将 Deploy 按钮或源码仓库称为在线演示地址。浏览器 Tabbit 注册失效、Pencil 未连接；当前没有可操作的云平台登录会话，需账号接入才能继续创建服务。后续以实际工具核验的推送及部署结果为准。
+render.yaml 现提供默认模型三项环境变量的云平台输入占位，值需负责人在部署平台填写。公网服务尚未创建（后续更新：2026-10-23 已部署 Cloudflare Pages 静态前端，见文末；同源 AI 后端仍未部署），不能将 Deploy 按钮或源码仓库称为在线演示地址。浏览器 Tabbit 注册失效、Pencil 未连接；当前没有可操作的云平台登录会话，需账号接入才能继续创建服务。后续以实际工具核验的推送及部署结果为准。
+
+
+## 2026-10-23：计算取消/续算与本地质量诊断（工作区未提交）
+
+- `src/engine.ts` 支持 `AbortSignal`：取消排队请求不会终止前一个任务的 Worker；运行中取消会 terminate Worker；30 秒超时仍终止独立线程。
+- `src/ai.ts` 的 `executePlan` 增加 `ExecutionOptions`（signal、onProgress），返回 `cancelled` 与 `pendingTaskIds`；逐任务上报 running/completed/failed/cancelled。
+- `AiWorkbench` 增加执行进度、停止计算、停止后仅继续未完成任务的入口；执行期间锁定输入与授权；取消后不请求 AI 解读，已完成结果保留。
+- 新增 `src/QualityInspector.tsx` 与 `src/preparation.ts` 的 `numericDistribution` / `qualityRecords`：数值区间频数、缺失、非数值、首尾空白、IQR 异常候选、整行重复候选，25 条分页；全部本地计算，不推断业务含义，不自动删除。已接入 `PreparationView`。
+- 对外错误文案改为公网部署语境：AI 接口不可用时，本地数据处理、统计和图表仍可用。
+- 新增测试 `tests/engine-cancellation.test.ts`、`tests/quality-diagnostics.test.ts` 和浏览器脚本 `tests/ai-cancellation-browser.py`、`tests/quality-diagnostics-browser.py`。
+- 本轮实际运行：`test:core` 90 项、`test:ai` 22 项、`test:evaluation` 14 项、`test:production` 33 项通过；`npm run build` 通过，>500 kB 分包警告仍在。生产冒烟使用临时配置与端口 0，未调用模型接口。
+- 在隔离模型配置（`SHUJIAN_CONFIG_PATH` 指向临时文件、未读取本机凭据）的 5174 开发服务上，`tests/quality-diagnostics-browser.py` 6 项通过（真实 UCI 12330 行分箱、IQR 异常与重复候选独立核算、文本字段不伪造分布、三种宽度无横向溢出、全程未调用模型）；`tests/ai-cancellation-browser.py` 4 项通过（真实终止 Worker、保留已完成结果、仅续算未完成任务、真实 SEC 现金值与三种宽度）。两项脚本均使用明确测试替身或本地计算，不构成模型质量评价。
+- 修正了 `tests/ai-cancellation-browser.py` 末段重复点击“打开 AI 分析助手”的测试缺陷：助手在结果跳转后仍保持打开，改为仅在确实关闭时再打开；修正后复跑通过。
+- 以上改动尚未提交；`main` 与 `origin/main` 仍同步在 `88d87cb`。部署前需先提交/推送，并重新执行生产与公网验收。新增项目级 `CLAUDE.md` 记录不可回退原则、命令和当前状态。
+
+## 2026-10-23：Cloudflare Pages 静态部署与自动交接
+
+- 用户改用 Cloudflare Pages，公网地址为 `https://sui-ae9.pages.dev/`。
+- 实测 `GET /` 返回 200 与 SPA HTML；`HEAD /` 一次 20 秒超时（未重复验证）。`/api/health` 与 `/api/ai/status` 均返回 SPA 的 `index.html`（HTTP 200），不是 JSON。结论：当前是纯静态部署，没有同源 Node 服务；AI 计划/解读接口不可用，浏览器内文件解析、SQLite 计算和图表不依赖该后端。
+- 公网资源为 `index-BvXkAbXt.js` / `index-B5HCU_he.css`，与本地 `dist` 的 `index-DFhTVNJn.js` / `index-CuruAucx.css` 不同；公网产物不是当前工作区构建，需在 Cloudflare 控制台核对 Git 提交与构建配置。未做公网完整浏览器验收。
+- 新增自动交接机制：目标文档为 `docs/项目进度与交接说明.md`；`.claude/settings.json` 配置 `SessionStart`、`UserPromptSubmit`、`PreCompact`、`SessionEnd` hooks；`handover-context.mjs` 检查 12 小时或 HEAD 变化并注入更新指令；`handover-snapshot.mjs` 写仓库事实快照；`/handover` 手动更新；运行态 state 与 snapshots 已加入 `.gitignore`。
+- 自动检查只读 git 与文件时间，不调用模型、不读取密钥；真正的交接更新由当前会话完成。测试与部署结论仍以实际命令和证据为准。

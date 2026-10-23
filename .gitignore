@@ -14,6 +14,10 @@ __pycache__/
 
 .local/
 
+# 自动交接机制的运行态文件：配置、脚本和交接文档本身要入库，状态与快照不入库。
+.claude/handover-state.json
+.claude/handover/snapshots/
+
 .vercel/
 .render/
 *.pem

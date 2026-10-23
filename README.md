@@ -29,11 +29,13 @@
 
 ## 在线部署
 
-**当前状态：源码已公开，公网服务尚未创建。** 网站部署后会在此提供实际访问地址。
+**当前状态：静态前端已部署到 Cloudflare Pages：<https://sui-ae9.pages.dev/>。**
+
+该地址可打开页面、导入文件并使用浏览器内计算；但当前部署没有同源 Node AI 接口，`/api/ai/status` 返回 SPA 的 HTML 而不是 JSON，AI 计划与解读不可用。因此它是前端预览，**不是完整的在线服务**，不能作为“AI 已上线”的证据。
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/chenxuanmo123-ops/sui)
 
-该按钮用于在自己的 Render 账号创建完整 Web 服务，包含网页与 Node AI 接口。默认模型通过云平台环境变量配置，评委无需在本机安装项目。配置与上线核对见[部署指南](docs/部署与交付.md)。
+如需网页与 Node AI 接口一起运行，可用上方 Render 按钮创建完整 Web 服务；默认模型通过云平台环境变量配置，费用与额度由部署者承担。Cloudflare Pages 上的同源 AI 接口方案尚未实现。配置与上线核对见[部署指南](docs/部署与交付.md)。
 
 ## 本地开发
 
