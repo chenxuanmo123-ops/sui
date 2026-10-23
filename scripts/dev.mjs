@@ -1,8 +1,9 @@
 import { createServer } from 'vite';
 import { createAiHandler } from '../server/ai.mjs';
+import { createProfileStore } from '../server/profile-store.mjs';
 import { loadProviders } from '../server/config.mjs';
 const providers = loadProviders();
-const handler = createAiHandler(providers);
+const handler = createAiHandler(providers, { store: createProfileStore() });
 const server = await createServer({ server: { host: process.env.HOST || '127.0.0.1', port: Number(process.env.PORT || 5173) }, plugins: [{ name: 'shujian-ai-api', configureServer(vite) { vite.middlewares.use((req, res, next) => { if (req.url?.startsWith('/api/ai/')) void handler(req, res); else next(); }); } }] });
 await server.listen();
 server.printUrls();

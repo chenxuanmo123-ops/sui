@@ -77,10 +77,13 @@ with sync_playwright() as p:
     checked('交给 review 的事实只包含成功任务，标题、分析 ID 和期间正确')
     page.screenshot(path=str(root / 'artifacts/ai-partial-execution.png'), full_page=True)
     page.locator('.ai-result-links button').click()
+    # 结果链接当前会把工作台切到“证据与报告”，图表在“分析与图表”分区中核对。
+    page.get_by_role('button', name='分析与图表', exact=True).click()
     expect(page.get_by_role('button', name='柱状', exact=True)).to_have_attribute('aria-pressed', 'true')
     expect(page.locator('#analysis-svg')).to_contain_text('FY2022')
     expect(page.locator('.data-panel')).to_contain_text('23,646,000,000')
     expect(page.locator('.data-panel')).to_contain_text('29,965,000,000')
+    page.get_by_role('button', name='证据与报告', exact=True).click()
     expect(page.locator('#evidence')).to_contain_text('cash_and_cash_equivalents')
     checked('主图表跟随成功任务的柱状设置，SQL 参数和真实数值正确')
     page.get_by_role('button', name='来源记录', exact=True).click()
@@ -93,7 +96,10 @@ with sync_playwright() as p:
         page.set_viewport_size({'width': width, 'height': 1100})
         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), width
     checked('移动与桌面宽度无横向溢出')
-    page.get_by_role('button', name='打开 AI 分析助手', exact=True).click()
+    # 执行后助手可能保持打开（可查看进度/恢复），只在关闭时才需要重新打开。
+    open_assistant = page.get_by_role('button', name='打开 AI 分析助手', exact=True)
+    if open_assistant.count():
+        open_assistant.click()
     page.get_by_role('button', name='让 AI 修正失败任务', exact=True).click()
     expect(page.locator('.ai-repair-changes')).to_contain_text('revenues')
     expect(page.locator('.ai-repair-changes')).to_contain_text('revenue')

@@ -22,7 +22,7 @@ with sync_playwright() as p:
   page.set_viewport_size({'width':width,'height':950});assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
  page.screenshot(path=str(root/'artifacts/new-workspace-1440.png'),full_page=True)
  passed('新空工作台提供 Excel / PDF / CSV 入口，四种宽度无页面横向溢出')
- page.get_by_role('button',name='Excel 工作簿',exact=False).click()
+ page.locator('.format-options button').filter(has_text='Excel').click()
  # Clicked input itself is verified through filechooser interception below, avoid platform dialogs in headless.
  page.locator('#file-upload').set_input_files(str(root/'artifacts/owid-real-subset.xlsx'))
  expect(page.locator('#import-sheet')).to_be_visible();expect(page.locator('.import-progress')).to_have_count(0)
@@ -42,12 +42,14 @@ with sync_playwright() as p:
  page.locator('#confirm-import').check();page.get_by_role('button',name='确认导入并分析',exact=True).click();expect(page.locator('.import-dialog')).to_have_count(0)
  assert 'Energy' in page.locator('.dataset-name strong').inner_text();assert page.locator('#analysis-svg').count()==0
  passed('确认后真实安装 Excel 数据，仍等待分析目标与口径，不擅自生成业务结论')
- page.get_by_role('button',name='开始 AI 分析',exact=True).click();expect(page.locator('.assistant-window')).to_be_visible();page.locator('.assistant-window-actions button').last.click()
- passed('开始 AI 分析按钮确实打开窗口助手，收起保留工作台')
+ page.get_by_role('button',name='与 AI 一起分析',exact=True).click();expect(page.locator('.assistant-window')).to_be_visible();page.locator('.assistant-window-actions button').last.click()
+ passed('与 AI 一起分析按钮确实打开窗口助手，收起保留工作台')
  def calculate():
-  if not page.locator('.manual-mapping').evaluate('el=>el.open'):page.locator('.manual-mapping > summary').click()
+  manual = page.locator('.manual-mapping')
+  if not manual.is_visible(): page.get_by_role('button', name='手动选择字段与计算', exact=False).click()
+  if not manual.evaluate('el=>el.open'): page.locator('.manual-mapping > summary').click()
   page.get_by_label('分组 / 时间字段',exact=True).select_option('year');page.get_by_label('数值指标',exact=True).select_option('renewables_electricity');page.get_by_label('指标单位',exact=True).fill('TWh')
-  page.get_by_role('button',name='按确认口径分析',exact=True).click();page.get_by_role('button',name='计算结果',exact=True).click()
+  page.get_by_role('button',name='按确认口径分析',exact=True).click();page.get_by_role('button',name='数据预览',exact=True).click();page.get_by_role('button',name='计算结果',exact=True).click()
   expect(page.locator('.data-panel tbody tr')).to_have_count(8)
   for tr in page.locator('.data-panel tbody tr').all():
    text=tr.locator('td').all_text_contents();assert abs(float(text[1].replace(',',''))-expected[text[0]])<0.011,(text,expected)
@@ -68,6 +70,7 @@ with sync_playwright() as p:
  page.get_by_role('button',name='查看 PDF 原始页',exact=True).click();expect(page.locator('.page-overlay')).to_be_visible();page.get_by_role('button',name='关闭原页',exact=True).click()
  passed('导入来源记录原文件哈希与解析方式，可重新打开 PDF 来源原页')
  page.get_by_role('button',name='分析工作台',exact=True).click()
+ page.get_by_role('button',name='证据与报告',exact=True).click()
  with page.expect_download() as d:page.get_by_role('button',name='导出证据报告',exact=True).click()
  report=Path(d.value.path()).read_text(encoding='utf-8');assert 'data:image/jpeg;base64' in report;assert 'PDF' in report
  passed('单文件 HTML 报告含 PDF 原页及解析来源')
