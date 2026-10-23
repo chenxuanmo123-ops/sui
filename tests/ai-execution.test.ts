@@ -141,6 +141,41 @@ describe('计划任务隔离与证据绑定（真实 SEC 数据和 SQLite，非�
   })
 })
 
+describe('任务进度与中止恢复（真实 SEC 数据）', () => {
+ it('每个任务报告独立运行及结束状态，失败不阻塞下一任务', async () => {
+  const progress: string[] = []
+  await executePlan(dataset, response(), '', 10, { onProgress: event => progress.push(event.taskId + ':' + event.status) })
+  expect(progress).toEqual(['revenue:running', 'revenue:failed', 'cash:running', 'cash:completed'])
+ })
+ it('开始前中止不启动计算、不生成空结果或失败结论', async () => {
+  const controller = new AbortController(); controller.abort()
+  const execution = await executePlan(dataset, response(), '', 10, { signal: controller.signal })
+  expect(execution).toEqual({ results: [], failures: [], cancelled: true, pendingTaskIds: ['revenue', 'cash'] })
+  expect(worker.aggregateDataset).not.toHaveBeenCalled()
+ })
+ it('完成现金后停止仅保留真实现金证据，继续时不重算成功任务', async () => {
+  const original = response([task('cash', '期末现金', 'cash_and_cash_equivalents'), task('revenue', '年度收入', 'revenue')])
+  const controller = new AbortController()
+  const first = await executePlan(dataset, original, '', 10, { signal: controller.signal, onProgress: event => { if (event.status === 'completed') controller.abort() } })
+  expect(first.cancelled).toBe(true); expect(first.pendingTaskIds).toEqual(['revenue']); expect(first.failures).toEqual([])
+  expect(first.results[0].points.map(point => point.value)).toEqual([23646000000, 29965000000])
+  expect(first.results[0].points.flatMap(point => point.rowIds)).toEqual([4, 5])
+  const next = await executePlan(dataset, { ...original, plan: { ...original.plan, tasks: [original.plan.tasks[1]] } }, '', 11)
+  const combined = mergeExecution(first.results, next, original)
+  expect(worker.aggregateDataset).toHaveBeenCalledTimes(2)
+  expect(combined.map(result => [result.id, result.ai?.taskId])).toEqual([[10, 'cash'], [11, 'revenue']])
+  expect(evidenceFacts(original.plan, combined).some(fact => fact.taskId === 'revenue')).toBe(true)
+ })
+ it('正在执行的任务收到中止信号时，不把中止当作计算失败', async () => {
+  const controller = new AbortController()
+  worker.aggregateDataset.mockImplementationOnce((_d, _m, _q, _id, _scope, signal: AbortSignal) => new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(new DOMException('stop', 'AbortError')), { once: true })))
+  const running = executePlan(dataset, response(), '', 10, { signal: controller.signal })
+  controller.abort()
+  const stopped = await running
+  expect(stopped.results).toEqual([]); expect(stopped.failures).toEqual([]); expect(stopped.pendingTaskIds).toEqual(['revenue', 'cash'])
+  expect(worker.aggregateDataset).toHaveBeenCalledTimes(1)
+ })
+})
 describe('类别字典授权与失败修正（真实 SEC 数据）', () => {
   it('默认不传样本或类别值；类别字典可单独授权且保留精确原值', () => {
     const plain = datasetContext(dataset, false)

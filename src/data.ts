@@ -104,8 +104,8 @@ export function bucketLabel(raw: string, bucket: Mapping['timeBucket']): string 
   if (month < 1 || month > 12 || day < 1 || day > new Date(Date.UTC(year, month, 0)).getUTCDate()) throw new Error('日期字段包含无效日期，未进行静默转换。');
   return bucket === 'year' ? m[1] : m[1] + '-' + String(month).padStart(2, '0');
 }
-export async function analyze(dataset: Dataset, mapping: Mapping, question: string, id: number, scope?: AnalysisScope): Promise<Analysis> {
-  return aggregateDataset(dataset, mapping, question, id, scope)
+export async function analyze(dataset: Dataset, mapping: Mapping, question: string, id: number, scope?: AnalysisScope, signal?: AbortSignal): Promise<Analysis> {
+  return aggregateDataset(dataset, mapping, question, id, scope, signal)
 }
 export const aggregateNames = { sum: '求和', average: '均值', count: '记录数', distinct: '非空去重数', min: '最小值', max: '最大值' } as const
 

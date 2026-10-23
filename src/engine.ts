@@ -1,21 +1,59 @@
 import type { Analysis, AnalysisScope, Dataset, Mapping } from './data'
 import type { ExploreResult, ExploreSpec, ComparisonSpec, ComparisonResult } from './analytics'
-let worker: Worker | undefined, sequence=0
-let queue: Promise<unknown> = Promise.resolve()
-function request<T>(payload: object): Promise<T> {
- const work = queue.catch(()=>{}).then(()=>new Promise<T>((resolve,reject)=>{
-  worker ??= new Worker(new URL('./engine.worker.ts',import.meta.url),{type:'module'})
-  const current=worker,id=++sequence
-  const cleanup=()=>{clearTimeout(timer);current.removeEventListener('message',message);current.removeEventListener('error',error)}
-  const fail=(reason:string)=>{cleanup();current.terminate();if(worker===current)worker=undefined;reject(new Error(reason))}
-  const message=(e:MessageEvent)=>{if(e.data.id!==id)return;cleanup();if(e.data.error)reject(new Error(e.data.error));else resolve(e.data.result as T)}
-  const error=()=>fail('SQL 引擎启动失败，请刷新后重试。')
-  const timer=setTimeout(()=>fail('SQL 查询超过 30 秒，已终止独立计算线程；请缩小数据范围。'),30000)
-  current.addEventListener('message',message);current.addEventListener('error',error);current.postMessage({...payload,id})
- }))
- queue=work;return work
-}
-export const aggregateDataset=(dataset:Dataset,mapping:Mapping,question:string,analysisId:number,scope?:AnalysisScope)=>request<Analysis>({type:'aggregate',dataset,mapping,question,analysisId,scope})
-export const exploreDataset=(dataset:Dataset,spec:ExploreSpec)=>request<ExploreResult>({type:'explore',dataset,spec})
 
-export const compareDataset=(dataset:Dataset,spec:ComparisonSpec)=>request<ComparisonResult>({type:"compare",dataset,spec})
+let worker: Worker | undefined, sequence = 0
+let queue: Promise<unknown> = Promise.resolve()
+
+function request<T>(payload: object, signal?: AbortSignal): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    let current: Worker | undefined, timer: ReturnType<typeof setTimeout> | undefined
+    let release: (() => void) | undefined, settled = false
+    const id = ++sequence
+    const finish = (error?: Error, result?: T, terminate = false) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      signal?.removeEventListener('abort', abort)
+      current?.removeEventListener('message', message)
+      current?.removeEventListener('error', failed)
+      if (terminate && current) {
+        current.terminate()
+        if (worker === current) worker = undefined
+      }
+      release?.()
+      if (error) reject(error)
+      else resolve(result as T)
+    }
+    const abort = () => finish(new DOMException('计算已停止。', 'AbortError'), undefined, true)
+    const message = (event: MessageEvent) => {
+      if (event.data.id !== id) return
+      finish(event.data.error ? new Error(event.data.error) : undefined, event.data.result as T)
+    }
+    const failed = () => finish(new Error('SQL 引擎启动失败，请重试。'), undefined, true)
+    signal?.addEventListener('abort', abort, { once: true })
+    if (signal?.aborted) { abort(); return }
+
+    // Cancelling a queued request must not terminate the preceding request's worker.
+    const work = queue.catch(() => {}).then(() => {
+      if (settled) return
+      return new Promise<void>(done => {
+        release = done
+        try {
+          worker ??= new Worker(new URL('./engine.worker.ts', import.meta.url), { type: 'module' })
+          current = worker
+          current.addEventListener('message', message)
+          current.addEventListener('error', failed)
+          timer = setTimeout(() => finish(new Error('SQL 查询超过 30 秒，已终止独立计算线程；请缩小数据范围。'), undefined, true), 30000)
+          current.postMessage({ ...payload, id })
+        } catch (error) {
+          finish(error instanceof Error ? error : new Error('SQL 引擎请求失败。'), undefined, true)
+        }
+      })
+    })
+    queue = work
+  })
+}
+
+export const aggregateDataset = (dataset: Dataset, mapping: Mapping, question: string, analysisId: number, scope?: AnalysisScope, signal?: AbortSignal) => request<Analysis>({ type: 'aggregate', dataset, mapping, question, analysisId, scope }, signal)
+export const exploreDataset = (dataset: Dataset, spec: ExploreSpec, signal?: AbortSignal) => request<ExploreResult>({ type: 'explore', dataset, spec }, signal)
+export const compareDataset = (dataset: Dataset, spec: ComparisonSpec, signal?: AbortSignal) => request<ComparisonResult>({ type: 'compare', dataset, spec }, signal)

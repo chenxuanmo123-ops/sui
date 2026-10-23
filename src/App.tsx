@@ -27,7 +27,7 @@ import WorkspaceWelcome from './WorkspaceWelcome'
 import ModelManager from './ModelManager'
 import { useModelProfiles } from './models'
 import { executePlan } from './ai'
-import type { PlanExecution } from './ai'
+import type { ExecutionOptions, PlanExecution } from './ai'
 import type { PlanResponse } from './ai'
 import { aggregateNames, analyze, defaultMapping, download, escapeHTML, fingerprint, formatNumber, initialQuestion, parseCSV, parsePublicQuestion, profileDataset, PUBLIC_DATA_URL, PUBLIC_SOURCE_URL } from './data'
 import type { Analysis, Dataset, Mapping } from './data'
@@ -214,25 +214,25 @@ export default function App() {
     setError(''); setNotice(`分析 #${result.id} 完成：${result.usedRows} 条有效来源记录，${result.points.length} 个分组。`); setView('workspace')
     return result
   }
-  async function executeAi(response: PlanResponse, goal: string): Promise<PlanExecution> {
+  async function executeAi(response: PlanResponse, goal: string, options?: ExecutionOptions): Promise<PlanExecution> {
     if (!dataset || loading || computeLock.current) throw new Error('请等待有效数据和当前计算。')
     computeLock.current = true; setComputing(true); const snapshot = dataset
     let execution: PlanExecution
-    try { execution = await executePlan(dataset, response, goal, (history.at(-1)?.id ?? 0) + 1) } finally { computeLock.current = false; setComputing(false) }
+    try { execution = await executePlan(dataset, response, goal, (history.at(-1)?.id ?? 0) + 1, options) } finally { computeLock.current = false; setComputing(false) }
     if (datasetRef.current !== snapshot) throw new Error('数据已变化，旧计划计算结果已丢弃。')
     const results = execution.results
     const first = results[0]
-    if (!first) { setNotice('本轮任务未得到可计算结果，请在 AI 助手中查看错误并修正计划。'); return execution }
+    if (!first) { setNotice(execution.cancelled ? '计算已停止，未完成的任务没有生成结果。可在 AI 助手中继续。' : '本轮任务未得到可计算结果，请在 AI 助手中查看错误并修正计划。'); return execution }
     setHistory(h => [...h, ...results]); setActiveId(first.id); setMapping(first.mapping); setQuestion(goal)
     setChartKind(response.plan.tasks.find(task => task.id === first.ai?.taskId)?.chart ?? 'bar'); setSelectedPoint(''); setDataTab('result'); setError('')
-    setNotice('已完成 ' + results.length + ' 个 AI 计划任务的真实计算。' + (execution.failures.length ? execution.failures.length + ' 个任务失败，详情见 AI 助手。' : '') + '点击任务查看相应图表与来源。')
+    setNotice((execution.cancelled ? '计算已停止，保留 ' : '已完成 ') + results.length + ' 个 AI 计划任务的真实计算。' + (execution.failures.length ? execution.failures.length + ' 个任务失败，详情见 AI 助手。' : '') + '点击任务查看相应图表与来源。')
     return execution
   }
   function receiveBundle(next: AnalysisBundle) {
     if(datasetRef.current?.fingerprint!==next.response.datasetHash)return
     const key=next.id||next.response.generatedAt
     const isNew=!bundleRegistry.current.has(key)
-    if(isNew){setView('workspace');setWorkspaceSection('analysis');setAssistantOpen(false)}
+    if(isNew){setView('workspace');setWorkspaceSection('analysis')}
     bundleRegistry.current.set(key,next)
     setBundleHistory([...bundleRegistry.current.values()])
     setBundle(current=>isNew || (current?.id||current?.response.generatedAt)===key ? next : current)

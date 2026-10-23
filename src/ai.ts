@@ -5,7 +5,9 @@ export type Provider = { id: string; name: string; model: string };
 export type Task = { id: string; title: string; rationale: string; chart: 'line' | 'bar'; mapping: Mapping };
 export type Hypothesis = { id: string; statement: string; testTaskIds: string[] };
 export type Plan = { goal: string; scene: string; grain: string; fieldRoles: { field: string; meaning: string; role: string }[]; assumptions: string[]; questions: string[]; hypotheses?: Hypothesis[]; tasks: Task[]; limitations: string[] };
-export type PlanExecution = { results: Analysis[]; failures: { taskId: string; title: string; error: string }[] };
+export type TaskProgress = { taskId: string; title: string; index: number; total: number; status: 'running' | 'completed' | 'failed' | 'cancelled'; error?: string };
+export type ExecutionOptions = { signal?: AbortSignal; onProgress?: (event: TaskProgress) => void };
+export type PlanExecution = { results: Analysis[]; failures: { taskId: string; title: string; error: string }[]; cancelled?: boolean; pendingTaskIds?: string[] };
 export type PlanResponse = { scope?: AnalysisScope; plan: Plan; datasetHash: string; model: string; providerName: string; generatedAt: string };
 export type Fact = { id: string; text: string; taskId: string; analysisId: number; label?: string };
 export type Review = { answerability: 'partial' | 'descriptive_only' | 'insufficient'; findings: { statement: string; evidenceIds: string[]; interpretation: 'observation' | 'hypothesis' }[]; limitations: string[]; nextQuestions: string[] };
@@ -44,12 +46,12 @@ export async function aiRequest<T>(path: string, body: unknown, signal: AbortSig
   } catch (error) {
     if (signal.aborted) throw new Error('请求已取消。');
     if (error instanceof DOMException && error.name === 'TimeoutError') throw new Error('模型等待超时，请重试或切换更快的模型。');
-    if (error instanceof SyntaxError) throw new Error('分析服务没有返回有效响应。请使用 npm run dev 启动完整服务，而不是静态预览。');
-    if (error instanceof TypeError) throw new Error('分析服务连接中断，请检查本地服务是否仍在运行。');
+    if (error instanceof SyntaxError) throw new Error('AI 分析接口未返回有效响应，请联系部署者检查服务端接口配置。本地数据处理、统计和图表仍可使用。');
+    if (error instanceof TypeError) throw new Error('AI 分析服务连接中断，请检查网络或联系部署者检查服务状态。本地数据处理、统计和图表仍可使用。');
     throw error;
   }
 }
-export async function executePlan(dataset: Dataset, response: PlanResponse, question: string, startId: number): Promise<PlanExecution> {
+export async function executePlan(dataset: Dataset, response: PlanResponse, question: string, startId: number, options: ExecutionOptions = {}): Promise<PlanExecution> {
   if (response.datasetHash !== dataset.fingerprint) throw new Error('数据已变化，请基于新数据重新规划。');
   if (response.scope) validateScope(dataset, response.scope);
   const p = response.plan;
@@ -61,14 +63,26 @@ export async function executePlan(dataset: Dataset, response: PlanResponse, ques
   }
   const results: Analysis[] = [];
   const failures: PlanExecution['failures'] = [];
+  const progress = (index: number, status: TaskProgress['status'], error?: string) => options.onProgress?.({ taskId: p.tasks[index].id, title: p.tasks[index].title, index, total: p.tasks.length, status, ...(error ? { error } : {}) });
+  const stopped = (index: number): PlanExecution => {
+    for (let i = index; i < p.tasks.length; i++) progress(i, 'cancelled');
+    return { results, failures, cancelled: true, pendingTaskIds: p.tasks.slice(index).map(task => task.id) };
+  };
   for (const [i, task] of p.tasks.entries()) {
+    if (options.signal?.aborted) return stopped(i);
+    progress(i, 'running');
     try {
-      const result = await analyze(dataset, task.mapping, question, startId + i, response.scope);
+      const result = await analyze(dataset, task.mapping, question, startId + i, response.scope, options.signal);
       results.push({ ...result, ai: { goal: p.goal, taskId: task.id, taskTitle: task.title, model: response.model, plannedAt: response.generatedAt } });
+      progress(i, 'completed');
     } catch (error) {
-      failures.push({ taskId: task.id, title: task.title, error: error instanceof Error ? error.message : '任务执行失败' });
+      if (options.signal?.aborted) return stopped(i);
+      const message = error instanceof Error ? error.message : '任务执行失败';
+      failures.push({ taskId: task.id, title: task.title, error: message });
+      progress(i, 'failed', message);
     }
   }
+  if (options.signal?.aborted) return stopped(p.tasks.length);
   return { results, failures };
 }
 export type PlanWarning = { taskId: string; title: string; message: string };

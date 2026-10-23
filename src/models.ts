@@ -33,7 +33,7 @@ export function useModelProfiles() {
   }
   useEffect(() => {
     const c = new AbortController();
-    fetch('/api/ai/status', { signal: c.signal }).then(async res => { if (!res.ok) throw new Error(); return res.json(); }).then(apply).catch(() => { if (!c.signal.aborted) setStatus('分析服务未连接，请使用 npm run dev 启动'); });
+    fetch('/api/ai/status', { signal: c.signal }).then(async res => { if (!res.ok) throw new Error(); return res.json(); }).then(apply).catch(() => { if (!c.signal.aborted) setStatus('AI 分析服务未连接，请检查服务端接口配置；本地处理与图表仍可用'); });
     return () => c.abort();
   }, []);
   useEffect(() => { try { localStorage.setItem(storageKey, JSON.stringify(personal.map(({ id, name, model, baseURL, jsonMode }) => ({ id, name, model, baseURL, jsonMode })))); } catch { /* Memory configuration still works. */ } }, [personal]);
