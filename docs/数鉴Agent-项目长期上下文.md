@@ -918,4 +918,5 @@ render.yaml 现提供默认模型三项环境变量的云平台输入占位，�
 - `expected.json` 记录快照指纹、原始文件哈希、清洗步骤、结果、来源记录、SQL 模板与参数；比例分析的零分母分组以 NULL 结果和空来源记录补回，避免复跑行数不一致。
 - 验证：核心 110 项通过；`scripts/real-data-analysis/repro-bundle-check.py` 用真实 Airbnb 清洗数据从两个入口下载 ZIP，独立 Python + SQLite 复跑均 PASS（4 行、来源记录已核对），结果 332/176.1/190/63.5，快照 `232cec9d…63bd3`。
 - 限制：一键复跑只保证 SQLite + Python 标准库；DuckDB/PostgreSQL 需自行实现 `strict_number`、`compare_labels`、`time_bucket`。中文自然排序与浏览器 `localeCompare('zh-CN')` 不完全等价。
+- 推送状态：本地提交 `a0f4f4d`，但 2026-10-23 20:15 本机到 `github.com:443` 连接被重置，未推送、公网未更新；网络恢复后补推并核对 Cloudflare Pages 新资源。
 - 下一步：只读 SQL 控制台与多表 JOIN（原 P1），或按比赛评分补 RAG / MCP / 交付材料。
