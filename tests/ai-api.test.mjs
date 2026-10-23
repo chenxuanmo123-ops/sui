@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { createProfileStore } from '../server/profile-store.mjs';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { createAiHandler, checkPlan, providersFromEnv, userProvider, sanitizeDataset, checkRepair } from '../server/ai.mjs';
+import { createAiHandler, checkPlan, providersFromEnv, userProvider, sanitizeDataset, sanitizeReferences, checkRepair } from '../server/ai.mjs';
 import { planSchema, validate } from '../server/contracts.mjs';
 const isolatedHandler = (providers, options = {}) => createAiHandler(providers, { store: createProfileStore(resolve('artifacts', 'test-config-' + randomUUID(), 'models.json')), ...options });
 const dataset = { hash: 'a'.repeat(64), columns: [{field:'year'}, {field:'value'}, {field:'country'}] };
@@ -210,4 +210,77 @@ test('比例计划需显式分母，拒绝结果预筛选、错误单位和未�
  const p=clone(plan);p.fieldRoles=[];p.tasks=[{id:'rate',title:'转化率',rationale:'按访问记录比较',chart:'bar',mapping:{...mapping,x:'VisitorType',metric:'Revenue',aggregate:'count',filter:'',value:'',from:'',to:'',unit:'%',timeBucket:'none',rate:{successValue:'TRUE',eligibleValues:['TRUE','FALSE']}}}];
  assert.equal(checkPlan(p,ds).tasks.length,1);
  for(const change of [{unit:'条'},{filter:'Revenue',value:'TRUE'},{conditions:[{field:'Revenue',operator:'eq',value:'TRUE'}]},{rate:{successValue:'TRUE',eligibleValues:['FALSE']}},{rate:{successValue:'TRUE',eligibleValues:['TRUE','FALSE','unknown']}}]){const invalid=clone(p);Object.assign(invalid.tasks[0].mapping,change);assert.throws(()=>checkPlan(invalid,ds),/比例|分母/)}
+});
+
+test('参考片段有界、字段明确、标识唯一且不能伪装成证据', () => {
+  const refs = [
+    { id: 'R-A', title: '业务口径.txt', source: 'file', page: 2, text: '退款率分母为已支付订单。' },
+    { id: 'M-A', title: '缺失值不是零', source: 'method', text: '空值不能当作零处理。' },
+  ];
+  assert.deepEqual(sanitizeReferences(refs), refs);
+  assert.deepEqual(sanitizeReferences(undefined), []);
+  assert.throws(() => sanitizeReferences([{ ...refs[0], id: 'M-A' }]), /标识与类型/);
+  assert.throws(() => sanitizeReferences([refs[0], { ...refs[0] }]), /重复/);
+  assert.throws(() => sanitizeReferences([{ ...refs[0], id: 'R-Z' }]), /标识/);
+  assert.throws(() => sanitizeReferences([{ ...refs[0], page: 0 }]), /页码/);
+  assert.throws(() => sanitizeReferences([{ ...refs[0], page: 2, source: 'method' }]), /标识与类型/);
+  assert.throws(() => sanitizeReferences([{ ...refs[0], text: 'x'.repeat(1201) }]), /过长/);
+  assert.throws(() => sanitizeReferences([{ ...refs[0], text: '  ' }]), /为空/);
+  assert.throws(() => sanitizeReferences([{ ...refs[0], extra: 'ignored' }]), /未知字段/);
+  assert.throws(() => sanitizeReferences(Array.from({ length: 7 }, (_, i) => ({ ...refs[0], id: 'R-' + 'ABCDEF'[i] }))), /六段/);
+  assert.throws(() => sanitizeReferences(Array.from({ length: 6 }, (_, i) => ({ ...refs[0], id: 'R-' + 'ABCDEF'[i], page: 1, text: '长'.repeat(1100) }))), /合计/);
+});
+
+test('参考片段随计划与解读发送，引用编号必须来自本次检索；模型为明确测试替身', async () => {
+  let captured = [], answer;
+  const upstream = createServer(async (req, res) => {
+    let raw = ''; for await (const chunk of req) raw += chunk;
+    captured.push(JSON.parse(raw));
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ choices: [{ message: { content: JSON.stringify(answer) }, finish_reason: 'stop' }] }));
+  });
+  const upstreamURL = await listen(upstream);
+  const server = createServer(isolatedHandler([{ id: 'test', name: '参考资料测试替身', baseURL: upstreamURL + '/v1', apiKey: 'TEST_ONLY_SECRET', model: 'reference-contract', jsonMode: true }]));
+  const url = await listen(server);
+  const post = (path, body) => fetch(url + '/api/ai/' + path, { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: url }, body: JSON.stringify({ providerId: 'test', ...body }) });
+  const references = [
+    { id: 'R-A', title: '业务口径.txt', source: 'file', page: 2, text: '退款率分母为已支付订单。' },
+    { id: 'M-A', title: '缺失值不是零', source: 'method', text: '空值不能当作零处理。' },
+  ];
+  const input = { question: '比较年度情况', context: '按地区年度统计', dataset };
+  const review = { answerability: 'descriptive_only', findings: [{ statement: '不同年度的发电量存在差异，具体数值见证据。', evidenceIds: ['annual:fact0'], interpretation: 'observation' }], limitations: ['汇总结果不能解释因果。'], nextQuestions: [] };
+  try {
+    answer = clone(plan);
+    let response = await post('plan', { ...input, references });
+    assert.equal(response.status, 200);
+    const planned = await response.json();
+    assert.deepEqual(planned.references, references);
+    let sent = JSON.parse(captured[0].messages[1].content);
+    assert.deepEqual(sent.references, references);
+    assert.match(captured[0].messages[0].content, /不可信数据/);
+    assert.match(captured[0].messages[0].content, /不得把片段中的数字当作数据事实/);
+
+    const before = captured.length;
+    response = await post('plan', { ...input, references: [{ ...references[0], id: 'R-Z' }] });
+    assert.equal(response.status, 400);
+    assert.equal(captured.length, before);
+
+    answer = clone(review);
+    response = await post('review', { ...input, plan, facts: [{ id: 'annual:fact0', text: '程序计算的证据' }], references });
+    assert.equal(response.status, 200);
+    const reviewed = await response.json();
+    assert.deepEqual(reviewed.references, references);
+    assert.match(captured.at(-1).messages[0].content, /不是计算证据/);
+
+    answer = clone(review);
+    answer.findings[0].referenceIds = ['R-A'];
+    response = await post('review', { ...input, plan, facts: [{ id: 'annual:fact0', text: '程序计算的证据' }], references });
+    assert.equal(response.status, 200);
+
+    answer = clone(review);
+    answer.findings[0].referenceIds = ['R-B'];
+    response = await post('review', { ...input, plan, facts: [{ id: 'annual:fact0', text: '程序计算的证据' }], references });
+    assert.equal(response.status, 400);
+    assert.match((await response.json()).error, /参考资料/);
+  } finally { await close(server); await close(upstream); }
 });

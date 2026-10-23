@@ -1,6 +1,7 @@
 import { analyze, profileDataset, formatNumber } from './data';
 import type { Dataset, Mapping, Analysis, AnalysisScope } from './data';
 import { validateScope } from './follow-up';
+import type { ReferenceExcerpt } from './references';
 export type Provider = { id: string; name: string; model: string };
 export type Task = { id: string; title: string; rationale: string; chart: 'line' | 'bar'; mapping: Mapping };
 export type Hypothesis = { id: string; statement: string; testTaskIds: string[] };
@@ -8,9 +9,10 @@ export type Plan = { goal: string; scene: string; grain: string; fieldRoles: { f
 export type TaskProgress = { taskId: string; title: string; index: number; total: number; status: 'running' | 'completed' | 'failed' | 'cancelled'; error?: string };
 export type ExecutionOptions = { signal?: AbortSignal; onProgress?: (event: TaskProgress) => void };
 export type PlanExecution = { results: Analysis[]; failures: { taskId: string; title: string; error: string }[]; cancelled?: boolean; pendingTaskIds?: string[] };
-export type PlanResponse = { scope?: AnalysisScope; plan: Plan; datasetHash: string; model: string; providerName: string; generatedAt: string };
+export type PlanResponse = { scope?: AnalysisScope; plan: Plan; datasetHash: string; model: string; providerName: string; generatedAt: string; references?: ReferenceExcerpt[] };
 export type Fact = { id: string; text: string; taskId: string; analysisId: number; label?: string };
-export type Review = { answerability: 'partial' | 'descriptive_only' | 'insufficient'; findings: { statement: string; evidenceIds: string[]; interpretation: 'observation' | 'hypothesis' }[]; limitations: string[]; nextQuestions: string[] };
+export type Review = { answerability: 'partial' | 'descriptive_only' | 'insufficient'; findings: { statement: string; evidenceIds: string[]; interpretation: 'observation' | 'hypothesis'; referenceIds?: string[] }[]; limitations: string[]; nextQuestions: string[] };
+export type ReviewResponse = { review: Review; references?: ReferenceExcerpt[] };
 export const CATEGORY_LIMITS = { columns: 12, values: 16, valueLength: 120, totalChars: 8000 } as const;
 export function datasetContext(dataset: Dataset, samples: boolean, categories = false) {
   let dictionaryColumns = 0, dictionaryChars = 0;

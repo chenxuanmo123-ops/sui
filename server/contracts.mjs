@@ -20,7 +20,12 @@ export const planSchema = object({
 });
 export const reviewSchema = object({
   answerability: choice(['partial', 'descriptive_only', 'insufficient']),
-  findings: list(object({ statement: text(600), evidenceIds: { ...list(text(60), 8), minItems: 1 }, interpretation: choice(['observation', 'hypothesis']) }), 8),
+  findings: list(object({
+    statement: text(600),
+    evidenceIds: { ...list(text(60), 8), minItems: 1 },
+    interpretation: choice(['observation', 'hypothesis']),
+    referenceIds: optional({ ...list(text(20), 6) }),
+  }), 8),
   limitations: { ...list(text(600)), minItems: 1 }, nextQuestions: list(text(500), 5),
 });
 export function validate(value, schema, path = 'output') {

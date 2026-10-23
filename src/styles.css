@@ -374,3 +374,31 @@ body { font-family: 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-se
 @media (max-width: 760px) { .studio-layout { display: block; }.initial-analysis { padding: 16px; margin-bottom: 20px; }.initial-heading { flex-wrap: wrap; gap: 10px; }.initial-heading > .tag { margin-left: 52px; }.initial-heading > div:nth-child(2) { flex: 1; min-width: 0; }.initial-understanding { grid-template-columns: 1fr; gap: 12px; }.initial-controls .ai-check { font-size: 12px; }.initial-controls .secondary { font-size: 12px; }.initial-heading h2 { font-size: 15px; }.assistant-launcher { right: 16px; bottom: 18px; min-height: 48px; border-radius: 14px; }.assistant-window,.assistant-window.expanded { inset: 10px 10px 82px; width: auto; min-width: 0; height: auto; max-width: none; max-height: none; }.assistant-window-bar { cursor: default; }.assistant-window-bar span { display: none; }.assistant-window .ai-workbench { order: initial; }.assistant-window-content input,.assistant-window-content textarea { font-size: 16px; }.initial-summary { font-size: 13px; } }
 
 .initial-options { margin-top: 14px; font-size: 12px; color: #607468; line-height: 1.8; }.initial-options summary { cursor: pointer; }.initial-options > label:not(.ai-check) { display: block; margin: 14px 0 6px; }.initial-options textarea { display: block; width: 100%; max-width: 760px; border: 1px solid #d6e2d9; border-radius: 8px; padding: 10px; resize: vertical; line-height: 1.8; background: #fafcfb; }.initial-options > small { display: block; color: #7d897f; }.initial-options .ai-check { margin: 12px 0 6px; }
+
+.ai-references { border-top: 1px solid #e6ece8; padding-top: 10px; }
+.ai-references > summary { display: flex; align-items: center; gap: 6px; color: #2d5e48; cursor: pointer; }
+.ai-reference-count { margin-left: auto; padding: 1px 6px; border-radius: 10px; background: #e4efe8; color: #2d5e48; font-size: 9px; font-weight: 600; }
+.ai-reference-intro > p { margin: 8px 0; color: #52627a; font-size: 11px; line-height: 1.7; }
+.ai-reference-add { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; color: #6f8177; font-size: 11px; }
+.ai-reference-add input[type=file] { max-width: 100%; font-size: 11px; }
+.ai-reference-error { margin: 8px 0 0 !important; padding: 6px 8px; border-radius: 6px; background: #fff4f0; color: #a63d2c !important; font-size: 11px; line-height: 1.6; }
+.ai-reference-docs { display: grid; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
+.ai-reference-docs li { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border: 1px solid #dce7e0; border-radius: 6px; background: #f8fbf9; }
+.ai-reference-docs li > span { display: grid; gap: 2px; min-width: 0; font-size: 11px; overflow-wrap: anywhere; }
+.ai-reference-docs li small { color: #6f8177; font-size: 10px; }
+.ai-reference-docs .icon-button { margin-left: auto; }
+.ai-reference-hits { display: grid; gap: 7px; margin-top: 12px; }
+.ai-reference-hits > strong { color: #2d5e48; font-size: 11px; }
+.ai-reference-hits article { padding: 8px 9px; border-left: 3px solid #8ab49b; border-radius: 0 6px 6px 0; background: #f5faf7; }
+.ai-reference-hits article > div { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 11px; }
+.ai-reference-hits article b { font-weight: 600; }
+.ai-reference-hits article small { color: #6f8177; }
+.ai-reference-hits article p { margin: 5px 0 0; color: #3c5064; font-size: 11px; line-height: 1.7; }
+.ai-reference-note { margin: 0; color: #6f8177; font-size: 10px; line-height: 1.65; }
+.ai-reference-empty { margin: 0; color: #6f8177; font-size: 11px; }
+.ai-reference-hits article code, .ai-reference-sent code, .ai-reference-cites code { padding: 1px 4px; border-radius: 4px; background: #e4efe8; color: #2d5e48; font-size: 9px; }
+.ai-reference-sent { margin-top: 12px; font-size: 11px; }
+.ai-reference-sent ul { display: grid; gap: 5px; margin: 6px 0; padding-left: 18px; }
+.ai-reference-sent li p { margin: 3px 0 0; color: #52627a; line-height: 1.65; }
+.ai-reference-cites { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+.ai-reference-cites span { display: inline-flex; align-items: center; gap: 4px; padding: 3px 6px; border-radius: 5px; background: #edf5f0; color: #1f6448; font-size: 10px; }
