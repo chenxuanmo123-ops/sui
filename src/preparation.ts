@@ -51,18 +51,68 @@ export function inspectQuality(d: Dataset): QualitySummary {
   return {field,missing,numeric:values.length,unique:frequency.size,whitespace,min:values[0]??null,max:values.at(-1)??null,mean:values.length?values.reduce((a,b)=>a+b/values.length,0):null,median:quantile(values,.5),q1,q3,outliers:iqr==null||values.length<4?0:values.filter(n=>n<q1!-1.5*iqr||n>q3!+1.5*iqr).length,top:[...frequency].sort((a,b)=>b[1]-a[1]).slice(0,5).map(([value,count])=>({value,count}))}
  });return {duplicateRows,fields}
 }
-export type CleaningSpec = { field: string; trim: boolean; numeric: boolean; markers: string; dropMissing: boolean; deduplicate: boolean }
-export type CleaningPreview = { rows: Row[]; sourceRecords: number[]; changedCells: number; removedRows: number; failedNumeric: number; steps: string[]; examples: { record: number; before: string | null; after: string | null }[]; locations?: string[] }
+export type CleaningSpec = { field: string; trim: boolean; numeric: boolean; markers: string; dropMissing: boolean; deduplicate: boolean; blankFailed?: boolean }
+export type CleaningPreview = { rows: Row[]; sourceRecords: number[]; changedCells: number; removedRows: number; failedNumeric: number; blankedNumeric: number; percentValues: number; failedExamples: { record: number; value: string }[]; steps: string[]; examples: { record: number; before: string | null; after: string | null }[]; locations?: string[] }
+
+const stripEdge = (value: string) => value.replace(/^[\s 　]+|[\s 　]+$/g, '')
+const FULL_WIDTH: Record<string, string> = { '＋': '+', '－': '-', '．': '.', '，': ',', '％': '%', '（': '(', '）': ')' }
+/**
+ * Normalizes one explicitly selected cell to a plain decimal string.
+ * It accepts common export formats but never guesses ambiguous groupings or
+ * multipliers: "1.2万元" and "12,34" are left unrecognized on purpose.
+ */
+export function normalizeNumericText(input: string): { value: string; percent: boolean } | null {
+ let text = stripEdge(input)
+ if (!text) return null
+ text = text.replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0))
+  .replace(/[＋－．，％（）]/g, c => FULL_WIDTH[c] ?? c)
+  .replace(/−/g, '-')
+ let negative = false
+ const parentheses = text.match(/^\((.*)\)$/)
+ if (parentheses) { negative = true; text = stripEdge(parentheses[1]) }
+ let percent = false
+ for (let i = 0; i < 6; i++) {
+  const before = text
+  const sign = text.match(/^[+-]\s*/)
+  if (sign) { if (sign[0].includes('-')) negative = true; text = stripEdge(text.slice(sign[0].length)) }
+  text = text
+   .replace(/^(?:(?:US|HK|AU|CA|NZ|SG)\s*)?[$¥￥€£]\s*/i, '')
+   .replace(/^(?:USD|EUR|GBP|CNY|RMB|JPY|HKD|AUD|CAD)\s*/i, '')
+   .replace(/\s*%\s*$/, () => { percent = true; return '' })
+   .replace(/\s*[$¥￥€£]\s*$/, '')
+   .replace(/\s*(?:USD|EUR|GBP|CNY|RMB|JPY|HKD|AUD|CAD)\s*$/i, '')
+   .replace(/\s*(?:人民币|美元|元)\s*$/, '')
+  if (text === before) break
+ }
+ if (!text) return null
+ let normalized = text
+ const europeanSpace = normalized.match(/^(\d{1,3}(?:[   ]\d{3})+),(\d+)$/)
+ const europeanDot = normalized.match(/^(\d{1,3}(?:\.\d{3})+),(\d+)$/)
+ if (europeanSpace) normalized = europeanSpace[1].replace(/[   ]/g, '') + '.' + europeanSpace[2]
+ else if (europeanDot) normalized = europeanDot[1].replaceAll('.', '') + '.' + europeanDot[2]
+ else if (/^\d{1,3}(?:,\d{3})+(?:\.\d+)?$/.test(normalized)) normalized = normalized.replaceAll(',', '')
+ else if (/^\d{1,3}(?:[   ]\d{3})+(?:\.\d+)?$/.test(normalized)) normalized = normalized.replace(/[   ]/g, '')
+ else if (/^(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(normalized)) { /* already plain */ }
+ else return null
+ const parsed = numberValue(normalized)
+ if (!Number.isFinite(parsed)) return null
+ if (negative && parsed !== 0) normalized = '-' + normalized.replace(/^[+-]/, '')
+ return { value: normalized, percent }
+}
 export function previewCleaning(d:Dataset,s:CleaningSpec): CleaningPreview {
  if(!d.headers.includes(s.field))throw new Error('请选择需要处理的字段')
- const markers=new Set(s.markers.split('\n').filter(v=>v.length>0)),seen=new Set<string>(),output:Row[]=[],sourceRecords:number[]=[],locations:string[]=[],examples:CleaningPreview['examples']=[]
- let changedCells=0,removedRows=0,failedNumeric=0
+ const markers=new Set(s.markers.split('\n').filter(v=>v.length>0)),seen=new Set<string>(),output:Row[]=[],sourceRecords:number[]=[],locations:string[]=[],examples:CleaningPreview['examples']=[],failedExamples:CleaningPreview['failedExamples']=[]
+ let changedCells=0,removedRows=0,failedNumeric=0,blankedNumeric=0,percentValues=0
  d.rows.forEach((r,i)=>{const next={...r},before=next[s.field];let after=before
   if(after!=null){if(s.trim)after=after.trim();if(markers.has(after))after=null
    if(s.numeric&&after!=null&&after.trim()){
-    // Only explicitly selected, correctly grouped thousands separators may be removed.
-    const trimmed=after.trim();if(/^[+-]?\d{1,3}(?:,\d{3})+(?:\.\d+)?$/.test(trimmed))after=trimmed.replaceAll(',','')
-    else if(!Number.isFinite(numberValue(trimmed)))failedNumeric++
+    const normalized=normalizeNumericText(after)
+    if(normalized){after=normalized.value;if(normalized.percent)percentValues++}
+    else{
+     failedNumeric++
+     if(failedExamples.length<10)failedExamples.push({record:d.sourceRecords?.[i]??i+2,value:after})
+     if(s.blankFailed){after=null;blankedNumeric++}
+    }
    }
   }
   next[s.field]=after
@@ -70,6 +120,6 @@ export function previewCleaning(d:Dataset,s:CleaningSpec): CleaningPreview {
   const key=JSON.stringify(d.headers.map(h=>next[h]));const remove=(s.dropMissing&&(after==null||!after.trim()))||(s.deduplicate&&seen.has(key));seen.add(key)
   if(remove){removedRows++;return}output.push(next);sourceRecords.push(d.sourceRecords?.[i]??i+2);if(d.origin)locations.push(d.origin.locations[i]??'')
  })
- const steps=[s.trim?'修剪「'+s.field+'」首尾空白':'',markers.size?'将「'+s.field+'」明确指定的缺失标记置空':'',s.numeric?'规范「'+s.field+'」严格千分位数字（无法识别的文本保留）':'',s.dropMissing?'删除「'+s.field+'」为空的记录':'',s.deduplicate?'删除完全相同的整行重复记录，保留第一条':''].filter(Boolean)
- return {rows:output,sourceRecords,changedCells,removedRows,failedNumeric,steps,examples,...(d.origin?{locations}:{})}
+ const steps=[s.trim?'修剪「'+s.field+'」首尾空白':'',markers.size?'将「'+s.field+'」明确指定的缺失标记置空':'',s.numeric?'规范「'+s.field+'」常见数字格式（货币符号、千分位、百分号、全角、括号负数；无法识别的文本保留）':'',s.numeric&&s.blankFailed?'将仍无法识别的值置空（不计入数值，不当作零）':'',percentValues?'百分号按原数值保留，未自动除以 100':'',s.dropMissing?'删除「'+s.field+'」为空的记录':'',s.deduplicate?'删除完全相同的整行重复记录，保留第一条':''].filter(Boolean)
+ return {rows:output,sourceRecords,changedCells,removedRows,failedNumeric,blankedNumeric,percentValues,failedExamples,steps,examples,...(d.origin?{locations}:{})}
 }

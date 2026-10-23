@@ -1,0 +1,293 @@
+{
+  "source_url": "https://data.insideairbnb.com/the-netherlands/north-holland/amsterdam/2026-09-16/data/listings.csv.gz",
+  "data_file": "C:\\Users\\asus\\OneDrive\\文档\\ChatGPT\\AI Web 大赛\\demo-data\\airbnb-amsterdam-2026-09-16\\data\\listings.csv",
+  "data_sha256": "d6eabb54c664de6d10ee5709e71e2cb194f093d1d9777518f654bf3e45444ffe",
+  "rows": 10612,
+  "columns": 90,
+  "duplicate_ids": 0,
+  "currency": "EUR",
+  "currency_counts": {
+    "EUR": 6037
+  },
+  "parsed_prices": 6039,
+  "parse_failures": 0,
+  "quote_values": 6033,
+  "cross_checked": 6033,
+  "cross_check_mismatch": 0,
+  "coverage": [
+    {
+      "label": "0 天",
+      "size": 4460,
+      "present": 260,
+      "coverage": 0.05829596412556054,
+      "median": 169.11
+    },
+    {
+      "label": "1–30 天",
+      "size": 1347,
+      "present": 1096,
+      "coverage": 0.8136599851521901,
+      "median": 300.65
+    },
+    {
+      "label": "31–90 天",
+      "size": 1123,
+      "present": 1099,
+      "coverage": 0.9786286731967943,
+      "median": 285.0
+    },
+    {
+      "label": "91–180 天",
+      "size": 1063,
+      "present": 1044,
+      "coverage": 0.9821260583254939,
+      "median": 287.44
+    },
+    {
+      "label": "181–365 天",
+      "size": 2619,
+      "present": 2540,
+      "coverage": 0.96983581519664,
+      "median": 289.83500000000004
+    }
+  ],
+  "overall": {
+    "n": 6039,
+    "coverage": 0.5690727478326423,
+    "median": 285.25,
+    "q1": 202.0,
+    "q3": 407.0,
+    "mean": 345.0645255837059,
+    "p95": 742.0,
+    "p99": 1173.0179999999996,
+    "max": 11681.0,
+    "min": 29.0,
+    "over_500": 895,
+    "over_1000": 112,
+    "over_3000": 7
+  },
+  "room_types": [
+    {
+      "room_type": "Entire home/apt",
+      "size": 4320,
+      "median": 332.0,
+      "mean": 401.1295
+    },
+    {
+      "room_type": "Private room",
+      "size": 1674,
+      "median": 176.1,
+      "mean": 205.317174432497
+    },
+    {
+      "room_type": "Hotel room",
+      "size": 23,
+      "median": 190.0,
+      "mean": 226.66826086956522
+    },
+    {
+      "room_type": "Shared room",
+      "size": 22,
+      "median": 63.5,
+      "mean": 93.22318181818181
+    }
+  ],
+  "neighbourhoods": [
+    {
+      "neighbourhood_cleansed": "De Baarsjes - Oud-West",
+      "size": 965,
+      "median": 319.0,
+      "entire_n": 794,
+      "entire_median": 354.265
+    },
+    {
+      "neighbourhood_cleansed": "Centrum-West",
+      "size": 853,
+      "median": 290.91,
+      "entire_n": 440,
+      "entire_median": 402.625
+    },
+    {
+      "neighbourhood_cleansed": "Centrum-Oost",
+      "size": 672,
+      "median": 274.0,
+      "entire_n": 369,
+      "entire_median": 368.0
+    },
+    {
+      "neighbourhood_cleansed": "De Pijp - Rivierenbuurt",
+      "size": 644,
+      "median": 333.75,
+      "entire_n": 527,
+      "entire_median": 373.5
+    },
+    {
+      "neighbourhood_cleansed": "Zuid",
+      "size": 424,
+      "median": 316.875,
+      "entire_n": 321,
+      "entire_median": 365.67
+    },
+    {
+      "neighbourhood_cleansed": "Westerpark",
+      "size": 376,
+      "median": 287.8,
+      "entire_n": 324,
+      "entire_median": 308.91499999999996
+    },
+    {
+      "neighbourhood_cleansed": "Oud-Oost",
+      "size": 353,
+      "median": 270.0,
+      "entire_n": 272,
+      "entire_median": 299.17
+    },
+    {
+      "neighbourhood_cleansed": "Oud-Noord",
+      "size": 268,
+      "median": 259.1,
+      "entire_n": 200,
+      "entire_median": 285.12
+    },
+    {
+      "neighbourhood_cleansed": "Bos en Lommer",
+      "size": 255,
+      "median": 260.0,
+      "entire_n": 226,
+      "entire_median": 282.5
+    },
+    {
+      "neighbourhood_cleansed": "Oostelijk Havengebied - Indische Buurt",
+      "size": 216,
+      "median": 252.25,
+      "entire_n": 166,
+      "entire_median": 265.08500000000004
+    },
+    {
+      "neighbourhood_cleansed": "Noord-West",
+      "size": 173,
+      "median": 261.0,
+      "entire_n": 141,
+      "entire_median": 288.0
+    },
+    {
+      "neighbourhood_cleansed": "Watergraafsmeer",
+      "size": 161,
+      "median": 247.33,
+      "entire_n": 109,
+      "entire_median": 345.33
+    },
+    {
+      "neighbourhood_cleansed": "Noord-Oost",
+      "size": 115,
+      "median": 274.25,
+      "entire_n": 86,
+      "entire_median": 307.25
+    },
+    {
+      "neighbourhood_cleansed": "IJburg - Zeeburgereiland",
+      "size": 104,
+      "median": 279.0,
+      "entire_n": 74,
+      "entire_median": 327.75
+    },
+    {
+      "neighbourhood_cleansed": "Slotervaart",
+      "size": 102,
+      "median": 243.83499999999998,
+      "entire_n": 72,
+      "entire_median": 299.71500000000003
+    },
+    {
+      "neighbourhood_cleansed": "Geuzenveld - Slotermeer",
+      "size": 96,
+      "median": 225.0,
+      "entire_n": 62,
+      "entire_median": 265.0
+    },
+    {
+      "neighbourhood_cleansed": "Buitenveldert - Zuidas",
+      "size": 80,
+      "median": 237.315,
+      "entire_n": 52,
+      "entire_median": 288.83500000000004
+    },
+    {
+      "neighbourhood_cleansed": "Bijlmer-Centrum",
+      "size": 42,
+      "median": 134.0,
+      "entire_n": 9,
+      "entire_median": 175.0
+    },
+    {
+      "neighbourhood_cleansed": "Osdorp",
+      "size": 41,
+      "median": 161.67,
+      "entire_n": 23,
+      "entire_median": 224.0
+    },
+    {
+      "neighbourhood_cleansed": "De Aker - Nieuw Sloten",
+      "size": 41,
+      "median": 185.0,
+      "entire_n": 23,
+      "entire_median": 233.0
+    },
+    {
+      "neighbourhood_cleansed": "Gaasperdam - Driemond",
+      "size": 34,
+      "median": 131.5,
+      "entire_n": 18,
+      "entire_median": 209.25
+    },
+    {
+      "neighbourhood_cleansed": "Bijlmer-Oost",
+      "size": 24,
+      "median": 135.25,
+      "entire_n": 12,
+      "entire_median": 203.785
+    }
+  ],
+  "bedrooms_entire": [
+    {
+      "bedrooms": 1.0,
+      "size": 2309,
+      "median": 280.6
+    },
+    {
+      "bedrooms": 2.0,
+      "size": 1226,
+      "median": 412.9
+    },
+    {
+      "bedrooms": 3.0,
+      "size": 510,
+      "median": 438.58500000000004
+    },
+    {
+      "bedrooms": 4.0,
+      "size": 160,
+      "median": 558.5
+    }
+  ],
+  "hosts": {
+    "hosts": 9231,
+    "top1": 24,
+    "top10": 169,
+    "top50": 529,
+    "top100": 796,
+    "multi_hosts": 604,
+    "multi_listings": 1985,
+    "gini": 0.12541887263221735
+  },
+  "licenses": {
+    "missing": 466,
+    "exempt": 605,
+    "identifier": 9541
+  },
+  "spearman": {
+    "review": 0.29167607001299695,
+    "availability": 0.0857463455388675,
+    "minimum_nights": 0.1516227085058652
+  }
+}
