@@ -22,7 +22,7 @@ with sync_playwright() as p:
     page = browser.new_page(viewport={"width": 1440, "height": 1100})
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
-    page.goto(url, wait_until="networkidle")
+    page.goto(url, wait_until="load", timeout=120000)
     page.locator("#file-upload").set_input_files(str(data))
     expect(page.locator(".dataset-name strong")).to_have_text("owid-China-2015-2022.csv")
 

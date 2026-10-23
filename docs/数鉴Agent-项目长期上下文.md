@@ -918,7 +918,7 @@ render.yaml 现提供默认模型三项环境变量的云平台输入占位，�
 - `expected.json` 记录快照指纹、原始文件哈希、清洗步骤、结果、来源记录、SQL 模板与参数；比例分析的零分母分组以 NULL 结果和空来源记录补回，避免复跑行数不一致。
 - 验证：核心 110 项通过；`scripts/real-data-analysis/repro-bundle-check.py` 用真实 Airbnb 清洗数据从两个入口下载 ZIP，独立 Python + SQLite 复跑均 PASS（4 行、来源记录已核对），结果 332/176.1/190/63.5，快照 `232cec9d…63bd3`。
 - 限制：一键复跑只保证 SQLite + Python 标准库；DuckDB/PostgreSQL 需自行实现 `strict_number`、`compare_labels`、`time_bucket`。中文自然排序与浏览器 `localeCompare('zh-CN')` 不完全等价。
-- 推送状态：本地提交 `a0f4f4d`、`311a473`；前两次推送连接被重置，后台第三次重试成功，公网更新情况在本节追加记录。
+- 推送状态：本地提交 `a0f4f4d`、`311a473`；前两次推送连接被重置，后台第三次重试成功，公网更新见下一节。
 - 下一步：只读 SQL 控制台与多表 JOIN（原 P1），或按比赛评分补 RAG / MCP / 交付材料。
 
 ## 2026-10-23 20:40：只读 SQL 控制台与多表 JOIN
@@ -929,3 +929,5 @@ render.yaml 现提供默认模型三项环境变量的云平台输入占位，�
 - JOIN 示例不假设两表第一列同名：抽样关联表首列 200 个值，在主表前 500 行里找真实共同值；找不到时明确提示需要手动改连接键，而不是编造连接。
 - 测试：`tests/sql-console.test.ts` 6 项通过；核心合计 116 项。真实 OWID 数据浏览器脚本 6 项 PASS（默认 8 行、聚合 15738.01 / 205.01、拒绝写与多语句、JOIN 示例 8 行、`readable`×`extra_readable` 得到 China/Asia/8、移除后 `no such table`）；`npm run build` 通过。
 - 限制：SQLite 方言；`data` 上不存在的双引号列名会被 DQS 当作字符串字面量，示例优先 `readable`；JOIN 行号需人工核对，控制台不判断连接口径业务上是否合理。
+- 浏览器脚本的 `page.goto` 从 `networkidle` 改为 `load`：本机到 Pages 的连接多次出现超时与空闲等待卡住，`load` + 元素自动等待更稳定；本地与公网均复跑通过，不是放宽断言。
+- 推送与公网：`fb7450f` 首次推送成功；公网 `index-D9IvAP52.js` / `index-BBCD495j.css` 与本地 `dist` 一致，Worker 与 wasm 均 200；`verify:public` 重试后 7/7；公网复跑 SQL 控制台 6 项 PASS。`aiConfigured:false` 未变。
