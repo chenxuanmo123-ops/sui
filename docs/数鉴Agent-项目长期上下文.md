@@ -481,7 +481,7 @@ AI 结论引用不在证据集合内时，必须被拒绝或降级为待核实�
 
 ### 8.1 已通过的检查
 
-截至 2026-10-19（**2026-10-23 更新：核心 110 项、AI 31 项、评测 14 项、生产 33 项通过；新增数字规范化、中位数/四分位聚合、可复现 SQL 包与真实 Airbnb 数据复验，详见交接文档 7.6、7.7、7.8**）：
+截至 2026-10-19（**2026-10-23 更新：核心 116 项、AI 31 项、评测 14 项、生产 33 项通过；新增数字规范化、中位数/四分位聚合、可复现 SQL 包、只读 SQL 控制台与会话级多表 JOIN，并完成真实 Airbnb / OWID 数据复验，详见交接文档 7.6—7.9**）：
 
 - `npm run test:ai`：21 项通过；
 - `npm run test:core`：46 项通过；覆盖任务隔离、类别预算、失败修正合并及证据绑定。计算使用真实 SEC 文件和 SQLite；浏览器 Worker 边界在单测中替换；
@@ -918,5 +918,14 @@ render.yaml 现提供默认模型三项环境变量的云平台输入占位，�
 - `expected.json` 记录快照指纹、原始文件哈希、清洗步骤、结果、来源记录、SQL 模板与参数；比例分析的零分母分组以 NULL 结果和空来源记录补回，避免复跑行数不一致。
 - 验证：核心 110 项通过；`scripts/real-data-analysis/repro-bundle-check.py` 用真实 Airbnb 清洗数据从两个入口下载 ZIP，独立 Python + SQLite 复跑均 PASS（4 行、来源记录已核对），结果 332/176.1/190/63.5，快照 `232cec9d…63bd3`。
 - 限制：一键复跑只保证 SQLite + Python 标准库；DuckDB/PostgreSQL 需自行实现 `strict_number`、`compare_labels`、`time_bucket`。中文自然排序与浏览器 `localeCompare('zh-CN')` 不完全等价。
-- 推送状态：本地提交 `a0f4f4d`，但 2026-10-23 20:15 本机到 `github.com:443` 连接被重置，未推送、公网未更新；网络恢复后补推并核对 Cloudflare Pages 新资源。
+- 推送状态：本地提交 `a0f4f4d`、`311a473`；前两次推送连接被重置，后台第三次重试成功，公网更新情况在本节追加记录。
 - 下一步：只读 SQL 控制台与多表 JOIN（原 P1），或按比赛评分补 RAG / MCP / 交付材料。
+
+## 2026-10-23 20:40：只读 SQL 控制台与多表 JOIN
+
+- 新增 `src/SqlConsole.tsx`、`src/sql-console.ts`、`src/sql-names.ts`：顶部“SQL 查询”在当前快照上执行单条 SELECT/WITH，暴露 `data`（`_record`+cN）、`readable`（原表头，重名回退 cN）和 `strict_number` / `compare_labels` / `time_bucket`。重命名辅助从 `reproducible.ts` 抽到 `sql-names.ts`，避免 Worker 为了取名而加载 `fflate`。
+- 只读校验分两层：字符扫描先把字符串、标识符、注释替换为空格，再拒绝写/DDL/PRAGMA/事务/文件函数/参数/`sqlite_*` 与内部分号；Worker 连接同时保持 `PRAGMA query_only=ON`。结果 500 行封顶、30 秒超时终止 Worker。
+- 多表 JOIN：可上传会话级第二张 CSV（30 MB，沿用 `parseCSV` 的 200 列 / 100,000 行 / 重复列名校验），固定装载为 `extra`（`_row`+cN）与 `extra_readable`；支持更换、移除，移除会同步从 Worker `DROP`，避免界面显示已移除但 SQL 仍能查到。关联表不写入快照、不进入分析/图表/证据链。
+- JOIN 示例不假设两表第一列同名：抽样关联表首列 200 个值，在主表前 500 行里找真实共同值；找不到时明确提示需要手动改连接键，而不是编造连接。
+- 测试：`tests/sql-console.test.ts` 6 项通过；核心合计 116 项。真实 OWID 数据浏览器脚本 6 项 PASS（默认 8 行、聚合 15738.01 / 205.01、拒绝写与多语句、JOIN 示例 8 行、`readable`×`extra_readable` 得到 China/Asia/8、移除后 `no such table`）；`npm run build` 通过。
+- 限制：SQLite 方言；`data` 上不存在的双引号列名会被 DQS 当作字符串字面量，示例优先 `readable`；JOIN 行号需人工核对，控制台不判断连接口径业务上是否合理。

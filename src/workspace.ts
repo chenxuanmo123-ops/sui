@@ -4,7 +4,7 @@ import type { ExploreSession } from './ExploreView'
 import type { CompareSession } from './CompareView'
 import { validateScope } from './follow-up'
 
-export type WorkspaceView = 'workspace' | 'prepare' | 'explore' | 'compare' | 'branches' | 'source'
+export type WorkspaceView = 'workspace' | 'prepare' | 'explore' | 'compare' | 'query' | 'branches' | 'source'
 export type WorkspaceState = {
  dataset: Dataset; preparationHistory: Dataset[]; history: Analysis[]; bundles: AnalysisBundle[];
  currentBundleKey: string | null; activeId: number | null; mapping: Mapping; question: string;
@@ -86,7 +86,7 @@ export function decodeWorkspace(value: unknown): WorkspaceSnapshot {
    }
    bundle.results = bundle.results.map(result => byId.get(result.id)!)
   }
-  if (s.activeId !== null && !ids.has(s.activeId) || s.currentBundleKey !== null && !keys.has(s.currentBundleKey) || !s.mapping || typeof s.mapping.x !== 'string' || typeof s.question !== 'string' || !['line','bar'].includes(s.chartKind) || !['workspace','prepare','explore','compare','branches','source'].includes(s.view) || !['fields','raw','result'].includes(s.dataTab) || typeof s.inspectorOpen !== 'boolean') return invalid()
+  if (s.activeId !== null && !ids.has(s.activeId) || s.currentBundleKey !== null && !keys.has(s.currentBundleKey) || !s.mapping || typeof s.mapping.x !== 'string' || typeof s.question !== 'string' || !['line','bar'].includes(s.chartKind) || !['workspace','prepare','explore','compare','query','branches','source'].includes(s.view) || !['fields','raw','result'].includes(s.dataTab) || typeof s.inspectorOpen !== 'boolean') return invalid()
   for (const session of [s.exploreSession,s.compareSession]) if (session && (session.datasetHash !== s.dataset.fingerprint || !session.spec || session.result && session.result.datasetHash !== s.dataset.fingerprint)) return invalid()
   return snapshot
  } catch { return invalid() }

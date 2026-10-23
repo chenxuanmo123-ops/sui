@@ -16,6 +16,8 @@ import type { AnalysisBundle } from './AnalysisResults'
 import PreparationView from './PreparationView'
 import ExploreView from './ExploreView'
 import type { ExploreSession } from './ExploreView'
+import SqlConsole from './SqlConsole'
+import type { ExtraTable } from './sql-console'
 import type { CompareSession } from './CompareView'
 import CompareView from './CompareView'
 import { buildBundle, workspaceReproResult } from './reproducible'
@@ -64,6 +66,8 @@ export default function App() {
   const cancelPendingSave=useRef<()=>void>(()=>{})
   const [exploreSession,setExploreSession]=useState<ExploreSession|null>(null)
   const [compareSession,setCompareSession]=useState<CompareSession|null>(null)
+  // Session-only JOIN table for the SQL console; deliberately not persisted.
+  const [consoleTable,setConsoleTable]=useState<ExtraTable|null>(null)
   const [showModels, setShowModels] = useState(false)
   const [importFile, setImportFile] = useState<File | null>(null)
   const [showPage, setShowPage] = useState(false)
@@ -156,7 +160,7 @@ export default function App() {
       await clearWorkspace()
       request.current++;abort.current?.abort();datasetRef.current=null
       setDataset(null);setHistory([]);setBundle(null);setBundleHistory([]);bundleRegistry.current.clear()
-      setPreparationHistory([]);setExploreSession(null);setCompareSession(null);setActiveId(null)
+      setPreparationHistory([]);setExploreSession(null);setCompareSession(null);setConsoleTable(null);setActiveId(null)
       setMapping(blankMapping);setQuestion(initialQuestion);setChat([]);setChatInput('');setSelectedPoint('');setAssistantSeed(undefined)
       setInspectorOpen(false);setAssistantOpen(false);setImportFile(null);setShowPage(false);setView('workspace');setDataTab('fields')
       setAllowAutoInspection(true);setSavedAt('');setSaveState('empty');setStorageError('');setStorageBlocked(false);setShowClear(false);setError('')
@@ -168,7 +172,7 @@ export default function App() {
   function installDataset(next: Dataset) {
     setAllowAutoInspection(true)
     next = { ...next, originalFileHash: next.originalFileHash || next.origin?.fileHash || (!next.preparation ? next.fingerprint : undefined), originalFileName: next.originalFileName || next.title }
-    setWorkspaceSection('analysis'); setAnalysisDraft(''); setAssistantOpen(false); setFieldsOpen(false); datasetRef.current = next; setBundle(null); setBundleHistory([]); bundleRegistry.current.clear(); setInspectorOpen(false); setExploreSession(null); setCompareSession(null); setPreparationHistory([]); setShowPage(false); setDataset(next); setMapping(defaultMapping(next, profileDataset(next))); setHistory([]); setActiveId(null)
+    setWorkspaceSection('analysis'); setAnalysisDraft(''); setAssistantOpen(false); setFieldsOpen(false); datasetRef.current = next; setBundle(null); setBundleHistory([]); bundleRegistry.current.clear(); setInspectorOpen(false); setExploreSession(null); setCompareSession(null); setConsoleTable(null); setPreparationHistory([]); setShowPage(false); setDataset(next); setMapping(defaultMapping(next, profileDataset(next))); setHistory([]); setActiveId(null)
     setQuestion(next.isPublic ? initialQuestion : ''); setChat([]); setChatInput(''); setSelectedPoint('')
     setFieldSearch(''); setResultQuery(''); setResultSort('original'); setDataTab('fields'); setEvidenceTab('method'); setView('workspace'); setNotice('数据已读取。请先说明分析目标、业务背景与字段口径。')
   }
@@ -339,13 +343,13 @@ export default function App() {
     <input ref={uploadRef} id="file-upload" className="sr-only" aria-label="导入 CSV、Excel 或 PDF 文件" type="file" accept=".csv,.xlsx,.xls,.pdf" onChange={e => void handleFile(e)} />
     <header className="app-header">
       <a className="brand" href="#main" onClick={() => setView('workspace')}><span className="brand-mark"><Layers3 size={22}/></span><span><strong>数鉴</strong><small>让分析有据可查</small></span></a>
-      <nav className="primary-navigation" aria-label="功能导航">{[{key:'workspace',label:'分析工作台'},{key:'prepare',label:'数据处理'},{key:'explore',label:'探索分析'},{key:'compare',label:'对比诊断'},{key:'source',label:'数据与来源'},{key:'branches',label:'分析分支'}].map(({key,label})=><button key={key} className={'nav-item'+(view===key?' active':'')} aria-current={view===key?'page':undefined} onClick={()=>setView(key as View)}>{label}{key==='branches'&&history.length>0&&<b>{history.length}</b>}</button>)}</nav>
+      <nav className="primary-navigation" aria-label="功能导航">{[{key:'workspace',label:'分析工作台'},{key:'prepare',label:'数据处理'},{key:'explore',label:'探索分析'},{key:'compare',label:'对比诊断'},{key:'query',label:'SQL 查询'},{key:'source',label:'数据与来源'},{key:'branches',label:'分析分支'}].map(({key,label})=><button key={key} className={'nav-item'+(view===key?' active':'')} aria-current={view===key?'page':undefined} onClick={()=>setView(key as View)}>{label}{key==='branches'&&history.length>0&&<b>{history.length}</b>}</button>)}</nav>
       <div className="header-actions"><button className="new-analysis secondary" onClick={newAnalysis}><Plus size={16}/><span>新建分析</span></button><button className="icon-button" aria-label="使用说明" onClick={()=>setShowHelp(true)}><CircleHelp size={19}/></button><button className={'model-trigger'+(models.ready?' connected':'')} onClick={()=>setShowModels(true)}><span className="connection-dot"/><span>{models.selected?.name||'连接 AI'}</span><Settings2 size={15}/></button></div>
     </header>
     <main id="main" className="main" tabIndex={-1}>
       {dataset && <header className="topbar dataset-ribbon"><div className="dataset-ribbon-name"><FileSpreadsheet size={20}/><div className="dataset-name"><strong title={dataset.title}>{dataset.title}</strong><span>{dataset.rows.length.toLocaleString()} 行 · {dataset.headers.length} 个字段</span></div></div><div className="top-actions"><button className="text-button" aria-expanded={fieldsOpen} aria-controls="dataset-field-drawer" onClick={()=>setFieldsOpen(!fieldsOpen)}><Table2 size={16}/>字段与质量</button><button className="text-button" onClick={()=>setView('source')}><ShieldCheck size={16}/>来源</button><button className="secondary top-import" onClick={()=>pickFile()} disabled={loading}><Upload size={16}/>更换文件</button><button className="text-button top-public" onClick={()=>void loadPublicDataset()} disabled={loading}>公开数据</button></div></header>}
       <div className="content">
-        {view !== 'workspace' && <div className="page-heading"><div><h1>{view === 'prepare' ? '数据处理' : view === 'explore' ? '探索分析' : view === 'compare' ? '对比诊断' : view === 'branches' ? '分析分支' : '数据与来源'}</h1><p>{view === 'branches' ? '每次计算保存独立结果，切换分支即可对照原来的口径。' : '检查字段质量、公开来源与本次载入的数据快照。'}</p></div><div className="heading-actions"><button className="secondary" onClick={() => pickFile()} disabled={loading}><Upload size={17} />导入文件</button><button className="text-button" onClick={() => void loadPublicDataset()} disabled={loading}><RefreshCcw size={16} className={loading ? 'spin' : ''} />{loading ? '加载数据中' : '加载公开数据'}</button></div></div>}
+        {view !== 'workspace' && <div className="page-heading"><div><h1>{view === 'prepare' ? '数据处理' : view === 'explore' ? '探索分析' : view === 'compare' ? '对比诊断' : view === 'query' ? 'SQL 查询' : view === 'branches' ? '分析分支' : '数据与来源'}</h1><p>{view === 'branches' ? '每次计算保存独立结果，切换分支即可对照原来的口径。' : '检查字段质量、公开来源与本次载入的数据快照。'}</p></div><div className="heading-actions"><button className="secondary" onClick={() => pickFile()} disabled={loading}><Upload size={17} />导入文件</button><button className="text-button" onClick={() => void loadPublicDataset()} disabled={loading}><RefreshCcw size={16} className={loading ? 'spin' : ''} />{loading ? '加载数据中' : '加载公开数据'}</button></div></div>}
 
         {error && <div className="banner error" role="alert"><AlertCircle size={19} /><span>{error}</span><button aria-label="关闭错误提示" className="icon-button" onClick={() => setError('')}><X size={17} /></button></div>}
         <div className="status-message" role="status" aria-live="polite">{notice && <><Check size={15} /><span>{notice}</span></>}</div>
@@ -357,6 +361,8 @@ export default function App() {
         {view === 'prepare' && dataset && <PreparationView key={dataset.fingerprint} dataset={dataset} canUndo={preparationHistory.length > 0} onCommit={next => { const previous = dataset; const past = preparationHistory; installDataset(next); setPreparationHistory([...past, previous]); setView('prepare'); setNotice('处理已应用，旧分析已清空，可撤销本次处理。') }} onUndo={() => { const past = preparationHistory; const previous = past.at(-1); if (previous) { installDataset(previous); setPreparationHistory(past.slice(0,-1)); setView('prepare'); setNotice('已恢复上一份数据快照，分析需重新执行。') } }} onExplore={() => setView('explore')} />}
         {view === 'compare' && dataset && <CompareView key={dataset.fingerprint} session={compareSession} onSessionChange={setCompareSession} dataset={dataset} onAsk={(question, context) => { setAssistantSeed({question,context,nonce:Date.now()}); setAssistantOpen(true) }} />}
         {view === 'explore' && dataset && <ExploreView key={dataset.fingerprint} session={exploreSession} onSessionChange={setExploreSession} dataset={dataset} onAsk={(question, context) => { setAssistantSeed({question,context,nonce:Date.now()}); setAssistantOpen(true) }} />}
+        {view === 'query' && dataset && <SqlConsole key={dataset.fingerprint} dataset={dataset} table={consoleTable} onTable={setConsoleTable} />}
+        {view === 'query' && !dataset && <section className="panel core-panel"><p>先导入真实文件，再在本地 SQLite 上运行只读查询。</p><button className="primary" onClick={() => pickFile()}>导入数据</button></section>}
 
         {view === 'workspace' && !dataset && <WorkspaceWelcome onPick={pickFile} onFile={file => void importSelectedFile(file)} busy={loading} configured={!!models.defaultProfile} onConfigure={() => setShowModels(true)} onPublic={()=>void loadPublicDataset()} />}
         <div className="workbench" hidden={view !== 'workspace' || !dataset}>

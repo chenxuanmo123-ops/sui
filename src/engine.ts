@@ -1,5 +1,6 @@
 import type { Analysis, AnalysisScope, Dataset, Mapping } from './data'
 import type { ExploreResult, ExploreSpec, ComparisonSpec, ComparisonResult } from './analytics'
+import type { ConsoleResult, ExtraTable } from './sql-console'
 
 let worker: Worker | undefined, sequence = 0
 let queue: Promise<unknown> = Promise.resolve()
@@ -57,3 +58,6 @@ function request<T>(payload: object, signal?: AbortSignal): Promise<T> {
 export const aggregateDataset = (dataset: Dataset, mapping: Mapping, question: string, analysisId: number, scope?: AnalysisScope, signal?: AbortSignal) => request<Analysis>({ type: 'aggregate', dataset, mapping, question, analysisId, scope }, signal)
 export const exploreDataset = (dataset: Dataset, spec: ExploreSpec, signal?: AbortSignal) => request<ExploreResult>({ type: 'explore', dataset, spec }, signal)
 export const compareDataset = (dataset: Dataset, spec: ComparisonSpec, signal?: AbortSignal) => request<ComparisonResult>({ type: 'compare', dataset, spec }, signal)
+export const queryDataset = (dataset: Dataset, sql: string, signal?: AbortSignal) => request<ConsoleResult>({ type: 'query', dataset, sql }, signal)
+export const loadConsoleTable = (dataset: Dataset, table: ExtraTable, signal?: AbortSignal) => request<{ name: string; columns: number; rows: number; names: string[] }>({ type: 'table', dataset, table }, signal)
+export const clearConsoleTable = (dataset: Dataset, signal?: AbortSignal) => request<{ name: string; columns: number; rows: number; names: string[] }>({ type: 'table', dataset, table: null }, signal)

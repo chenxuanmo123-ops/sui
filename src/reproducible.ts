@@ -1,5 +1,8 @@
 import { strToU8, zipSync } from 'fflate'
 import type { Dataset, Mapping, Point } from './data'
+import { exportColumnNames, recordColumnName } from './sql-names'
+
+export { exportColumnNames, recordColumnName } from './sql-names'
 
 // A portable bundle contains the cleaned rows, a schema, the exact executed SQL
 // with its parameters inlined, and the expected result. The Python runner is
@@ -57,22 +60,6 @@ const sqlLiteral = (value: string | number | null) => {
     return String(value)
   }
   return "'" + value.replaceAll("'", "''") + "'"
-}
-
-// Column names are only used to make the exported files readable. If they are
-// not case-insensitively unique, fall back to cN names so SQLite does not merge
-// or reject them. The analysis SQL always refers to cN aliases through a view.
-export function exportColumnNames(dataset: Dataset, recordName: string) {
-  const lower = dataset.headers.map(h => h.toLowerCase())
-  const readable = new Set(lower).size === lower.length && !lower.includes(recordName.toLowerCase())
-  return readable ? dataset.headers.slice() : dataset.headers.map((_, i) => 'c' + i)
-}
-
-export function recordColumnName(dataset: Dataset) {
-  const lower = new Set(dataset.headers.map(h => h.toLowerCase()))
-  let name = '__record__'
-  while (lower.has(name.toLowerCase())) name += '_'
-  return name
 }
 
 export function inlineSql(sql: string, parameters: (string | number | null)[]) {

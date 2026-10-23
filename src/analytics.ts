@@ -2,6 +2,7 @@ import type { Database, SqlValue } from 'sql.js'
 import { bucketLabel, compareLabels, numberValue, summarize, aggregateNames } from './data'
 import type { Analysis, AnalysisScope, Dataset, Mapping } from './data'
 import { validateScope, validateScopedMapping } from './follow-up'
+import { exportColumnNames } from './sql-names'
 export type ChartKind = 'line' | 'bar' | 'scatter' | 'heatmap' | 'table'
 export type ExploreSpec = { kind: ChartKind; x: string; y: string; metric: string; aggregate: Mapping['aggregate']; filter: string; value: string; bucket: Mapping['timeBucket']; sort: 'label' | 'desc'; limit: number }
 export type ExploreResult = { columns: string[]; rows: (string | number | null)[][]; rowIds: number[][]; sql: string; parameters: SqlValue[]; total: number; excluded: number; truncated: boolean; datasetHash: string; spec: ExploreSpec }
@@ -11,6 +12,10 @@ export function installSQL(db: Database, d: Dataset) {
  db.create_function('compare_labels', (a: SqlValue,b: SqlValue) => compareLabels(String(a), String(b)))
  db.create_function('time_bucket', (v: SqlValue,b: SqlValue) => bucketLabel(String(v), String(b) as Mapping['timeBucket']))
  db.run('CREATE TABLE data ("_record" INTEGER PRIMARY KEY, ' + d.headers.map((_,i) => '"c'+i+'" TEXT').join(', ') + ')')
+ // The console exposes original header names when they are unambiguous. The
+ // compiled analysis SQL keeps using data.cN, so this view is additive.
+ const readable = exportColumnNames(d, '_record')
+ db.run('CREATE VIEW readable AS SELECT "_record" AS "_record"' + readable.map((name,i) => ', "c'+i+'" AS '+'"'+name.replaceAll('"','""')+'"').join('') + ' FROM data')
  db.run('BEGIN'); const stmt = db.prepare('INSERT INTO data VALUES (' + Array(d.headers.length+1).fill('?').join(',') + ')')
  try { d.rows.forEach((r,i) => stmt.run([i+2,...d.headers.map(h=>r[h] ?? null)])); db.run('COMMIT'); db.run('PRAGMA query_only = ON') } catch(e) { db.run('ROLLBACK'); throw e } finally { stmt.free() }
 }

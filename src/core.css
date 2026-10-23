@@ -83,3 +83,7 @@
 .app-error details{margin:14px 0 20px;color:#52627a;font-size:13px}
 .app-error details p{overflow-wrap:anywhere;background:#f4f7fb;padding:10px 12px;border-radius:6px}
 .app-error .primary{margin-top:4px}
+.sql-schema{margin:12px 0;font-size:12px;color:#566d8b}.sql-schema summary{cursor:pointer;margin-bottom:10px}.sql-schema .core-table-wrap{max-height:220px}.console-label{display:block;font-size:12px;color:#566d8b;margin-bottom:8px}.sql-console-editor{font:12px/1.8 Consolas,monospace;min-height:150px}.console-actions{margin-top:12px}.console-actions .core-muted{font-size:11px}
+.console-table-state{margin:8px 0;font-size:12px;color:#385778}.console-table-state strong{color:#173d74}
+.console-table-actions{display:flex;gap:14px;align-items:center;flex-wrap:wrap}.console-table-actions .text-button{display:inline-flex;gap:5px;align-items:center}
+.danger-text{color:#a33a2b}.danger-text:hover{color:#7d2a1f}
