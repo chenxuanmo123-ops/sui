@@ -24,15 +24,16 @@ AI Web 网页开发挑战赛参赛作品，赛道为 **AI 数据分析与可视�
 - 不 force push；不擅自购买云服务或修改部署账号。
 - 不把 MCP、RAG、多模态或多模型配置当作目的；它们必须服务于数据分析闭环。
 
-## 当前状态（2026-10-23 核对）
+## 当前状态（2026-10-23 18:56 核对）
 
-- 仓库：`chenxuanmo123-ops/sui`。`4cb004c`、`d46c56d`、`86a9479`、`3ec8eb0`、`945124a`、`1226de1`、`917de33`、`3579bc1` 均已推送；Pages Functions 已随 `86a9479` 部署生效。
-- 2026-10-23 18:35 工作区干净，无未提交改动；不要重置用户文件。
-- 已核对的本地结果：`test:core` 90 项、`test:ai` 31 项（含 Pages Functions 8 项与 dev-server 1 项）、`test:evaluation` 14 项、`test:production` 33 项通过；`npm run build` 通过（仍有 >500 kB 分包警告）。
-- 本轮浏览器回归全部通过：`core-browser-acceptance.py` 16、`import-browser-acceptance.py` 14（末尾直接导入 `/src/importers.ts`，必须对 `npm run dev` 运行）、`ai-partial-execution-browser.py` 13、`follow-up-browser.py` 7、`quality-diagnostics-browser.py` 6、`ai-cancellation-browser.py` 4。不能用这些结果声称真实模型质量或公网可用。
+- 仓库：`chenxuanmo123-ops/sui`。`4cb004c`、`d46c56d`、`86a9479`、`3ec8eb0`、`945124a`、`1226de1`、`917de33`、`3579bc1`、`29f1a2b` 均已推送；Pages Functions 已随 `86a9479` 部署生效。
+- 2026-10-23 18:56 代码提交后工作区只有交接/部署文档更新；不要重置用户文件。
+- 已核对的本地结果：`test:core` 96 项、`test:ai` 31 项（含 Pages Functions 8 项与 dev-server 1 项）、`test:evaluation` 14 项、`test:production` 33 项通过；`npm run build` 通过（仍有 >500 kB 分包警告）。
+- 本轮浏览器回归全部通过：`core-browser-acceptance.py` 16、`import-browser-acceptance.py` 14（末尾直接导入 `/src/importers.ts`，必须对 `npm run dev` 运行）、`ai-partial-execution-browser.py` 13、`follow-up-browser.py` 7、`quality-diagnostics-browser.py` 6、`ai-cancellation-browser.py` 4、`analysis-usability-browser.py` 6。不能用这些结果声称真实模型质量或公网可用。
+- `29f1a2b` 增加：结果表分组搜索/排序（不改变计算值）、未配置模型时手动计算为首要入口、当前口径带入探索分析、顶层错误边界；归档 `docs/比赛规则与评分标准-2026.md`。仍未实现流式输出、RAG、MCP。
 - `scripts/dev.mjs` 曾因缺少 `createProfileStore()` 导致 `npm run dev` 启动崩溃，已在 `3579bc1` 修复；`tests/dev-server.test.mjs` 覆盖该入口。
-- Cloudflare Pages 站点 `https://sui-ae9.pages.dev/` 在 2026-10-23 18:33 的公网资源为 `index-CCFsSr3k.js`，与本地 `dist` 一致，确认推送会触发自动构建。
-- 仓库新增 `functions/api/`：`/api/ai/*`、`/api/health`、未知 `/api/*` 的 JSON 404 由 Pages Functions 处理，与 Node 服务共用 `server/ai.mjs`。2026-10-23 18:33 公网实测：健康检查与状态接口返回 JSON，未知 API 返回 404 JSON，未配置模型时计划接口返回 503 JSON；`npm run verify:public` 7/7 通过。
+- Cloudflare Pages 站点 `https://sui-ae9.pages.dev/` 在 2026-10-23 18:56 的公网资源为 `index-BZmg_Z_l.js` / `index-C8EXOo8P.css`，与本地 `dist` 一致，确认推送会触发自动构建。
+- 仓库新增 `functions/api/`：`/api/ai/*`、`/api/health`、未知 `/api/*` 的 JSON 404 由 Pages Functions 处理，与 Node 服务共用 `server/ai.mjs`。2026-10-23 18:56 公网实测：健康检查与状态接口返回 JSON，未知 API 返回 404 JSON，未配置模型时计划接口返回 503 JSON；`npm run verify:public` 7/7 通过（首次因网络超时 0/1，重试通过）。
 - 公网 `/api/health` 当前为 `aiConfigured:false`：Cloudflare Pages 还没有配置 `LLM_BASE_URL`、`LLM_API_KEY`、`LLM_MODEL`，AI 不可用。配置后应复跑 `npm run verify:public` 并做一次真实模型计划；在此之前不能声称公网 AI 已上线。
 - Pages Functions 没有文件系统：公网保存/删除模型连接返回 403 属预期；自带密钥需要 `LLM_ALLOWED_HOSTS`。`render.yaml` 与 Dockerfile 仍保留，Docker 镜像未实际构建。
 - 健康检查返回 JSON 只证明后端存在；AI 是否可用以 `aiConfigured:true` 与一次真实模型计划为准。
