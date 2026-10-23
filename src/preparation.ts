@@ -30,7 +30,9 @@ export function qualityRecords(d: Dataset, field: string, issue: QualityIssue, s
   if (issue === 'duplicate') { const key = JSON.stringify(d.headers.map(header => row[header])); matches = seen.has(key); seen.add(key) }
   else if (issue === 'missing') matches = missing
   else if (issue === 'nonnumeric') matches = !missing && !Number.isFinite(number)
-  else if (issue === 'whitespace') matches = value != null && value !== value.trim()
+  // One primary class per cell: a whitespace-only value is missing, not whitespace.
+  // This keeps the record list consistent with FieldSummary.whitespace.
+  else if (issue === 'whitespace') matches = value != null && value.trim() !== '' && value !== value.trim()
   else if (issue === 'outlier') matches = summary.numeric >= 4 && iqr !== null && Number.isFinite(number) && (number < summary.q1! - 1.5 * iqr || number > summary.q3! + 1.5 * iqr)
   if (!matches) return
   if (total >= page * pageSize && records.length < pageSize) records.push({ index, sourceRecord: d.sourceRecords?.[index] ?? index + 2, location: d.origin?.locations[index] ?? String(d.sourceRecords?.[index] ?? index + 2), value })
