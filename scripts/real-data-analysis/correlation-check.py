@@ -42,6 +42,9 @@ def run(page):
 with sync_playwright() as p:
     browser = p.chromium.launch(headless=True, channel="msedge")
     page = browser.new_page(viewport={"width": 1440, "height": 1100})
+    # Cold Cloudflare deployments and the lazy chart chunk can take longer than
+    # Playwright's 5 s default; keep the assertions, give the network more room.
+    page.set_default_timeout(30000)
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.goto(url, wait_until="load", timeout=120000)
