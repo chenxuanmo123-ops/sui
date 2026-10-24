@@ -95,4 +95,5 @@
 .explore-trend strong{display:block;font-size:13px;color:#243d5f;margin-bottom:4px}
 .explore-trend p{margin:2px 0}
 .explore-trend p:last-child{font-size:11px;color:#7c8ba0}
+.explore-correlation{border-left-color:#2f7d63;background:#f5faf8}
 .result-trend{margin:12px 0 0;padding:10px 12px;border-left:3px solid #3971e8;background:#f7faff;border-radius:6px;font-size:11px;line-height:1.8;color:#6a7f9a}

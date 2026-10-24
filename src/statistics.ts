@@ -22,6 +22,20 @@ export function linearTrend(points: TrendPoint[]): LinearTrend | null {
   return { slope, intercept: meanY - slope * meanX, r2: Math.max(0, Math.min(1, (sxy * sxy) / (sxx * syy))), n }
 }
 
+export type Correlation = { r: number; n: number; method: 'pearson' }
+
+// Pearson r from centered sums: Σ(x-x̄)², Σ(y-ȳ)², Σ(x-x̄)(y-ȳ), all computed
+// in SQLite over the full filtered scope. This is a linear association measure,
+// not a fit, significance test, or causal estimate.
+export function pearsonFromCentered(n: number, sxx: number, syy: number, sxy: number): Correlation | null {
+  if (!Number.isInteger(n) || n < 3) return null
+  if (!Number.isFinite(sxx) || !Number.isFinite(syy) || !Number.isFinite(sxy)) return null
+  if (!(sxx > 0) || !(syy > 0)) return null
+  const r = sxy / Math.sqrt(sxx * syy)
+  if (!Number.isFinite(r)) return null
+  return { r: Math.max(-1, Math.min(1, r)), n, method: 'pearson' }
+}
+
 // Year labels map to the year; month labels map to months since year 0 so the
 // slope is read as "per year" or "per month" without assuming equal gaps.
 export function timeIndex(label: string, bucket: 'year' | 'month'): number | null {

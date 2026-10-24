@@ -3,11 +3,11 @@ import { bucketLabel, compareLabels, numberValue, summarize, aggregateNames } fr
 import type { Analysis, AnalysisScope, Dataset, Mapping } from './data'
 import { validateScope, validateScopedMapping } from './follow-up'
 import { exportColumnNames } from './sql-names'
-import { linearTrend, timeIndex } from './statistics'
-import type { TimeTrend } from './statistics'
+import { linearTrend, pearsonFromCentered, timeIndex } from './statistics'
+import type { Correlation, TimeTrend } from './statistics'
 export type ChartKind = 'line' | 'bar' | 'scatter' | 'heatmap' | 'table'
 export type ExploreSpec = { kind: ChartKind; x: string; y: string; metric: string; aggregate: Mapping['aggregate']; filter: string; value: string; bucket: Mapping['timeBucket']; sort: 'label' | 'desc'; limit: number }
-export type ExploreResult = { columns: string[]; rows: (string | number | null)[][]; rowIds: number[][]; sql: string; parameters: SqlValue[]; total: number; excluded: number; truncated: boolean; datasetHash: string; spec: ExploreSpec; trend?: TimeTrend }
+export type ExploreResult = { columns: string[]; rows: (string | number | null)[][]; rowIds: number[][]; sql: string; parameters: SqlValue[]; total: number; excluded: number; truncated: boolean; datasetHash: string; spec: ExploreSpec; trend?: TimeTrend; correlation?: Correlation }
 export const col = (d: Dataset, key: string) => { const i = d.headers.indexOf(key); if (i < 0) throw new Error('字段不存在：' + key); return '"c' + i + '"' }
 export function installSQL(db: Database, d: Dataset) {
  db.create_function('strict_number', (v: SqlValue) => { const n = numberValue(v === null ? null : String(v)); return Number.isFinite(n) ? n : null })
@@ -119,13 +119,22 @@ export function runExplore(db: Database,d: Dataset,s: ExploreSpec): ExploreResul
  if(limited.some(r=>r.slice(0,-1).some(v=>typeof v==='number'&&!Number.isFinite(v))))throw new Error('计算结果超出有效数值范围，请缩小范围或核对单位')
  // Count valid rows independently; do not confuse display limits with excluded data.
  const validCount=Number(rows(db,'SELECT COUNT(*) '+filtered+(filters.length?' AND ':' WHERE ')+valid,s.filter?[s.value]:[])[0][0])
+ // Pearson r over every valid pair in the filtered scope, not just the plotted
+ // page. Centering happens in SQL (AVG OVER) so large offsets do not cancel.
+ let correlation: Correlation | undefined
+ if (s.kind==='scatter') {
+  const y=col(d,s.y)
+  const pairs='pairs AS (SELECT strict_number('+x+') AS px, strict_number('+y+') AS py '+filtered+(filters.length?' AND ':' WHERE ')+valid+')'
+  const summary=rows(db,'WITH '+pairs+', centered AS (SELECT px - AVG(px) OVER () AS dx, py - AVG(py) OVER () AS dy FROM pairs) SELECT COUNT(*), SUM(dx*dx), SUM(dy*dy), SUM(dx*dy) FROM centered',params)[0]
+  if(summary) correlation=pearsonFromCentered(Number(summary[0]),Number(summary[1]),Number(summary[2]),Number(summary[3]))??undefined
+ }
  let trend: TimeTrend | undefined
  if (s.kind==='line' && (s.bucket==='year' || s.bucket==='month')) {
   const period=s.bucket
   const fitted=linearTrend(limited.map(r=>{const x=timeIndex(String(r[0]??''),period);const y=Number(r[1]);return {x:x??NaN,y}}).filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)))
   if (fitted) trend={...fitted,period}
  }
- return {columns,rows:limited.map(r=>r.slice(0,-1) as (string|number|null)[]),rowIds:limited.map(r=>String(r.at(-1)).split(',').map(Number)),sql:preamble(d)+sql,parameters:params,total,excluded:total-validCount,truncated,datasetHash:d.fingerprint,spec:structuredClone(s),...(trend?{trend}:{})}
+ return {columns,rows:limited.map(r=>r.slice(0,-1) as (string|number|null)[]),rowIds:limited.map(r=>String(r.at(-1)).split(',').map(Number)),sql:preamble(d)+sql,parameters:params,total,excluded:total-validCount,truncated,datasetHash:d.fingerprint,spec:structuredClone(s),...(trend?{trend}:{}),...(correlation?{correlation}:{})}
 }
 export type ComparisonSpec={period:string;dimension:string;metric:string;aggregate:'sum'|'count';baselineFrom:string;baselineTo:string;currentFrom:string;currentTo:string}
 export type ComparisonResult={spec:ComparisonSpec;sql:string;parameters:SqlValue[];groups:{label:string;baseline:number|null;current:number|null;delta:number|null;rate:number|null;contribution:number|null;baselineIds:number[];currentIds:number[]}[];baselineTotal:number|null;currentTotal:number|null;delta:number|null;excluded:number;comparable:boolean;datasetHash:string}
