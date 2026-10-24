@@ -7,7 +7,10 @@ import { openPDF } from './importers'
 export type ReferenceSource = 'file' | 'method'
 export type ReferenceChunk = { page?: number; text: string }
 export type ReferenceDoc = { id: string; name: string; source: ReferenceSource; chunks: ReferenceChunk[]; chars: number }
-export type ReferenceExcerpt = { id: string; title: string; source: ReferenceSource; page?: number; text: string; score?: number }
+// Only fields the server accepts are kept in an excerpt. The BM25 score is an
+// internal ranking detail; sending it made /api/ai/plan reject every request
+// that carried a retrieved reference.
+export type ReferenceExcerpt = { id: string; title: string; source: ReferenceSource; page?: number; text: string }
 
 export const REFERENCE_LIMITS = {
   files: 5,
@@ -138,7 +141,6 @@ export function retrieveReferences(files: ReferenceDoc[], query: string, limit =
     source: candidate.doc.source,
     ...(candidate.chunk.page ? { page: candidate.chunk.page } : {}),
     text: candidate.chunk.text,
-    score: candidate.score,
   }))
 }
 

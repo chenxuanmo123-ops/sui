@@ -34,7 +34,9 @@ export default function DataChart({ interaction = 'evidence', compact = false, c
     return ()=>{document.removeEventListener('pointerdown',dismiss);document.removeEventListener('keydown',escape,true)}
   },[exportMode])
   const ordered = orderPoints(points,kind==='line'?'original':sort)
-  const windowSize = exportMode?points.length:12
+  // A line chart is read as one continuous series. Paging it would make a
+  // 24-month rise look like a rise-and-fall and contradict the fitted trend.
+  const windowSize = exportMode||kind==='line'?points.length:12
   const offset = exportMode?0:Math.min(start,Math.max(0,Math.floor((ordered.length-1)/windowSize)*windowSize))
   const visible = ordered.slice(offset,offset+windowSize)
   const horizontal = kind==='bar' && orientation==='horizontal'
@@ -51,6 +53,9 @@ export default function DataChart({ interaction = 'evidence', compact = false, c
   const categoryX = (i:number)=>left+(i+.5)/Math.max(1,visible.length)*plotWidth
   const categoryY = (i:number)=>top+(i+.5)/Math.max(1,visible.length)*plotHeight
   const barSize = Math.min(horizontal?23:44,(horizontal?plotHeight:plotWidth)/Math.max(1,visible.length)*.6)
+  // Keep every point on the line but thin axis labels and value labels so a
+  // long series stays readable. Hovering any point still shows its exact value.
+  const labelStep = kind==='line'?Math.max(1,Math.ceil(visible.length/Math.max(6,Math.floor(plotWidth/80)))):1
   const axisUnit = (unit || '单位未声明') + (scale.label?'（刻度：'+scale.label+'）':'')
   const precision = tickPrecision((domain.ticks[1]-domain.ticks[0])/scale.divisor)
   const line = visible.map((p,i)=>categoryX(i)+','+valueY(p.value)).join(' ')
@@ -67,16 +72,16 @@ export default function DataChart({ interaction = 'evidence', compact = false, c
     </div>}
     <div className="viz-legend"><span><i/>{metric}</span>{baseline&&<span className="viz-reference-key"><i/>{baseline.label} {formatNumber(baseline.value,2)}{unit}</span>}</div>
     <div ref={plotRef} className="chart-scroll viz-plot" onMouseLeave={()=>setHovered('')}><svg ref={svgRef} xmlns="http://www.w3.org/2000/svg" id={chartId} className="data-chart" style={exportMode?undefined:{height, minWidth:360}} viewBox={'0 0 '+width+' '+height} role="img" aria-label={metric+'，共 '+points.length+' 个分组，当前显示 '+visible.length+' 个，单位 '+(unit||'未声明')+'。可点击数据点'+(interaction==='select'?'选择分组并追问':'查看来源')+'，完整数值见结果表。'}>
-      <defs><linearGradient id={gradient} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#3971e8" stopOpacity=".13"/><stop offset="100%" stopColor="#3971e8" stopOpacity="0"/></linearGradient></defs>
-      <text x={left} y={15} fontSize="11" fill="#63758c">{axisUnit}</text>
-      {domain.ticks.map(value=><g key={value}>{horizontal?<><line x1={valueX(value)} x2={valueX(value)} y1={top} y2={height-bottom} stroke="#e6edf5" strokeDasharray="3 5"/><text x={valueX(value)} y={height-bottom+23} textAnchor="middle" fontSize="11" fill="#63758c">{formatNumber(value/scale.divisor,precision)}</text></>:<><line x1={left} x2={width-right} y1={valueY(value)} y2={valueY(value)} stroke="#e6edf5" strokeDasharray="3 5"/><text x={left-12} y={valueY(value)+4} textAnchor="end" fontSize="11" fill="#63758c">{formatNumber(value/scale.divisor,precision)}</text></>}</g>)}
-      {kind==='line' && visible.length>0 && <><polygon points={categoryX(0)+','+valueY(0)+' '+line+' '+categoryX(visible.length-1)+','+valueY(0)} fill={'url(#'+gradient+')'}/><polyline points={line} fill="none" stroke="#3971e8" strokeWidth="2.6" strokeLinejoin="round"/></>}
-      {visible.map((p,i)=>{const isActive=p.label===selected||p.label===hovered,color=p.label===selected?'#172d4e':'#3971e8',cx=categoryX(i),cy=categoryY(i),vx=valueX(p.value),vy=valueY(p.value);return <g key={p.label}>
-        {horizontal && isActive && <rect x="4" y={cy-17} width={width-8} height="34" fill="#edf4ff" rx="5"/>}
+      <defs><linearGradient id={gradient} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#2c5a48" stopOpacity=".13"/><stop offset="100%" stopColor="#2c5a48" stopOpacity="0"/></linearGradient></defs>
+      <text x={left} y={15} fontSize="11" fill="#6e6b60">{axisUnit}</text>
+      {domain.ticks.map(value=><g key={value}>{horizontal?<><line x1={valueX(value)} x2={valueX(value)} y1={top} y2={height-bottom} stroke="#e6e0d3" strokeDasharray="3 5"/><text x={valueX(value)} y={height-bottom+23} textAnchor="middle" fontSize="11" fill="#6e6b60">{formatNumber(value/scale.divisor,precision)}</text></>:<><line x1={left} x2={width-right} y1={valueY(value)} y2={valueY(value)} stroke="#e6e0d3" strokeDasharray="3 5"/><text x={left-12} y={valueY(value)+4} textAnchor="end" fontSize="11" fill="#6e6b60">{formatNumber(value/scale.divisor,precision)}</text></>}</g>)}
+      {kind==='line' && visible.length>0 && <><polygon points={categoryX(0)+','+valueY(0)+' '+line+' '+categoryX(visible.length-1)+','+valueY(0)} fill={'url(#'+gradient+')'}/><polyline points={line} fill="none" stroke="#2c5a48" strokeWidth="2.6" strokeLinejoin="round"/></>}
+      {visible.map((p,i)=>{const isActive=p.label===selected||p.label===hovered,color=p.label===selected?'#1c2b24':'#2c5a48',cx=categoryX(i),cy=categoryY(i),vx=valueX(p.value),vy=valueY(p.value),showTick=horizontal||i%labelStep===0||i===visible.length-1;return <g key={p.label}>
+        {horizontal && isActive && <rect x="4" y={cy-17} width={width-8} height="34" fill="#f3f0e7" rx="5"/>}
         {kind==='bar' && <rect x={horizontal?Math.min(valueX(0),vx):cx-barSize/2} y={horizontal?cy-barSize/2:Math.min(valueY(0),vy)} width={horizontal?Math.max(1,Math.abs(vx-valueX(0))):barSize} height={horizontal?barSize:Math.max(1,Math.abs(vy-valueY(0)))} rx="3" fill={color} opacity={hovered && !isActive ? .62 : 1}/>}
         {kind==='line' && <circle cx={cx} cy={vy} r={isActive?6:4} fill={color} stroke="#fff" strokeWidth="2"/>}
-        {horizontal?<text x={left-13} y={cy+4} textAnchor="end" fontSize="12" fontWeight={isActive?600:400} fill={isActive?'#172d4e':'#526580'}><title>{p.label}</title>{shorten(p.label,26)}</text>:<text x={cx} y={height-bottom+25} textAnchor="middle" fontSize="11" fill="#526580"><title>{p.label}</title>{shorten(p.label,Math.max(5,Math.min(16,Math.floor(plotWidth/Math.max(1,visible.length)/7))))}</text>}
-        {showValues && <text x={horizontal?width-8:cx} y={horizontal?cy+4:vy+(p.value<0?17:-10)} textAnchor={horizontal?'end':'middle'} fontSize="11" fontWeight="600" fill="#294468">{valueLabel(p.value)}</text>}
+        {showTick && (horizontal?<text x={left-13} y={cy+4} textAnchor="end" fontSize="12" fontWeight={isActive?600:400} fill={isActive?'#1c2b24':'#5b5e54'}><title>{p.label}</title>{shorten(p.label,26)}</text>:<text x={cx} y={height-bottom+25} textAnchor="middle" fontSize="11" fill="#5b5e54"><title>{p.label}</title>{shorten(p.label,Math.max(5,Math.min(16,Math.floor(plotWidth/Math.max(1,Math.ceil(visible.length/labelStep))/7))))}</text>)}
+        {showValues && showTick && <text x={horizontal?width-8:cx} y={horizontal?cy+4:vy+(p.value<0?17:-10)} textAnchor={horizontal?'end':'middle'} fontSize="11" fontWeight="600" fill="#2b3a32">{valueLabel(p.value)}</text>}
         <rect className="chart-hit" x={horizontal?4:cx-plotWidth/Math.max(1,visible.length)/2} y={horizontal?cy-17:top} width={horizontal?width-8:plotWidth/Math.max(1,visible.length)} height={horizontal?34:plotHeight+bottom-8} fill="transparent" role="button" tabIndex={exportMode?-1:0} aria-label={p.label+'：'+formatNumber(p.value,4)+' '+unit+'，'+(interaction==='select'?'选择此分组':'查看 '+p.rowIds.length+' 条来源记录')} aria-pressed={selected===p.label} onMouseEnter={()=>setHovered(p.label)} onFocus={()=>setHovered(p.label)} onBlur={()=>setHovered('')} onClick={()=>{setHovered('');onSelect(p.label)}} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onSelect(p.label)}if(e.key==='Escape')setHovered('')}}><title>{p.label+': '+formatNumber(p.value,4)+' '+unit}</title></rect>
       </g>})}
       {baseline && <g className="chart-reference" pointerEvents="none">{horizontal?<line x1={valueX(baseline.value)} x2={valueX(baseline.value)} y1={top-2} y2={height-bottom} stroke="#b47823" strokeDasharray="6 4" strokeWidth="1.5"/>:<line x1={left} x2={width-right} y1={valueY(baseline.value)} y2={valueY(baseline.value)} stroke="#b47823" strokeDasharray="6 4" strokeWidth="1.5"/>}<title>{baseline.label+' '+formatNumber(baseline.value,4)+unit}</title></g>}

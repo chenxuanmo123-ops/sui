@@ -5,6 +5,8 @@ import ErrorBoundary from './ErrorBoundary'
 import './styles.css'
 import './workspace.css'
 import './investigation.css'
+import './notebook.css'
+import './desk.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

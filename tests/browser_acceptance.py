@@ -28,7 +28,7 @@ with sync_playwright() as p:
     page.wait_for_function("!document.querySelector('.loading-indicator')", timeout=60000)
     if not responses:
         assert page.locator('#analysis-svg').count() == 0
-        page.get_by_role('button', name='加载公开数据', exact=True).click()
+        page.get_by_role('button', name='手边没有文件？载入带来源的公开数据', exact=True).click()
         page.wait_for_function("document.querySelector('.dataset-name strong').textContent==='OWID Energy Data' || document.querySelector('[role=alert]')", timeout=60000)
         assert page.locator('.dataset-name strong').inner_text()=='OWID Energy Data', page.locator('[role=alert]').all_text_contents()
     assert responses, 'public data response absent'
@@ -172,7 +172,7 @@ with sync_playwright() as p:
     blocked = context.new_page()
     blocked.route('**/owid-energy-data.csv', lambda route: route.abort())
     blocked.goto(BASE_URL + '/', wait_until='networkidle')
-    blocked.get_by_role('button', name='加载公开数据', exact=True).click()
+    blocked.get_by_role('button', name='手边没有文件？载入带来源的公开数据', exact=True).click()
     expect(blocked.get_by_role('alert')).to_contain_text('公开数据加载失败')
     assert blocked.locator('#analysis-svg').count() == 0
     blocked.close()

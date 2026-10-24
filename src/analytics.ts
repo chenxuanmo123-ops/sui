@@ -86,7 +86,7 @@ export function runAggregate(db: Database, d: Dataset, m: Mapping, question: str
   if(fitted) trend={...fitted,period}
  }
  const stats=rows(db,scope+' SELECT (SELECT COUNT(*) FROM selected), (SELECT COUNT(*) FROM scoped WHERE label IS NULL) + (SELECT COUNT(*) FROM selected WHERE NOT ('+valid+'))',params)[0]
- return {scope:rowScope ? structuredClone(rowScope) : undefined,id,question,mapping:structuredClone(m),points,usedRows:points.reduce((n,p)=>n+p.rowIds.length,0),matched:Number(stats[0]),skipped:Number(stats[1]),createdAt:new Date().toISOString(),datasetHash:d.fingerprint,finding:summarize(points,m.unit),sql:preamble(d)+sql,parameters:params as (string|number|null)[],operations:['SQLite / sql.js 真实执行参数化只读查询', '数据快照：'+d.fingerprint, aggregateNames[m.aggregate]+'；空值不替换为零', 'SQL 列映射及参数见下方，来源记录号对应当前快照'],...(trend?{trend}:{})}
+ return {scope:rowScope ? structuredClone(rowScope) : undefined,id,question,mapping:structuredClone(m),points,usedRows:points.reduce((n,p)=>n+p.rowIds.length,0),matched:Number(stats[0]),skipped:Number(stats[1]),createdAt:new Date().toISOString(),datasetHash:d.fingerprint,finding:summarize(points,m.unit,Boolean(trend)),sql:preamble(d)+sql,parameters:params as (string|number|null)[],operations:['SQLite / sql.js 真实执行参数化只读查询', '数据快照：'+d.fingerprint, aggregateNames[m.aggregate]+'；空值不替换为零', 'SQL 列映射及参数见下方，来源记录号对应当前快照'],...(trend?{trend}:{})}
 }
 export function runExplore(db: Database,d: Dataset,s: ExploreSpec): ExploreResult {
  if(!['line','bar','scatter','heatmap','table'].includes(s.kind) || !['label','desc'].includes(s.sort) || !Number.isInteger(s.limit) || s.limit<1 || s.limit>200) throw new Error('图表配置无效')

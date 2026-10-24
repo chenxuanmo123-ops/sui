@@ -79,8 +79,9 @@ with sync_playwright() as p:
     page.locator('.ai-result-links button').click()
     # 结果链接当前会把工作台切到“证据与报告”，图表在“分析与图表”分区中核对。
     page.get_by_role('button', name='分析与图表', exact=True).click()
-    expect(page.get_by_role('button', name='柱状', exact=True)).to_have_attribute('aria-pressed', 'true')
-    expect(page.locator('#analysis-svg')).to_contain_text('FY2022')
+    expect(page.locator('.bundle-result:visible svg.data-chart')).to_contain_text('FY2022')
+    page.get_by_role('button', name='数据预览', exact=True).click()
+    page.get_by_role('button', name='计算结果', exact=True).click()
     expect(page.locator('.data-panel')).to_contain_text('23,646,000,000')
     expect(page.locator('.data-panel')).to_contain_text('29,965,000,000')
     page.get_by_role('button', name='证据与报告', exact=True).click()

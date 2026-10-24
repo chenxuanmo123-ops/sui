@@ -89,6 +89,9 @@ with sync_playwright() as p:
   page.set_viewport_size({'width':width,'height':844 if width==390 else 1000})
   assert page.evaluate('document.documentElement.scrollWidth<=innerWidth'),width
   assert page.evaluate("[...document.querySelectorAll('.primary-navigation .nav-item')].every(el => el.scrollWidth <= el.clientWidth + 1)"),'导航文字不能溢出按钮'
+  # ResizeObserver redraws on the next frame; wait for that frame instead of
+  # racing the viewport change.
+  page.wait_for_function("()=>{const el=document.querySelector('.chart-panel .data-chart');return !!el&&Math.abs(el.getBoundingClientRect().width-el.viewBox.baseVal.width)<2}",timeout=8000)
   assert page.evaluate("Math.abs(document.querySelector('.chart-panel .data-chart').getBoundingClientRect().width - document.querySelector('.chart-panel .data-chart').viewBox.baseVal.width) < 2"),'图表按容器尺寸绘制，避免文字整体缩小'
   assert page.evaluate("document.querySelector('.investigation-composer').getBoundingClientRect().top >= document.querySelector('.chart-panel').getBoundingClientRect().bottom"),width
   page.evaluate('window.scrollTo(0,0)')

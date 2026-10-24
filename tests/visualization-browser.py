@@ -192,7 +192,7 @@ with sync_playwright() as p:
    expect(page.locator('.bundle-result:visible')).to_have_count(1)
    page.locator('.result-navigation button').nth(1).click()
    expect(page.locator('.bundle-result:visible')).to_have_count(1)
-   expect(page.locator('.bundle-result:visible h3')).to_contain_text('按周末分组核算')
+   expect(page.locator('.bundle-result:visible h3').first).to_contain_text('按周末分组核算')
    expect(page.locator('.bundle-result:visible .rate-summary')).to_contain_text('15.47')
    page.locator('.bundle-result:visible .result-data-details > summary').click()
    expected_weekend=defaultdict(lambda:{'numerator':0,'denominator':0})
@@ -204,6 +204,7 @@ with sync_playwright() as p:
     assert int(cells[2])==e['numerator'] and int(cells[3])==e['denominator'],cells
    page.locator('.result-navigation button').nth(0).click()
    expect(page.locator('.bundle-result:visible')).to_have_count(1)
+   if page.get_by_role('dialog',name='数鉴 AI 助手').is_visible():page.get_by_role('button',name='收起 AI 助手',exact=True).click()
    with page.expect_download() as event:page.get_by_role('button',name='导出完整分析报告',exact=True).click()
    event.value.save_as(str(out/'multi-task-report.html'))
    multi_html=(out/'multi-task-report.html').read_text(encoding='utf-8')

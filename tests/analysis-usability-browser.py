@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 from pathlib import Path
@@ -22,6 +23,9 @@ with sync_playwright() as p:
     page = browser.new_page(viewport={'width': 1440, 'height': 1100})
     errors = []
     page.on('pageerror', lambda e: errors.append(str(e)))
+    # This script verifies the manual path when no model is configured, so pin
+    # the status response instead of depending on the developer machine's config.
+    page.route('**/api/ai/status', lambda route: route.fulfill(json={'configured': False, 'providers': [], 'canManage': True}))
     page.goto(url, wait_until='networkidle')
     page.locator('#file-upload').set_input_files(str(root / 'tests/fixtures/owid-China-2015-2022.csv'))
     expect(page.locator('.dataset-name strong')).to_have_text('owid-China-2015-2022.csv')

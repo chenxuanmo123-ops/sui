@@ -68,6 +68,15 @@ describe('参考资料切分与检索', () => {
     expect(hits.find(hit => hit.source === 'file')?.page).toBe(1)
   })
 
+  it('检索结果只含服务端白名单字段，内部排序分不随请求发送', () => {
+    const hits = retrieveReferences([doc()], '退款率的分母怎么算，未支付订单算吗')
+    expect(hits.length).toBeGreaterThan(0)
+    for (const hit of hits) {
+      for (const key of Object.keys(hit)) expect(['id', 'title', 'source', 'page', 'text']).toContain(key)
+      expect(hit).not.toHaveProperty('score')
+    }
+  })
+
   it('参考资料与检索问题变化会改变计划指纹', () => {
     const base = doc()
     const other = doc({ id: 'file-2', name: '另一份.txt' })

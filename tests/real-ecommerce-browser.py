@@ -54,7 +54,9 @@ with sync_playwright() as p:
   expect(page.locator('.bundle-result')).to_have_count(len(tasks))
   page.get_by_role('button',name='收起 AI 分析助手',exact=True).click()
   for t in rates:
-   card=page.locator('.bundle-result').filter(has=page.get_by_role('heading',name=t['title'],exact=True))
+   page.locator('.result-navigation button').filter(has_text=t['title']).click()
+   card=page.locator('.bundle-result:visible')
+   expect(card.locator(':scope > header > h3')).to_have_text(t['title'])
    rows=card.locator('tbody tr')
    expected=oracle['groups'][t['mapping']['x']]
    assert rows.count()==len(expected)
@@ -78,9 +80,10 @@ with sync_playwright() as p:
   assert '数据出处与引用' in html and '10.24432/C5F88Q' in html and 'CC BY 4.0' in html
   assert '原文件 SHA-256' in html and '原文件 SHA-256 与已核验公开 CSV 一致' in html
   check('单文件报告包含本轮全部任务SVG、真实SQL、原始记录索引、数值和AI证据引用')
-  page.locator('.bundle-result').first.get_by_role('button',name='检查 SQL 与来源',exact=True).click()
-  expect(page.locator('.chart-panel')).to_be_in_viewport()
+  page.locator('.bundle-result:visible').get_by_role('button',name='检查 SQL 与来源',exact=True).click()
+  expect(page.locator('#workspace-evidence')).to_be_in_viewport()
   check('分析卡片可进入已有SQL与来源检查器')
+  page.get_by_role('button',name='分析与图表',exact=True).click()
   page.set_viewport_size({'width':390,'height':844})
   page.locator('.analysis-bundle').scroll_into_view_if_needed()
   page.screenshot(path=str(out/'03-mobile-analysis.png'),full_page=True)

@@ -74,6 +74,7 @@ try:
     page.locator('#file-upload').set_input_files(str(root/'artifacts/owid-China-2015-2022.csv'))
     expect(page.locator('.dataset-name strong')).to_have_text('owid-China-2015-2022.csv')
     assert len(inspect_calls())==0
+    page.locator('.dataset-orientation > summary').click()
     page.get_by_role('button',name='授权并开始初步定位',exact=True).click()
     expect(page.locator('.initial-summary')).to_contain_text('地区年度能源')
     initial=inspect_calls()[-1]
@@ -109,6 +110,7 @@ try:
     page.reload(wait_until='networkidle'); expect(page.locator('.model-trigger')).to_contain_text('本机契约测试二')
     # The redesigned empty workspace exposes intake first; consent lives with a loaded dataset.
     page.locator('#file-upload').set_input_files(str(root/'artifacts/owid-China-2015-2022.csv'))
+    page.locator('.dataset-orientation > summary').click()
     page.get_by_label('允许上传后自动发送字段与质量摘要给默认模型',exact=True).check()
     expect(page.locator('.initial-summary')).to_be_visible()
     count=len(inspect_calls())

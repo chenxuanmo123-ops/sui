@@ -76,6 +76,14 @@ test('兼容接口契约与证据拒绝规则（本地测试替身，不是实�
     answer=clone(review); answer.findings[0].evidenceIds=['missing']; response=await post('review',reviewInput); assert.equal(response.status,400);
     answer=clone(review); answer.findings[0].statement='上升了 25%'; response=await post('review',reviewInput); assert.equal(response.status,400);
     answer=clone(review); answer.findings[0].statement='政策导致增长'; response=await post('review',reviewInput); assert.equal(response.status,400);
+    const withInsight=items=>({...clone(review),insight:{possibleMeanings:[{statement:'不同年度之间的差异可能来自规模或统计口径，仍需核对。',evidenceIds:['annual:fact0']}],possibleUses:[{statement:'可以按地区拆分后核查差异集中的分组。',evidenceIds:['annual:fact0']}]},...items});
+    answer=withInsight(); response=await post('review',reviewInput); assert.equal(response.status,200);
+    answer=withInsight(); answer.insight.possibleMeanings[0].evidenceIds=['missing']; response=await post('review',reviewInput); assert.equal(response.status,400); assert.match((await response.json()).error,/证据/);
+    answer=withInsight(); answer.insight.possibleMeanings[0].statement='差异约为 25%'; response=await post('review',reviewInput); assert.equal(response.status,400);
+    answer=withInsight(); answer.insight.possibleUses[0].statement='政策导致增长'; response=await post('review',reviewInput); assert.equal(response.status,400);
+    answer=withInsight(); answer.insight.possibleMeanings[0].referenceIds=['R-A']; response=await post('review',reviewInput); assert.equal(response.status,400); assert.match((await response.json()).error,/参考资料/);
+    answer={...clone(review),insight:{possibleMeanings:[],possibleUses:[]}}; response=await post('review',reviewInput); assert.equal(response.status,200);
+    answer=withInsight(); answer.insight.possibleMeanings[0].statement='不同年度之间的差异可能来自规模或统计口径，仍需核对。'; delete answer.insight.possibleMeanings[0].evidenceIds; response=await post('review',reviewInput); assert.equal(response.status,400);
   } finally { await close(server); await close(upstream); }
 });
 

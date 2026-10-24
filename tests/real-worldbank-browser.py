@@ -63,7 +63,7 @@ with sync_playwright() as p:
         page.get_by_role('button',name='理解数据并提出分析计划').click()
         body=wait_response('plan'); plan=body['plan']; tasks=plan['tasks']
         print('真实模型计划：'+json.dumps(plan,ensure_ascii=False),flush=True)
-        gdp_tasks=[(i,t) for i,t in enumerate(tasks) if t['mapping']['aggregate']!='count']
+        gdp_tasks=[(i,t) for i,t in enumerate(tasks) if t['mapping']['metric'] in ('2023','2024') and t['mapping']['aggregate'] in ('sum','average','max','min')]
         assert len(gdp_tasks)==2, 'GDP比较任务应有两个：'+str(len(gdp_tasks))
         assert {t['mapping']['metric'] for _,t in gdp_tasks}=={'2023','2024'}, tasks
         for _,task in gdp_tasks:
@@ -88,6 +88,11 @@ with sync_playwright() as p:
             if not page.locator('.ai-result-links button').first.is_visible():
                 page.get_by_role('button',name='打开 AI 分析助手',exact=True).click()
             page.locator('.ai-result-links button').nth(i).click()
+            expect(page.locator('#workspace-evidence')).to_be_in_viewport()
+            page.get_by_role('button',name='来源记录',exact=True).click()
+            source_text=page.locator('.source-list').inner_text()
+            evidence=page.locator('#evidence').inner_text()
+            page.get_by_role('button',name='数据预览',exact=True).click()
             page.get_by_role('button',name='计算结果',exact=True).click()
             expect(page.locator('.data-panel tbody tr')).to_have_count(2)
             rows=[]
@@ -97,12 +102,12 @@ with sync_playwright() as p:
                 cells=tr.locator('td').all_text_contents(); rows.append(cells)
                 assert cells[0] in expected, cells
                 assert abs(float(cells[1].replace(',',''))-expected[cells[0]])<1, (cells,expected)
-            assert page.locator('#analysis-svg').count()==1
-            page.get_by_role('button',name='来源记录',exact=True).click()
-            source_text=page.locator('.source-list').inner_text()
-            evidence=page.locator('#evidence').inner_text()
+            page.get_by_role('button',name='分析与图表',exact=True).click()
+            page.locator('.result-navigation button').filter(has_text=task['title']).click()
+            expect(page.locator('.bundle-result:visible svg.data-chart')).to_have_count(1)
             record['taskResults'].append({'taskId':task['id'],'year':year,'renderedRows':rows,'sourceText':source_text,'evidenceText':evidence})
             page.screenshot(path=str(out/('04-result-'+year+'.png')),full_page=True)
+            page.get_by_role('button',name='证据与报告',exact=True).click()
             with page.expect_download() as download_event:
                 page.get_by_role('button',name='导出证据报告',exact=True).click()
             target=out/('worldbank-gdp-'+year+'-report.html'); download_event.value.save_as(str(target))

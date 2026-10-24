@@ -18,6 +18,9 @@ __pycache__/
 .claude/handover-state.json
 .claude/handover/snapshots/
 
+# 本机设计辅助 skill 仅作开发参考，不属于作品源码且附带第三方许可，不入库。
+.claude/skills/
+
 .vercel/
 .render/
 *.pem

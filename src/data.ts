@@ -139,9 +139,13 @@ export function compareLabels(a: string, b: string): number {
   }
   return a.localeCompare(b, 'zh-CN', { numeric: true })
 }
-export function summarize(points: Point[], unit: string) {
+export function summarize(points: Point[], unit: string, timeOrdered = false) {
   const first = points[0], suffix = unit ? ` ${unit}` : ''
   if (points.length === 1) return `${first.label} 的汇总结果为 ${formatNumber(first.value)}${suffix}。只有一个分组，无法判断变化趋势。`
+  if (timeOrdered) {
+    const last = points.at(-1)!
+    return `按时间顺序共 ${points.length} 个分组：从 ${first.label}（${formatNumber(first.value)}${suffix}）到 ${last.label}（${formatNumber(last.value)}${suffix}）。这是描述性汇总，不代表因果或预测。`
+  }
   const sorted = [...points].sort((a, b) => a.value - b.value)
   const low = sorted[0], high = sorted.at(-1)!
   return `按当前口径，最高分组为 ${high.label}（${formatNumber(high.value)}${suffix}），最低为 ${low.label}（${formatNumber(low.value)}${suffix}）。该比较不代表时间趋势或因果关系。`

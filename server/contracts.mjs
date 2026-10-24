@@ -18,6 +18,11 @@ export const planSchema = object({
   tasks: list(object({ id: text(40), title: text(200), rationale: text(600), chart: choice(['line', 'bar']), mapping: mappingSchema }), 6),
   limitations: list(text(600)),
 });
+const insightItem = object({
+  statement: text(500),
+  evidenceIds: { ...list(text(60), 4), minItems: 1 },
+  referenceIds: optional({ ...list(text(20), 4) }),
+});
 export const reviewSchema = object({
   answerability: choice(['partial', 'descriptive_only', 'insufficient']),
   findings: list(object({
@@ -26,6 +31,10 @@ export const reviewSchema = object({
     interpretation: choice(['observation', 'hypothesis']),
     referenceIds: optional({ ...list(text(20), 6) }),
   }), 8),
+  insight: optional(object({
+    possibleMeanings: list(insightItem, 4),
+    possibleUses: list(insightItem, 4),
+  })),
   limitations: { ...list(text(600)), minItems: 1 }, nextQuestions: list(text(500), 5),
 });
 export function validate(value, schema, path = 'output') {

@@ -22,14 +22,14 @@ export default function SqlResultChart({ columns, rows }: { columns: string[]; r
     const chart = echarts.init(ref.current, undefined, { renderer: 'svg' })
     const { labels, values } = sqlChartSeries(spec, rows)
     const zoom = rows.length > 12
-    const text = { color: '#63758c', fontSize: 11, fontFamily: 'sans-serif' }
+    const text = { color: '#6e6b60', fontSize: 11, fontFamily: 'sans-serif' }
     chart.setOption({
       animation: false,
-      color: ['#3971e8'],
+      color: ['#2c5a48'],
       textStyle: { fontFamily: 'sans-serif' },
       aria: { enabled: true },
       tooltip: {
-        trigger: 'item', renderMode: 'richText', confine: true, backgroundColor: '#fff', borderColor: '#d5dfec', textStyle: { color: '#172d4e', fontSize: 12 }, padding: 14,
+        trigger: 'item', renderMode: 'richText', confine: true, backgroundColor: '#fff', borderColor: '#ded7c8', textStyle: { color: '#1c2b24', fontSize: 12 }, padding: 14,
         formatter: (params: unknown) => {
           const item = params as { dataIndex: number }
           const row = rows[item.dataIndex]
@@ -39,15 +39,15 @@ export default function SqlResultChart({ columns, rows }: { columns: string[]; r
       },
       grid: { left: 76, right: 28, top: 34, bottom: zoom ? 84 : 62 },
       xAxis: { type: 'category', data: labels, axisTick: { show: false }, axisLine: { show: false }, axisLabel: { ...text, hideOverlap: true, overflow: 'truncate', width: 90 }, name: spec.x >= 0 ? columns[spec.x] : '结果行号', nameLocation: 'middle', nameGap: 34 },
-      yAxis: { type: 'value', axisLine: { show: false }, axisTick: { show: false }, axisLabel: { ...text, formatter: (value: number) => formatNumber(value, 2) }, splitLine: { lineStyle: { color: '#e6edf5', type: 'dashed' } }, name: columns[spec.y], nameGap: 20 },
-      ...(zoom ? { dataZoom: [{ type: 'slider', bottom: 8, height: 16, start: 0, end: Math.min(100, 12 / rows.length * 100), filterMode: 'none', borderColor: '#e0e8f2', fillerColor: '#3971e81a', handleStyle: { color: '#3971e8' }, textStyle: text }, { type: 'inside', filterMode: 'none', zoomOnMouseWheel: 'ctrl', moveOnMouseWheel: false }] } : {}),
+      yAxis: { type: 'value', axisLine: { show: false }, axisTick: { show: false }, axisLabel: { ...text, formatter: (value: number) => formatNumber(value, 2) }, splitLine: { lineStyle: { color: '#e6e0d3', type: 'dashed' } }, name: columns[spec.y], nameGap: 20 },
+      ...(zoom ? { dataZoom: [{ type: 'slider', bottom: 8, height: 16, start: 0, end: Math.min(100, 12 / rows.length * 100), filterMode: 'none', borderColor: '#e0dacd', fillerColor: '#2c5a481a', handleStyle: { color: '#2c5a48' }, textStyle: text }, { type: 'inside', filterMode: 'none', zoomOnMouseWheel: 'ctrl', moveOnMouseWheel: false }] } : {}),
       series: [{
         type: spec.kind,
         data: values,
         barMaxWidth: 26,
-        ...(spec.kind === 'bar' ? { itemStyle: { borderRadius: [3, 3, 0, 0] }, label: { show: rows.length <= 12, position: 'top', fontSize: 11, color: '#294468', formatter: (params: { value: unknown }) => params.value == null ? '' : formatNumber(Number(params.value), 2) } } : {}),
-        ...(spec.kind === 'line' ? { lineStyle: { width: 2.5 }, symbol: 'circle', label: { show: rows.length <= 12, position: 'top', fontSize: 11, color: '#294468' }, areaStyle: { color: '#3971e8', opacity: .06 } } : {}),
-        emphasis: { itemStyle: { color: '#172d4e' } },
+        ...(spec.kind === 'bar' ? { itemStyle: { borderRadius: [3, 3, 0, 0] }, label: { show: rows.length <= 12, position: 'top', fontSize: 11, color: '#2b3a32', formatter: (params: { value: unknown }) => params.value == null ? '' : formatNumber(Number(params.value), 2) } } : {}),
+        ...(spec.kind === 'line' ? { lineStyle: { width: 2.5 }, symbol: 'circle', label: { show: rows.length <= 12, position: 'top', fontSize: 11, color: '#2b3a32' }, areaStyle: { color: '#2c5a48', opacity: .06 } } : {}),
+        emphasis: { itemStyle: { color: '#1c2b24' } },
       }],
     })
     const observer = new ResizeObserver(() => chart.resize())

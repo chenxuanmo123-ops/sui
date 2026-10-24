@@ -23,6 +23,9 @@ with sync_playwright() as p:
     context=browser.new_context(viewport={'width':1440,'height':1000},reduced_motion='reduce')
     page=context.new_page(); errors=[]
     page.on('pageerror',lambda error:errors.append(str(error)))
+    # Pin the unconfigured state instead of depending on the developer machine;
+    # the contract double is installed after this check and takes precedence.
+    page.route('**/api/ai/status',lambda route:route.fulfill(json={'configured':False,'providers':[],'canManage':True}))
     page.goto(url+'/',wait_until='networkidle')
     page.get_by_role('button',name='打开 AI 分析助手',exact=True).click()
     expect(page.locator('.ai-connection')).to_contain_text('连接你的 AI 模型')
@@ -42,7 +45,7 @@ with sync_playwright() as p:
         if path=='review':
             state['review_requests'].append(body)
             if state['fail_review']: return route.fulfill(status=502,json={'error':'测试故障：模型暂时不可用'})
-            return route.fulfill(json={'review':{'answerability':'descriptive_only','findings':[{'statement':'所选年度分组存在差异，具体数值请查看引用。','evidenceIds':[body['facts'][0]['id']],'interpretation':'observation'}],'limitations':['仅基于所提供的端点和极值证据，不推断因果。'],'nextQuestions':['改看太阳能指标是否呈现相似变化？']}})
+            return route.fulfill(json={'review':{'answerability':'descriptive_only','findings':[{'statement':'所选年度分组存在差异，具体数值请查看引用。','evidenceIds':[body['facts'][0]['id']],'interpretation':'observation'}],'insight':{'possibleMeanings':[{'statement':'年度差异也可能来自统计口径或覆盖范围变化，仍需核对。','evidenceIds':[body['facts'][0]['id']]}],'possibleUses':[{'statement':'可以按地区拆分后核查差异集中在哪些分组。','evidenceIds':[body['facts'][0]['id']]}]},'limitations':['仅基于所提供的端点和极值证据，不推断因果。'],'nextQuestions':['改看太阳能指标是否呈现相似变化？']}})
         route.abort()
     page.route('**/api/ai/*',intercept)
     page.reload(wait_until='networkidle')
@@ -50,6 +53,8 @@ with sync_playwright() as p:
     expect(page.locator('.ai-connection')).to_contain_text('仅测试替身')
     page.locator('#file-upload').set_input_files({'name':'owid-China-2015-2022.csv','mimeType':'text/csv','buffer':subset.encode('utf-8')})
     page.wait_for_function("document.querySelector('.dataset-name strong').textContent==='owid-China-2015-2022.csv' && !document.querySelector('.loading-indicator')")
+    # Importing a dataset deliberately closes the assistant; reopen it before editing.
+    page.get_by_role('button',name='打开 AI 分析助手',exact=True).first.click()
     page.get_by_label('分析目标',exact=True).fill('比较中国逐年的可再生能源发电量，了解描述性变化。')
     expect(page.get_by_role('button',name='理解数据并提出分析计划')).to_be_enabled()
     assert page.locator('#business-context').input_value()==''
@@ -71,13 +76,19 @@ with sync_playwright() as p:
     assert page.locator('#analysis-svg').count()==0
     page.get_by_role('button',name='数据与来源',exact=True).click()
     page.get_by_role('button',name='分析工作台',exact=True).click()
+    if not page.locator('#analysis-goal').is_visible():
+        page.get_by_role('button',name='打开 AI 分析助手',exact=True).first.click()
     expect(page.locator('.ai-plan')).to_contain_text('年度能源比较')
     page.locator('.ai-plan input[type=checkbox]').check()
     expect(page.get_by_role('button',name='确认计划并计算')).to_be_enabled()
     page.get_by_role('button',name='确认计划并计算').click()
     expect(page.locator('.ai-error')).to_contain_text('已完成的真实计算仍可查看')
-    expect(page.locator('#analysis-svg')).to_be_visible()
-    resultrows=page.locator('.data-panel tbody tr')
+    page.screenshot(path=str(root/'artifacts/ai-bundle-executed.png'),full_page=True)
+    # A completed plan renders an AnalysisBundle; the manual-canvas chart is
+    # hidden in that view, so read the visible bundle's own chart and table.
+    focused=page.locator('.bundle-result:not([hidden])')
+    expect(focused.locator('svg.data-chart')).to_be_visible()
+    resultrows=focused.locator('.bundle-table tbody tr')
     assert resultrows.count()==8
     for i,row in enumerate(rows):
         cells=resultrows.nth(i).locator('td').all_text_contents()
@@ -87,6 +98,11 @@ with sync_playwright() as p:
     state['fail_review']=False
     page.get_by_role('button',name='重试 AI 解读（不重复计算）').click()
     expect(page.locator('.ai-review')).to_be_visible()
+    expect(page.locator('.ai-insight-block')).to_be_visible()
+    expect(page.locator('.ai-insight-block')).to_contain_text('可能意味着什么')
+    expect(page.locator('.ai-insight-block')).to_contain_text('可以拿来做什么')
+    expect(page.locator('.ai-insight-block')).to_contain_text('统计口径或覆盖范围变化')
+    page.locator('.ai-insight-block').screenshot(path=str(root/'artifacts/ai-insight-block.png'))
     page.locator('.ai-evidence').first.click()
     assert page.locator('.evidence-filter select').input_value()=='2015'
     assert rows[0]['renewables_electricity'] in page.locator('.source-list').inner_text()
