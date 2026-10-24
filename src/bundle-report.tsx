@@ -5,7 +5,8 @@ import { analysisReference } from './chart-model'
 import { buildInsight } from './insight'
 import type {Dataset} from './data'
 import type {AnalysisBundle} from './AnalysisResults'
-import {ResultTable, ScopeSummary} from './AnalysisResults'
+import {ScopeSummary} from './AnalysisResults'
+import {ResultTable} from './ResultTable'
 export function bundleHTML(dataset:Dataset,bundle:AnalysisBundle) {
  if(bundle.results.some(r=>r.datasetHash!==dataset.fingerprint||JSON.stringify(r.scope)!==JSON.stringify(bundle.response.scope))||bundle.response.datasetHash!==dataset.fingerprint)throw new Error('报告与当前数据快照不一致')
  const ids=[...new Set(bundle.results.flatMap(r=>[...r.points.flatMap(p=>[...p.rowIds,...(p.excludedRowIds??[])]),...(r.unavailableGroups??[]).flatMap(p=>p.rowIds)]))].sort((a,b)=>a-b)
