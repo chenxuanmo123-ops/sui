@@ -3,7 +3,7 @@ import initSqlJs from 'sql.js'
 import type { Database, SqlJsStatic } from 'sql.js'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { parseCSV } from '../src/data'
+import { decodeTextBytes, parseCSV } from '../src/data'
 import type { Dataset, Mapping } from '../src/data'
 import { installSQL, runAggregate, runExplore, runCompare } from '../src/analytics'
 import type { ExploreSpec, ComparisonSpec } from '../src/analytics'
@@ -38,6 +38,7 @@ describe('真实 SQLite 核心（基于真实公开子集）',()=>{
  it('散点图给出全范围 Pearson 相关，展示上限不改变样本数',()=>use(engine=>{const base:ExploreSpec={...spec,kind:'scatter',x:'renewables_electricity',y:'solar_electricity'};const full=runExplore(engine,data,base);expect(full.correlation?.method).toBe('pearson');expect(full.correlation!.n).toBe(8);expect(full.correlation!.r).toBeCloseTo(0.9963427,6);const limited=runExplore(engine,data,{...base,limit:2});expect(limited.rows.length).toBe(2);expect(limited.truncated).toBe(true);expect(limited.correlation!.n).toBe(8);expect(limited.correlation!.r).toBeCloseTo(full.correlation!.r,12);expect(runExplore(engine,data,{...base,filter:'year',value:'2020'}).correlation).toBeUndefined()}))
  it('Pearson 系数对常数序列、样本不足和非有限值不返回结果',()=>{expect(pearsonFromCentered(3,2,2,2)).toEqual({r:1,n:3,method:'pearson'});expect(pearsonFromCentered(3,2,2,-2)!.r).toBe(-1);expect(pearsonFromCentered(2,1,1,1)).toBeNull();expect(pearsonFromCentered(3,0,1,0)).toBeNull();expect(pearsonFromCentered(3,1,1,Infinity)).toBeNull()})
  it('时间折线给出描述性趋势，排序方式和分类序列不改变结论',()=>use(engine=>{const base:ExploreSpec={...spec,kind:'line',x:'year',metric:'renewables_electricity',aggregate:'sum',bucket:'year'};const asc=runExplore(engine,data,{...base,sort:'label'});const desc=runExplore(engine,data,{...base,sort:'desc'});expect(asc.trend?.n).toBe(8);expect(asc.trend!.slope).toBeGreaterThan(0);expect(desc.trend!.slope).toBeCloseTo(asc.trend!.slope,10);expect(asc.trend!.r2).toBeGreaterThan(0.95);expect(runExplore(engine,data,{...base,bucket:'none'}).trend).toBeUndefined()}))
+ it('展示上限只截断画点，趋势仍按全部时间桶拟合',()=>use(engine=>{const base:ExploreSpec={...spec,kind:'line',x:'year',metric:'renewables_electricity',aggregate:'sum',bucket:'year'};const full=runExplore(engine,data,base);const limited=runExplore(engine,data,{...base,limit:2});expect(limited.rows.length).toBe(2);expect(limited.truncated).toBe(true);expect(limited.trend?.n).toBe(8);expect(limited.trend!.slope).toBeCloseTo(full.trend!.slope,12);expect(limited.trend!.r2).toBeCloseTo(full.trend!.r2,12)}))
  it('无筛选结果不填充虚构图表',()=>use(engine=>{const r=runExplore(engine,data,{...spec,filter:'country',value:'不存在'});expect(r.rows).toEqual([]);expect(r.total).toBe(0)}))
  it('对比总额、差额和来源准确，贡献为算术分解',()=>use(engine=>{const c:ComparisonSpec={period:'year',dimension:'country',metric:'renewables_electricity',aggregate:'sum',baselineFrom:'2015',baselineTo:'2018',currentFrom:'2019',currentTo:'2022'};const r=runCompare(engine,data,c);expect(r.baselineTotal).toBeCloseTo(expected.slice(0,4).reduce((a,b)=>a+b),8);expect(r.delta).toBeCloseTo(expected.slice(4).reduce((a,b)=>a+b)-expected.slice(0,4).reduce((a,b)=>a+b),8);expect(r.groups[0].contribution).toBe(1);expect(r.groups[0].baselineIds).toEqual([2,3,4,5])}))
  it('只有一期存在的维度不补零，不算贡献',()=>use(engine=>{const r=runCompare(engine,data,{period:'year',dimension:'year',metric:'renewables_electricity',aggregate:'sum',baselineFrom:'2015',baselineTo:'2018',currentFrom:'2019',currentTo:'2022'});expect(r.comparable).toBe(false);expect(r.groups.every(g=>g.delta===null&&g.contribution===null)).toBe(true)}))
@@ -91,5 +92,24 @@ describe('表头和换行解析边界（非业务数据）',()=>{
  it('Excel/PDF 中间空表头和清理后重复字段必须拒绝',()=>{
   expect(()=>prepareTable({...table,lines:[{sourceRow:3,cells:['年份','','指标']},table.lines[1]]},0,1)).toThrow('空字段')
   expect(()=>prepareTable({...table,lines:[{sourceRow:3,cells:['指标',' 指标\r']},table.lines[1]]},0,1)).toThrow('重复字段')
+ })
+ it('分号与制表符分隔的 CSV 自动识别，不按单列读入',()=>{
+  expect(parseCSV('年份;值\n2020;3').headers).toEqual(['年份','值'])
+  expect(parseCSV('年份\t值\n2020\t3').rows).toEqual([{'年份':'2020','值':'3'}])
+ })
+ it('GBK/ANSI CSV 按 GB18030 解码，不再要求 UTF-8',()=>{
+  // "中文,值\n2020,3\n" encoded as GBK; fixed bytes, not generated data.
+  const bytes=new Uint8Array([0xD6,0xD0,0xCE,0xC4,0x2C,0xD6,0xB5,0x0A,0x32,0x30,0x32,0x30,0x2C,0x33,0x0A])
+  const decoded=decodeTextBytes(bytes)
+  expect(decoded.encoding).toBe('gb18030')
+  expect(decoded.warning).toContain('GB18030')
+  expect(parseCSV(decoded.text).rows).toEqual([{'中文':'2020','值':'3'}])
+ })
+ it('UTF-8 与 UTF-16 字节序按已知编码解码，不做静默替换',()=>{
+  expect(decodeTextBytes(new TextEncoder().encode('a,b\n1,2')).encoding).toBe('utf-8')
+  const utf16=new Uint8Array([0xFF,0xFE,...new TextEncoder().encode('a,b\n1,2')].flatMap((v,i)=>i<2?[v]:[v,0]))
+  const decoded=decodeTextBytes(utf16)
+  expect(decoded.encoding).toBe('utf-16le')
+  expect(decoded.text.replace(/^﻿/,'')).toBe('a,b\n1,2')
  })
 })

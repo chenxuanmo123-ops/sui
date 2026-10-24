@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertCircle, ArrowDownToLine, BarChart3, Code2, Link2, LoaderCircle, Play, ShieldCheck, Trash2, Upload } from 'lucide-react'
 import type { Dataset } from './data'
-import { download, parseCSV } from './data'
+import { decodeTextBytes, download, parseCSV } from './data'
 import { clearConsoleTable, loadConsoleTable, queryDataset } from './engine'
 import type { ConsoleResult, ExtraTable } from './sql-console'
 import { exportColumnNames } from './sql-names'
@@ -76,7 +76,7 @@ export default function SqlConsole({ dataset, table, onTable }: Props) {
     if (file.size > MAX_TABLE_BYTES) { setTableError('关联表最大 30 MB，请先在本地裁剪后再上传。'); return }
     setTableBusy(true)
     try {
-      const parsed = parseCSV(await file.text())
+      const parsed = parseCSV(decodeTextBytes(new Uint8Array(await file.arrayBuffer())).text)
       await loadConsoleTable(dataset, parsed)
       onTable(parsed)
       setResult(null)

@@ -1,5 +1,5 @@
 import type { Dataset } from './data'
-import { escapeHTML, PUBLIC_DATA_URL, PUBLIC_SOURCE_URL } from './data'
+import { escapeHTML, PUBLIC_DATA_COMMIT, PUBLIC_DATA_URL, PUBLIC_SOURCE_LEGACY, PUBLIC_SOURCE_URL } from './data'
 
 export type SourceNotes = {
   title: string; publisher: string; url: string; downloadUrl: string;
@@ -22,12 +22,12 @@ export function originalHash(d: Dataset) { return d.originalFileHash || d.origin
 export function sourceInfo(d: Dataset): SourceNotes & { status: string } {
   if (d.sourceNotes) return { ...d.sourceNotes, status: '上传者备注 · 未独立核验' }
   if (originalHash(d) === UCI_CSV_HASH) return { ...UCI_SOURCE, status: '原文件 SHA-256 与已核验公开 CSV 一致' }
-  if (d.isPublic && d.sourceUrl === PUBLIC_SOURCE_URL) return {
+  if (d.isPublic && (d.sourceUrl === PUBLIC_SOURCE_URL || d.sourceUrl === PUBLIC_SOURCE_LEGACY)) return {
     title: 'OWID Energy Data', publisher: 'Our World in Data', url: PUBLIC_SOURCE_URL, downloadUrl: PUBLIC_DATA_URL,
     citation: 'Our World in Data. Energy Data. 来源与上游引用请以仓库 README 和字段文档为准。',
     license: '不同字段可能引用不同上游来源；使用前核对仓库和原始提供方许可，不能统一推定所有数据均为同一许可。',
     accessedAt: d.loadedAt.slice(0, 10), coverage: '全球能源历史数据；覆盖范围、年份和单位按字段文档与实际记录确认。',
-    notes: '从公开仓库地址读取；该地址可能更新。报告保存当前快照指纹，未固定上游提交版本。', status: '从公开仓库载入 · 未独立核验各上游记录'
+    notes: '从固定上游提交 ' + PUBLIC_DATA_COMMIT.slice(0, 7) + ' 读取；同一地址始终返回同一文件，报告保存当前快照指纹。' + (d.sourceUrl === PUBLIC_SOURCE_LEGACY ? '该工作区载入时地址尚未固定，重新载入可获得固定提交版本。' : ''), status: '从公开仓库固定提交载入 · 未独立核验各上游记录'
   }
   return { title: d.title, publisher: '', url: d.sourceUrl || '', downloadUrl: '', citation: '', license: '', accessedAt: '', coverage: '', notes: '', status: '用户提供 · 未核验出处' }
 }

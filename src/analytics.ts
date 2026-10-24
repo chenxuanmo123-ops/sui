@@ -92,13 +92,13 @@ export function runExplore(db: Database,d: Dataset,s: ExploreSpec): ExploreResul
  if(!['line','bar','scatter','heatmap','table'].includes(s.kind) || !['label','desc'].includes(s.sort) || !Number.isInteger(s.limit) || s.limit<1 || s.limit>200) throw new Error('图表配置无效')
  const x=col(d,s.x),params:SqlValue[]=[],filters:string[]=[]
  if(s.filter){filters.push(col(d,s.filter)+' = ?');params.push(s.value)}
- let sql='', columns:string[]=[], valid=''
+ let baseSql='', columns:string[]=[], valid=''
  const filtered='FROM data'+(filters.length?' WHERE '+filters.join(' AND '):'')
  const total=Number(rows(db,'SELECT COUNT(*) '+filtered,params)[0][0])
  if(s.kind==='scatter') {
   const y=col(d,s.y); if(s.x===s.y)throw new Error('散点图需要选择两个不同的数值字段')
   valid='strict_number('+x+') IS NOT NULL AND strict_number('+y+') IS NOT NULL'
-  sql='SELECT strict_number('+x+'), strict_number('+y+'), CAST(_record AS TEXT) '+filtered+(filters.length?' AND ':' WHERE ')+valid+' ORDER BY _record LIMIT '+(s.limit+1);columns=[s.x,s.y]
+  baseSql='SELECT strict_number('+x+'), strict_number('+y+'), CAST(_record AS TEXT) '+filtered+(filters.length?' AND ':' WHERE ')+valid+' ORDER BY _record';columns=[s.x,s.y]
  }else{
   const metric=col(d,s.metric);const label='time_bucket('+x+', ?)';params.unshift(s.bucket??'none')
   const numeric=!['count','distinct'].includes(s.aggregate)
@@ -112,9 +112,10 @@ export function runExplore(db: Database,d: Dataset,s: ExploreSpec): ExploreResul
    const validInBase='label IS NOT NULL AND strict_number(raw_value) IS NOT NULL'+(s.kind==='heatmap'?` AND NULLIF(TRIM(${ycol}), '') IS NOT NULL`:'')
    const base='SELECT '+label+' AS label'+(s.kind==='heatmap'?', '+ycol:'')+', _record, '+metric+' AS raw_value '+filtered
    const qualified=pgroup.split(', ').map(part=>'picked.'+part).join(', ')
-   sql='WITH base AS ('+base+'), '+percentileCTE(pgroup,join,percentileP[s.aggregate],validInBase,'base')+', records AS (SELECT '+pgroup+', GROUP_CONCAT(_record) AS all_records FROM ranked GROUP BY '+pgroup+') SELECT '+qualified+', '+percentileExpression()+' AS value, rec.all_records FROM picked JOIN records rec ON '+recordJoin+' GROUP BY '+qualified+' ORDER BY '+(s.sort==='desc'?'value DESC, 1':'1')+' LIMIT '+(s.limit+1)
-  }else sql='SELECT '+group+', '+agg(metric,s.aggregate)+' AS value, GROUP_CONCAT(_record) '+filtered+(filters.length?' AND ':' WHERE ')+valid+' GROUP BY '+(s.kind==='heatmap'?'1,2':'1')+' ORDER BY '+(s.sort==='desc'?'value DESC, 1':'1')+' LIMIT '+(s.limit+1)
+   baseSql='WITH base AS ('+base+'), '+percentileCTE(pgroup,join,percentileP[s.aggregate],validInBase,'base')+', records AS (SELECT '+pgroup+', GROUP_CONCAT(_record) AS all_records FROM ranked GROUP BY '+pgroup+') SELECT '+qualified+', '+percentileExpression()+' AS value, rec.all_records FROM picked JOIN records rec ON '+recordJoin+' GROUP BY '+qualified+' ORDER BY '+(s.sort==='desc'?'value DESC, 1':'1')
+  }else baseSql='SELECT '+group+', '+agg(metric,s.aggregate)+' AS value, GROUP_CONCAT(_record) '+filtered+(filters.length?' AND ':' WHERE ')+valid+' GROUP BY '+(s.kind==='heatmap'?'1,2':'1')+' ORDER BY '+(s.sort==='desc'?'value DESC, 1':'1')
  }
+ const sql=baseSql+' LIMIT '+(s.limit+1)
  const output=rows(db,sql,params);const truncated=output.length>s.limit; const limited=output.slice(0,s.limit)
  if(limited.some(r=>r.slice(0,-1).some(v=>typeof v==='number'&&!Number.isFinite(v))))throw new Error('计算结果超出有效数值范围，请缩小范围或核对单位')
  // Count valid rows independently; do not confuse display limits with excluded data.
@@ -131,7 +132,11 @@ export function runExplore(db: Database,d: Dataset,s: ExploreSpec): ExploreResul
  let trend: TimeTrend | undefined
  if (s.kind==='line' && (s.bucket==='year' || s.bucket==='month')) {
   const period=s.bucket
-  const fitted=linearTrend(limited.map(r=>{const x=timeIndex(String(r[0]??''),period);const y=Number(r[1]);return {x:x??NaN,y}}).filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)))
+  // Fit on every aggregated time bucket, not just the displayed slice: the
+  // display limit must not change the slope or R². Correlation already uses
+  // every valid pair. Time buckets are few, so an unbounded aggregate is safe.
+  const all=rows(db,baseSql,params)
+  const fitted=linearTrend(all.map(r=>{const x=timeIndex(String(r[0]??''),period);const y=Number(r[1]);return {x:x??NaN,y}}).filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)))
   if (fitted) trend={...fitted,period}
  }
  return {columns,rows:limited.map(r=>r.slice(0,-1) as (string|number|null)[]),rowIds:limited.map(r=>String(r.at(-1)).split(',').map(Number)),sql:preamble(d)+sql,parameters:params,total,excluded:total-validCount,truncated,datasetHash:d.fingerprint,spec:structuredClone(s),...(trend?{trend}:{}),...(correlation?{correlation}:{})}

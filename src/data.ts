@@ -12,12 +12,61 @@ export type RateCounts = { numerator: number; denominator: number; excluded: num
 export type AnalysisScope = { datasetHash: string; loadedAt: string; parentAnalysisId: number; parentTitle: string; label: string; rowIds: number[]; baseline: { metric: string; aggregate: Mapping['aggregate']; unit: string; value: number; rate?: RateDefinition; counts?: RateCounts } }
 export type Point = { scopeRowIds?: number[]; excludedRowIds?: number[]; rate?: RateCounts; label: string; value: number; rowIds: number[] }
 export type Analysis = { scope?: AnalysisScope; rateSummary?: RateCounts & { value: number }; unavailableGroups?: { label: string; excluded: number; rowIds: number[] }[]; sql?: string; parameters?: (string | number | null)[]; id: number; question: string; mapping: Mapping; points: Point[]; usedRows: number; skipped: number; matched: number; createdAt: string; datasetHash: string; finding: string; operations: string[]; trend?: TimeTrend; ai?: { goal: string; taskId: string; taskTitle: string; model: string; plannedAt: string } }
-export const PUBLIC_DATA_URL = 'https://raw.githubusercontent.com/owid/energy-data/master/owid-energy-data.csv'
-export const PUBLIC_SOURCE_URL = 'https://github.com/owid/energy-data'
+// Pin the upstream commit so the same button always loads the same bytes and
+// evidence snapshots stay reproducible. This is the commit used by the
+// verified fixtures in tests/fixtures/owid-provenance.json.
+export const PUBLIC_DATA_COMMIT = 'e7897aed55b514b8d16e0a3d8f1518789ac3de31'
+export const PUBLIC_DATA_URL = 'https://raw.githubusercontent.com/owid/energy-data/' + PUBLIC_DATA_COMMIT + '/owid-energy-data.csv'
+export const PUBLIC_SOURCE_URL = 'https://github.com/owid/energy-data/tree/' + PUBLIC_DATA_COMMIT
+// Workspaces saved before the pin still carry the branch URL.
+export const PUBLIC_SOURCE_LEGACY = 'https://github.com/owid/energy-data'
 export const initialQuestion = '2015—2022 年中国可再生能源发电量如何变化？'
 
-export function parseCSV(input: string) {
+const CSV_DELIMITERS = [',', ';', '\t'] as const
+export type TextDecoding = { text: string; encoding: string; warning?: string }
+
+// Browser imports go through bytes, not File.text(): Excel on Chinese Windows
+// writes GBK/ANSI CSV by default, and UTF-16 files also exist. Never replace
+// characters silently — either decode with a known encoding or reject.
+export function decodeTextBytes(bytes: Uint8Array): TextDecoding {
+  const bom = bytes[0] === 0xff && bytes[1] === 0xfe ? 'utf-16le' : bytes[0] === 0xfe && bytes[1] === 0xff ? 'utf-16be' : ''
+  if (bom) return { text: new TextDecoder(bom).decode(bytes), encoding: bom, warning: '检测到 ' + bom.toUpperCase() + ' 字节序标记，已按该编码解码。' }
+  try { return { text: new TextDecoder('utf-8', { fatal: true }).decode(bytes), encoding: 'utf-8' } }
+  catch {
+    try {
+      return { text: new TextDecoder('gb18030', { fatal: true }).decode(bytes), encoding: 'gb18030', warning: '文件不是 UTF-8，已按 GB18030 / GBK 解码（中文 Windows Excel 的常见默认编码）；请核对表头与中文内容。' }
+    } catch { throw new Error('无法识别文件编码：既不是 UTF-8，也不是 GBK / GB18030。请将文件另存为 UTF-8 CSV 后重试。') }
+  }
+}
+
+// Count fields on one physical line without splitting inside quotes, so a comma
+// inside a quoted field cannot outvote the real separator.
+function delimiterColumns(line: string, delimiter: string) {
+  let fields = 1, quoted = false
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i]
+    if (quoted) { if (c === '"') { if (line[i + 1] === '"') i++; else quoted = false } }
+    else if (c === '"') quoted = true
+    else if (c === delimiter) fields++
+  }
+  return fields
+}
+
+export function detectDelimiter(input: string) {
+  const lines = input.replace(/^﻿/, '').split(/\r?\n/).filter(line => line.trim()).slice(0, 20)
+  let best: string = ',', bestMatches = 0, bestColumns = 1
+  for (const delimiter of CSV_DELIMITERS) {
+    const header = delimiterColumns(lines[0] ?? '', delimiter)
+    if (header < 2) continue
+    const matches = lines.filter(line => delimiterColumns(line, delimiter) === header).length
+    if (matches > bestMatches || (matches === bestMatches && header > bestColumns)) { best = delimiter; bestMatches = matches; bestColumns = header }
+  }
+  return best
+}
+
+export function parseCSV(input: string, delimiter?: string) {
   const text = input.replace(/^\uFEFF/, '')
+  const separator = delimiter && delimiter.length === 1 ? delimiter : detectDelimiter(text)
   const records: string[][] = []
   let row: string[] = [], field = '', quoted = false, closed = false
   for (let i = 0; i < text.length; i++) {
@@ -27,9 +76,9 @@ export function parseCSV(input: string) {
       else if (c === '"') { quoted = false; closed = true }
       else field += c
     } else if (c === '"') {
-      if (field.length || closed) throw new Error('CSV 引号位置错误，请使用标准 UTF-8 CSV。')
+      if (field.length || closed) throw new Error('CSV 引号位置错误，请检查分隔符与引号是否符合标准 CSV。')
       quoted = true
-    } else if (c === ',') { row.push(field); field = ''; closed = false }
+    } else if (c === separator) { row.push(field); field = ''; closed = false }
     else if (c === '\n' || c === '\r') {
       if (c === '\r' && next === '\n') i++
       row.push(field); if (row.some(v => v.trim())) records.push(row)

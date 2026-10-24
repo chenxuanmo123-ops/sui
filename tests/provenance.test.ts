@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
-import { parseCSV } from '../src/data'
+import { parseCSV, PUBLIC_DATA_COMMIT, PUBLIC_DATA_URL, PUBLIC_SOURCE_LEGACY, PUBLIC_SOURCE_URL } from '../src/data'
 import type { Dataset } from '../src/data'
 import { sourceInfo, sourceRows, sourceHTML, safeSourceURL, UCI_CSV_HASH, UCI_SOURCE, validateSourceNotes } from '../src/provenance'
 const bytes = readFileSync('tests/fixtures/uci-online-shoppers.csv')
@@ -33,6 +33,15 @@ describe('真实公开数据出处与上传者声明', () => {
   expect(html).not.toContain('<script>');expect(html).toContain('&lt;script&gt;')
   expect(html).not.toContain('href="javascript:');expect(html).not.toContain('href="file:')
   expect(sourceHTML(data)).toContain('rel="noopener noreferrer"')
+ })
+ it('公开 OWID 数据固定到上游提交，旧工作区仍能识别出处', () => {
+  expect(PUBLIC_DATA_URL).toContain('/' + PUBLIC_DATA_COMMIT + '/')
+  expect(PUBLIC_SOURCE_URL).toContain(PUBLIC_DATA_COMMIT)
+  const pinned = {...data, fingerprint: 'owid-test-snapshot', isPublic: true, sourceUrl: PUBLIC_SOURCE_URL}
+  expect(sourceInfo(pinned).notes).toContain(PUBLIC_DATA_COMMIT.slice(0, 7))
+  expect(sourceInfo(pinned).status).toContain('固定提交')
+  expect(sourceInfo({...pinned, sourceUrl: PUBLIC_SOURCE_LEGACY}).status).toContain('固定提交')
+  expect(sourceInfo({...pinned, sourceUrl: PUBLIC_SOURCE_LEGACY}).notes).toContain('尚未固定')
  })
  it('备注校验限制链接、日期和长度，不把载入日期当作采集时间', () => {
   expect(validateSourceNotes(UCI_SOURCE)).toBe('')

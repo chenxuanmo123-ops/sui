@@ -32,7 +32,7 @@ import { useModelProfiles } from './models'
 import { executePlan } from './ai'
 import type { ExecutionOptions, PlanExecution } from './ai'
 import type { PlanResponse } from './ai'
-import { aggregateNames, analyze, defaultMapping, download, escapeHTML, fingerprint, formatNumber, initialQuestion, parseCSV, parsePublicQuestion, profileDataset, PUBLIC_DATA_URL, PUBLIC_SOURCE_URL } from './data'
+import { aggregateNames, analyze, decodeTextBytes, defaultMapping, detectDelimiter, download, escapeHTML, fingerprint, formatNumber, initialQuestion, parseCSV, parsePublicQuestion, profileDataset, PUBLIC_DATA_URL, PUBLIC_SOURCE_URL } from './data'
 import type { Analysis, Dataset, Mapping } from './data'
 import { queryResultRows, sortResultRows } from './result-rows'
 import type { ResultSort } from './result-rows'
@@ -204,10 +204,12 @@ export default function App() {
     if (!/\.csv$/i.test(file.name)) { setImportFile(file); return }
     setLoading(true)
     try {
-      const bytes = await file.arrayBuffer(), text = new TextDecoder('utf-8', { fatal: true }).decode(bytes), parsed = parseCSV(text), [hash, originalFileHash] = await Promise.all([fingerprint(text), fileHash(bytes)])
+      const bytes = await file.arrayBuffer(), decoded = decodeTextBytes(new Uint8Array(bytes)), text = decoded.text, parsed = parseCSV(text), separator = detectDelimiter(text), [hash, originalFileHash] = await Promise.all([fingerprint(text), fileHash(bytes)])
       if (version !== request.current) return
       installDataset({ title: file.name, sourceUrl: '', originalFileHash, originalFileName: file.name, ...parsed, fingerprint: hash, loadedAt: new Date().toISOString(), isPublic: false })
-    } catch (e) { if (version === request.current) setError(`导入失败：${e instanceof Error ? e.message : '无法读取文件'}。CSV 请使用 UTF-8 编码。`) }
+      const notes = [decoded.warning, separator === ',' ? '' : '已识别为' + (separator === '\t' ? '制表符' : '分号') + '分隔的 CSV。'].filter(Boolean)
+      if (notes.length) setNotice('数据已读取。' + notes.join(' ') + ' 请先说明分析目标、业务背景与字段口径。')
+    } catch (e) { if (version === request.current) setError(`导入失败：${e instanceof Error ? e.message : '无法读取文件'}。请检查文件编码与分隔符，或将文件另存为标准 CSV。`) }
     finally { if (version === request.current) setLoading(false) }
   }
   function handleFile(e: ChangeEvent<HTMLInputElement>) {
@@ -428,6 +430,6 @@ export default function App() {
     {showPage && dataset?.origin?.pageImage && <PDFSourcePage image={dataset.origin.pageImage} onClose={() => setShowPage(false)} />}
     <ModelManager open={showModels} onClose={() => setShowModels(false)} profiles={models.profiles} selectedId={models.selectedId} onSelect={models.setSelectedId} onSave={models.save} onRemove={models.remove} defaultId={models.defaultId} canManage={models.canManage} onDefault={models.setDefault} />
     {loading && <div className="loading-indicator" role="status"><LoaderCircle size={18} className="spin" />正在读取真实数据</div>}
-    <dialog ref={helpRef} className="help-dialog" onCancel={() => setShowHelp(false)} onClose={() => setShowHelp(false)}><div className="section-heading"><h2>工作台使用指南</h2><button className="icon-button" aria-label="关闭使用说明" onClick={() => setShowHelp(false)}><X size={20} /></button></div><ol><li>导入 CSV、Excel（XLSX / XLS）、PDF；也可读取 OWID 真实公开数据。</li><li>检查字段质量，确认分组、指标、筛选和单位。</li><li>执行求和、均值、计数、去重数或极值；探索页支持折线、柱状、散点、热力与结果表。</li><li>点选图表或结果表中的分组，查看来源记录。</li><li>使用公开数据的有限中文规则追问，保存计算分支。</li><li>导出 SVG、结果 CSV 或单文件 HTML 证据报告。</li></ol><p>AI 辅助分析可在网页“模型连接”中填写接口地址、API Key 和模型 ID，先理解目标与背景，存在歧义时先澄清，确认计划后真实计算并生成带引用解读。计算已接入 SQLite / sql.js 独立线程；SQL 与参数可查看，MCP 暂未接入。Excel 选择工作表、表头与范围后确认；PDF 支持文字提取和需授权的视觉转录，当前每次导入一页中的一张表，必须核对。当前限制：30 MB、100,000 行、200 列、200 个结果分组；筛选值展示前 500 个不同值。CSV 原始值保留，类型候选不是准确性承诺。</p><button className="primary" onClick={() => setShowHelp(false)}>返回工作台</button></dialog>
+    <dialog ref={helpRef} className="help-dialog" onCancel={() => setShowHelp(false)} onClose={() => setShowHelp(false)}><div className="section-heading"><h2>工作台使用指南</h2><button className="icon-button" aria-label="关闭使用说明" onClick={() => setShowHelp(false)}><X size={20} /></button></div><ol><li>导入 CSV、Excel（XLSX / XLS）、PDF；也可读取 OWID 真实公开数据。</li><li>检查字段质量，确认分组、指标、筛选和单位。</li><li>执行求和、均值、计数、去重数或极值；探索页支持折线、柱状、散点、热力与结果表。</li><li>点选图表或结果表中的分组，查看来源记录。</li><li>使用公开数据的有限中文规则追问，保存计算分支。</li><li>导出 SVG、结果 CSV 或单文件 HTML 证据报告。</li></ol><p>AI 辅助分析可在网页“模型连接”中填写接口地址、API Key 和模型 ID，先理解目标与背景，存在歧义时先澄清，确认计划后真实计算并生成带引用解读。计算已接入 SQLite / sql.js 独立线程；SQL 与参数可查看，MCP 暂未接入。Excel 选择工作表、表头与范围后确认；PDF 支持文字提取和需授权的视觉转录，当前每次导入一页中的一张表，必须核对。当前限制：30 MB、100,000 行、200 列、200 个结果分组；筛选值展示前 500 个不同值。CSV 自动识别 UTF-8 / UTF-16 / GBK(GB18030) 编码与逗号、分号、制表符分隔；原始值保留，类型候选不是准确性承诺。</p><button className="primary" onClick={() => setShowHelp(false)}>返回工作台</button></dialog>
   </div>
 }
