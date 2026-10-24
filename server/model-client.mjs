@@ -38,11 +38,18 @@ export async function requestModel(provider, { signal, action = 'chat', body, ti
   if (signal.aborted) controller.abort();
   else signal.addEventListener('abort', forward, { once: true });
   try {
+    // workerd (Cloudflare Workers/Pages Functions) rejects redirect: 'error'
+    // with a TypeError before sending anything. Use 'manual' and refuse 3xx
+    // ourselves so credentials are never forwarded to another origin.
     const response = await fetch(normalizeBaseURL(provider.baseURL) + (action === 'models' ? '/models' : '/chat/completions'), {
-      method: action === 'models' ? 'GET' : 'POST', redirect: 'error', signal: controller.signal,
+      method: action === 'models' ? 'GET' : 'POST', redirect: 'manual', signal: controller.signal,
       headers: { Authorization: 'Bearer ' + provider.apiKey, 'Content-Type': 'application/json' },
       ...(action === 'models' ? {} : { body: JSON.stringify(body) }),
     });
+    if (response.status >= 300 && response.status < 400) {
+      await response.body?.cancel();
+      throw new Error('模型服务返回了重定向（HTTP ' + response.status + '），请核对 API 根地址；请求不会跟随跳转。');
+    }
     if (!response.ok) {
       await response.body?.cancel();
       throw new Error('模型服务 HTTP ' + response.status + '：' + (explanations[response.status] || '请求失败，请检查服务商状态') + '。');

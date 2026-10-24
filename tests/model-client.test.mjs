@@ -45,6 +45,24 @@ test('Final content required; reasoning alone and token truncation cannot pass c
   assert.throws(() => completionContent({ choices: [{ finish_reason: 'length', message: { content: '{}' } }] }), /截断/);
   assert.equal(completionContent({ choices: [{ finish_reason: 'stop', message: { content: 'OK' } }] }), 'OK');
 });
+test('Redirects are refused instead of followed, so credentials stay on the configured origin', async () => {
+  let followed = 0;
+  await fixture((req, res) => {
+    if (req.url.startsWith('/other')) { followed++; res.writeHead(200); return res.end('{}'); }
+    res.writeHead(302, { Location: '/other' }); res.end();
+  }, async provider => {
+    await assert.rejects(requestModel(provider, options()), /重定向/);
+  });
+  assert.equal(followed, 0);
+});
+test('Outbound fetch uses manual redirect mode because workerd rejects redirect:error', async () => {
+  const original = globalThis.fetch;
+  let mode;
+  globalThis.fetch = async (url, init) => { mode = init.redirect; return new Response(JSON.stringify({ choices: [{ message: { content: 'OK' } }] }), { status: 200, headers: { 'Content-Type': 'application/json' } }); };
+  try { await requestModel({ baseURL: 'https://example.com/v1', apiKey: 'TEST_ONLY_SECRET', model: 'test' }, options()); }
+  finally { globalThis.fetch = original; }
+  assert.equal(mode, 'manual');
+});
 test('Bounded response reader rejects oversized bodies', async () => {
   await fixture((req, res) => { res.writeHead(200); res.end('x'.repeat(1000001)); }, async provider => {
     await assert.rejects(requestModel(provider, options()), /响应过大/);
