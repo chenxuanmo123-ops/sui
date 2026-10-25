@@ -1,8 +1,9 @@
+import { decodeTextBytes, detectDelimiter } from './data';
 import type { Dataset, ImportOrigin, Row } from './data';
 
 export type CellLine = { cells: string[]; positions?: number[]; sourceRow: number };
 export type ImportTable = { name: string; lines: CellLine[]; warnings: string[]; page?: number; image?: string; method: string };
-export type ImportDocument = { name: string; hash: string; format: 'XLSX' | 'XLS' | 'PDF'; tables: ImportTable[]; pageCount?: number; close?: () => void };
+export type ImportDocument = { name: string; hash: string; format: 'XLSX' | 'XLS' | 'PDF' | 'CSV'; tables: ImportTable[]; pageCount?: number; close?: () => void };
 
 export async function fileHash(buffer: ArrayBuffer) {
   const digest = await crypto.subtle.digest('SHA-256', buffer);
@@ -58,6 +59,59 @@ export async function readWorkbook(file: File): Promise<ImportDocument> {
   return { name: file.name, hash, format: file.name.toLowerCase().endsWith('.xls') ? 'XLS' : 'XLSX', tables };
 }
 
+// Lenient tokenizer for the preview dialog: it keeps original cells and
+// physical row numbers so a preamble row can be reclassified as title text
+// instead of a header. Strict validation still happens in prepareTable.
+export function csvLines(text: string, delimiter: string) {
+  const records: CellLine[] = [];
+  let cells: string[] = [], field = '', quoted = false, line = 1, start = 1;
+  function flush() {
+    cells.push(field);
+    if (cells.some(value => value.trim())) {
+      if (!records.length) cells[0] = cells[0].replace(/^﻿/, '');
+      records.push({ cells, sourceRow: start });
+    }
+    cells = []; field = '';
+  }
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i], next = text[i + 1];
+    if (quoted) {
+      if (c === '"' && next === '"') { field += '"'; i++; }
+      else if (c === '"') quoted = false;
+      else { if (c === '\n') line++; field += c; }
+    } else if (c === '"') quoted = true;
+    else if (c === delimiter) { cells.push(field); field = ''; }
+    else if (c === '\n' || c === '\r') {
+      if (c === '\r' && next === '\n') i++;
+      flush(); line++; start = line;
+    } else field += c;
+  }
+  if (quoted || field || cells.length) flush();
+  const warnings: string[] = [];
+  if (quoted) warnings.push('CSV 引号未闭合；预览按文件原文切分，可能把后续记录并入同一单元格，请核对后再导入。');
+  return { lines: records, warnings };
+}
+export async function readCSV(file: File): Promise<ImportDocument> {
+  const bytes = await file.arrayBuffer(), hash = await fileHash(bytes);
+  const decoded = decodeTextBytes(new Uint8Array(bytes));
+  const delimiter = detectDelimiter(decoded.text);
+  const parsed = csvLines(decoded.text, delimiter);
+  if (!parsed.lines.length) throw new Error('CSV 没有可读取的记录，请检查文件内容。');
+  const label = delimiter === '\t' ? '制表符' : delimiter === ';' ? '分号' : '逗号';
+  const widths = new Map<number, number>();
+  for (const line of parsed.lines) widths.set(line.cells.length, (widths.get(line.cells.length) ?? 0) + 1);
+  const modal = [...widths.entries()].sort((a, b) => b[1] - a[1] || b[0] - a[0])[0][0];
+  const ragged = parsed.lines.filter(line => line.cells.length < modal || line.cells.slice(modal).some(cell => cell.trim())).length;
+  const notes = [
+    decoded.warning,
+    `按${label}分隔读取，共 ${parsed.lines.length} 个非空记录。`,
+    'CSV 没有工作表结构；请确认表头所在行与数据截止行，再决定导入范围。',
+    ragged ? `有 ${ragged} 个记录的列数与最常见的 ${modal} 列不同；缺少的单元格将以空值导入，多出的非空单元格会阻止导入，请核对表头与范围。` : '',
+    ...parsed.warnings,
+  ].filter((note): note is string => !!note);
+  return { name: file.name, hash, format: 'CSV', tables: [{ name: 'CSV', lines: parsed.lines, warnings: notes, method: `CSV 文本解析 · ${label}分隔` }] };
+}
+
 let pdfModule: Promise<typeof import('pdfjs-dist')> | undefined;
 async function getPDFModule() {
   if (!pdfModule) pdfModule = (async () => {
@@ -108,8 +162,23 @@ export async function readPDFPage(document: OpenPDF, pageNumber: number): Promis
 function documentGlobal() { return window.document; }
 
 // A structural suggestion only; importing still requires the user's confirmation.
+// Prefer the first row when it spans the same width as most records, even if it
+// is rejected (e.g. a duplicate header) — walking forward would propose a data
+// row as the header and invite importing years or IDs as column names.
 // Reject title/metadata rows whose width cannot contain the following records.
+function rowWidth(line: CellLine) {
+  let width = line.cells.length;
+  while (width && !line.cells[width - 1]?.trim()) width--;
+  return width;
+}
 export function suggestHeaderIndex(table: ImportTable): number {
+  const widths = new Map<number, number>();
+  for (const line of table.lines.slice(0, 50)) {
+    const width = rowWidth(line);
+    if (width >= 2) widths.set(width, (widths.get(width) ?? 0) + 1);
+  }
+  const modal = [...widths.entries()].sort((a, b) => b[1] - a[1] || b[0] - a[0])[0]?.[0];
+  if (table.lines[0] && modal && rowWidth(table.lines[0]) === modal) return 0;
   for (let index = 0; index < Math.min(50, table.lines.length - 1); index++) {
     try {
       prepareTable(table, index, Math.min(table.lines.length - 1, index + 20));
@@ -156,6 +225,8 @@ export async function datasetFromImport(document: ImportDocument, table: ImportT
   // Snapshot includes the extraction/mapping, so two tables in one file cannot share an analysis hash.
   const snapshot = JSON.stringify({ fileHash: document.hash, table: table.name, method: table.method, header, last, headers, rows });
   const hash = await fileHash(new TextEncoder().encode(snapshot).buffer);
-  const origin: ImportOrigin = { format: document.format, fileHash: document.hash, sheet: table.page ? undefined : table.name, page: table.page, headerRow: table.lines[header].sourceRow, method: table.method, warnings: table.warnings, locations, reviewed: true, pageImage: table.image };
-  return { title: `${document.name} · ${table.name}`, sourceUrl: '', headers, rows, fingerprint: hash, loadedAt: new Date().toISOString(), isPublic: false, origin };
+  const csv = document.format === 'CSV';
+  const origin: ImportOrigin = { format: document.format, fileHash: document.hash, sheet: !csv && !table.page ? table.name : undefined, page: table.page, headerRow: table.lines[header].sourceRow, method: table.method, warnings: table.warnings, locations, reviewed: true, pageImage: table.image };
+  // A CSV has no sheet to disambiguate; keep the historical file-name title.
+  return { title: csv ? document.name : `${document.name} · ${table.name}`, sourceUrl: '', headers, rows, fingerprint: hash, loadedAt: new Date().toISOString(), isPublic: false, origin };
 }

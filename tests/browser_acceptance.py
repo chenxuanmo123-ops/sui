@@ -166,9 +166,15 @@ with sync_playwright() as p:
     assert len(list(csv.DictReader(io.StringIO((root / 'artifacts/result.csv').read_text(encoding='utf-8-sig'))))) == 8
     bad = subset.replace('year,country,', 'year,year,', 1)
     page.locator('#file-upload').set_input_files({'name':'duplicate-headers.csv','mimeType':'text/csv','buffer':bad.encode('utf-8')})
-    expect(page.get_by_role('alert')).to_contain_text('重复列名')
+    page.get_by_role('dialog',name='替换当前工作区？').get_by_role('button',name='替换并导入',exact=True).click()
+    preview=page.get_by_role('dialog',name='导入预览与核对')
+    expect(preview).to_be_visible()
+    expect(preview.locator('.import-validation')).to_contain_text('重复字段')
+    assert preview.get_by_role('button',name='确认导入并分析',exact=True).is_disabled()
+    preview.get_by_role('button',name='取消',exact=True).click()
+    expect(preview).to_have_count(0)
     assert page.locator('#analysis-svg').count() == 1
-    checked('结果 CSV 含 8 个分组；坏文件报错并保留上次有效数据')
+    checked('结果 CSV 含 8 个分组；重复表头在预览中被拦截，取消后保留上次有效数据')
     blocked = context.new_page()
     blocked.route('**/owid-energy-data.csv', lambda route: route.abort())
     blocked.goto(BASE_URL + '/', wait_until='networkidle')

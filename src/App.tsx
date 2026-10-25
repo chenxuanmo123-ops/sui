@@ -228,7 +228,19 @@ export default function App() {
     const version = ++request.current; abort.current?.abort(); setError(''); setLoading(false)
     setLoading(true)
     try {
-      const bytes = await file.arrayBuffer(), decoded = decodeTextBytes(new Uint8Array(bytes)), text = decoded.text, parsed = parseCSV(text), separator = detectDelimiter(text), [hash, originalFileHash] = await Promise.all([fingerprint(text), fileHash(bytes)])
+      const bytes = await file.arrayBuffer(), decoded = decodeTextBytes(new Uint8Array(bytes)), text = decoded.text
+      let parsed
+      try { parsed = parseCSV(text) }
+      catch (e) {
+        if (version !== request.current) return
+        // A standard CSV imports in one step. When the first record cannot be a
+        // header (preamble rows, ragged columns, duplicate names), offer the same
+        // header/range preview as Excel instead of guessing or rejecting outright.
+        setNotice(`CSV 首行不能直接作为表头（${e instanceof Error ? e.message : '格式不符合标准 CSV'}）。已打开导入预览：请选择表头所在行与数据截止行，确认后再导入。`)
+        setImportFile(file)
+        return
+      }
+      const separator = detectDelimiter(text), [hash, originalFileHash] = await Promise.all([fingerprint(text), fileHash(bytes)])
       if (version !== request.current) return
       installDataset({ title: file.name, sourceUrl: '', originalFileHash, originalFileName: file.name, ...parsed, fingerprint: hash, loadedAt: new Date().toISOString(), isPublic: false })
       const notes = [decoded.warning, separator === ',' ? '' : '已识别为' + (separator === '\t' ? '制表符' : '分号') + '分隔的 CSV。'].filter(Boolean)

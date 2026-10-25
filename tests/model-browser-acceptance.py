@@ -118,6 +118,7 @@ try:
     smaller='\n'.join([line for line in original.splitlines() if line.strip()][:-1])+'\n'
     with page.expect_response(lambda r: '/api/ai/inspect' in r.url and r.request.method == 'POST') as observed:
         page.locator('#file-upload').set_input_files({'name':'owid-real-shorter-subset.csv','mimeType':'text/csv','buffer':smaller.encode('utf-8')})
+        page.get_by_role('dialog',name='替换当前工作区？').get_by_role('button',name='替换并导入',exact=True).click()
     assert observed.value.status == 200
     expect(page.locator('.initial-summary')).to_be_visible()
     assert len(inspect_calls())==count+1 and inspect_calls()[-1]['model']=='contract-one-edited'

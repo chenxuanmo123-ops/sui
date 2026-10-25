@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, ArrowRight, Check, FileSpreadsheet, FileText, LoaderCircle, ScanLine, X } from 'lucide-react';
-import { datasetFromImport, openPDF, prepareTable, suggestHeaderIndex, readPDFPage, readWorkbook } from './importers';
+import { datasetFromImport, openPDF, prepareTable, suggestHeaderIndex, readCSV, readPDFPage, readWorkbook } from './importers';
 import type { ImportDocument, ImportTable, OpenPDF } from './importers';
 import { aiRequest } from './ai';
 import { modelRequest } from './models';
@@ -28,6 +28,9 @@ export default function ImportDialog({ file, models, selected, onSelect, onConfi
           pdf.current = opened; setPages(opened.pdf.numPages);
           const t = await readPDFPage(opened, 1); if (disposed) return;
           setDoc({ name: opened.name, hash: opened.hash, format: 'PDF', pageCount: opened.pdf.numPages, tables: [t] }); resetRange(t);
+        } else if (/\.csv$/i.test(file.name)) {
+          const csv = await readCSV(file); if (disposed) return;
+          setDoc(csv); resetRange(csv.tables[0]);
         } else {
           const workbook = await readWorkbook(file); if (disposed) return;
           setDoc(workbook); resetRange(workbook.tables[0]);
@@ -74,7 +77,7 @@ export default function ImportDialog({ file, models, selected, onSelect, onConfi
     catch (e) { if (version.current === current) setError((e as Error).message); }
     finally { if (version.current === current) setBusy(''); }
   }
-  const isPDF = doc?.format === 'PDF' || /\.pdf$/i.test(file.name);
+  const isPDF = doc?.format === 'PDF' || /\.pdf$/i.test(file.name), isCSV = doc?.format === 'CSV' || /\.csv$/i.test(file.name);
   const linesToShow = table ? Array.from(new Set([header, ...Array.from({ length: Math.min(table.lines.length, 50) }, (_, i) => i)])).sort((a, b) => a - b) : [];
   return <dialog ref={ref} className="import-dialog" aria-labelledby="import-title" onCancel={e => { e.preventDefault(); onClose(); }}>
     <header className="import-header"><div className="import-heading-icon">{isPDF ? <FileText size={22} /> : <FileSpreadsheet size={22} />}</div><div><h2 id="import-title">导入预览与核对</h2><p title={file.name}>{file.name} · {(file.size / 1024).toFixed(1)} KB</p></div><button className="icon-button" aria-label="关闭导入预览" onClick={onClose}><X size={20} /></button></header>
@@ -84,7 +87,7 @@ export default function ImportDialog({ file, models, selected, onSelect, onConfi
       {busy && <div className="import-progress" role="status"><LoaderCircle className="spin" size={18} />{busy}…</div>}
       {doc && table && <>
         <div className="import-controls">
-          {isPDF ? <label>PDF 页面<select id="import-page" value={page} disabled={!!busy} onChange={e => void changePage(Number(e.target.value))}>{Array.from({ length: pages }, (_, i) => <option key={i} value={i + 1}>第 {i + 1} 页 / 共 {pages} 页</option>)}</select></label> : <label>工作表<select id="import-sheet" value={tableIndex} disabled={!!busy} onChange={e => { const i = Number(e.target.value); setTableIndex(i); resetRange(doc.tables[i]); setError(''); }}>{doc.tables.map((t, i) => <option key={i} value={i}>{t.name} · {t.lines.length} 行</option>)}</select></label>}
+          {isPDF ? <label>PDF 页面<select id="import-page" value={page} disabled={!!busy} onChange={e => void changePage(Number(e.target.value))}>{Array.from({ length: pages }, (_, i) => <option key={i} value={i + 1}>第 {i + 1} 页 / 共 {pages} 页</option>)}</select></label> : isCSV ? <div className="import-method"><span>文件结构</span><strong>单表 CSV · {table.lines.length} 个非空记录</strong></div> : <label>工作表<select id="import-sheet" value={tableIndex} disabled={!!busy} onChange={e => { const i = Number(e.target.value); setTableIndex(i); resetRange(doc.tables[i]); setError(''); }}>{doc.tables.map((t, i) => <option key={i} value={i}>{t.name} · {t.lines.length} 行</option>)}</select></label>}
           <label>表头所在行<input id="import-header-row" type="number" min={1} max={table.lines.length || 1} value={header + 1} disabled={!!busy} onChange={e => { setHeader(Math.max(0, Number(e.target.value) - 1)); setConfirmed(false); }} /></label>
           <label>数据截止行<input id="import-last-row" type="number" min={header + 2} max={table.lines.length || 1} value={last + 1} disabled={!!busy} onChange={e => { setLast(Math.max(0, Number(e.target.value) - 1)); setConfirmed(false); }} /></label>
           <div className="import-method"><span>读取方式</span><strong>{table.method}</strong></div>

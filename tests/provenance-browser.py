@@ -23,6 +23,7 @@ with sync_playwright() as p:
  page.screenshot(path=str(out/'01-verified-public-source.png'),full_page=True)
  passed('原始公开CSV通过文件指纹匹配，页面显示机构、引用、许可和字段限制')
  page.locator('#file-upload').set_input_files(str(root/'tests/fixtures/owid-China-2015-2022.csv'))
+ page.get_by_role('dialog',name='替换当前工作区？').get_by_role('button',name='替换并导入',exact=True).click()
  page.get_by_role('button',name='数据与来源',exact=True).click()
  expect(page.locator('.source-details')).to_contain_text('用户提供 · 未核验出处')
  page.locator('.source-editor > summary').click()

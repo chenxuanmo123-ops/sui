@@ -64,7 +64,7 @@ with sync_playwright() as p:
  assert not page.locator('.vision-panel input[type=checkbox]').is_checked()
  page.screenshot(path=str(root/'artifacts/new-pdf-import.png'),full_page=True)
  passed('PDF 实际提取文字与原页，切换第 2 页，视觉上传默认未授权')
- page.locator('#confirm-import').check();page.get_by_role('button',name='确认导入并分析',exact=True).click();calculate()
+ page.locator('#confirm-import').check();page.get_by_role('button',name='确认导入并分析',exact=True).click();page.get_by_role('dialog',name='替换当前工作区？').get_by_role('button',name='替换并导入',exact=True).click();calculate()
  passed('PDF 表格确认后 8 年逐项计算与来源一致')
  page.get_by_role('button',name='数据与来源',exact=True).click();assert 'PDF' in page.locator('.import-origin').inner_text();assert len(page.locator('.import-origin code').inner_text().split(': ')[-1])==64
  page.get_by_role('button',name='查看 PDF 原始页',exact=True).click();expect(page.locator('.page-overlay')).to_be_visible();page.get_by_role('button',name='关闭原页',exact=True).click()
