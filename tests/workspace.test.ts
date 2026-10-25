@@ -50,6 +50,15 @@ it('字段角色纠正随工作区恢复；旧快照按自动判断处理，无�
   const value=structuredClone(snapshot());change(value);expect(()=>decodeWorkspace(value)).toThrow('保留旧记录')
  }
 })
+it('用户声明的单位随结果恢复；伪造来源或给比例结果声明单位拒绝恢复',()=>{
+ const value=snapshot()
+ value.state.history[0].mapping={...value.state.history[0].mapping,rate:undefined,unit:'次'}
+ value.state.history[0].unitSource='user'
+ expect(decodeWorkspace(value).state.history[0].unitSource).toBe('user')
+ for(const change of [(s:WorkspaceSnapshot)=>{s.state.history[0].unitSource='plan' as never},(s:WorkspaceSnapshot)=>{s.state.history[0].unitSource='user';s.state.history[0].mapping.unit=''},(s:WorkspaceSnapshot)=>{s.state.history[1].unitSource='user'}]){
+  const broken=structuredClone(snapshot());change(broken);expect(()=>decodeWorkspace(broken)).toThrow('保留旧记录')
+ }
+})
 it('探索/对比结果旧快照拒绝恢复，撤销数据与来源声明仍保留',()=>{
  const value=snapshot();value.state.preparationHistory=[structuredClone(dataset)];value.state.dataset.sourceNotes={notes:'真实数据验收备注'}
  expect(decodeWorkspace(value).state.preparationHistory[0].fingerprint).toBe(dataset.fingerprint)

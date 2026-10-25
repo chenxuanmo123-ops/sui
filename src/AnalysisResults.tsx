@@ -6,6 +6,7 @@ import { download, formatNumber } from './data'
 import InsightBrief from './InsightBrief'
 import NextCuts from './NextCuts'
 import { ResultTable } from './ResultTable'
+import { UnitDeclaration } from './UnitDeclaration'
 import type { Analysis, AnalysisScope, Dataset } from './data'
 import type { CheckupOverrides } from './checkup'
 import type { Fact, PlanResponse, Review, PlanExecution } from './ai'
@@ -13,7 +14,7 @@ export type AnalysisBundle = { id?: string; response: PlanResponse; results: Ana
 export function ScopeSummary({ scope, onParent }: {scope: AnalysisScope; onParent?: (id:number)=>void}) {
  return <aside className="scope-summary" aria-label="本次追问范围"><span className="scope-eyebrow">分组追问 · 范围已锁定</span><div><strong>{scope.label}</strong><span>{scope.rowIds.length.toLocaleString()} 条匹配记录</span></div><p>来源：分析 #{scope.parentAnalysisId} · {scope.parentTitle}</p><p>原分组结果：{formatNumber(scope.baseline.value,4)}{scope.baseline.unit}{scope.baseline.counts ? '（分子 '+scope.baseline.counts.numerator+' / 分母 '+scope.baseline.counts.denominator+'；排除 '+scope.baseline.counts.excluded+'）' : ' · '+scope.baseline.metric}。以下各项均在该分组范围内计算，进一步筛选可能减少记录。</p>{onParent && <button className="text-button" onClick={()=>onParent(scope.parentAnalysisId)}>返回来源分析对照 <ArrowUpRight size={14}/></button>}</aside>
 }
-export function AnalysisResults({ bundle, dataset, overrides, onEvidence, onFollowUp, onParent, onBackToCheckup, onRoles }: {bundle:AnalysisBundle;dataset:Dataset;overrides?:CheckupOverrides;onEvidence:(id:number,label?:string)=>void;onFollowUp?:(result:Analysis,label:string)=>void;onParent?:(id:number)=>void;onBackToCheckup?:()=>void;onRoles?:()=>void}) {
+export function AnalysisResults({ bundle, dataset, overrides, onEvidence, onFollowUp, onParent, onBackToCheckup, onRoles, onUnit }: {bundle:AnalysisBundle;dataset:Dataset;overrides?:CheckupOverrides;onEvidence:(id:number,label?:string)=>void;onFollowUp?:(result:Analysis,label:string)=>void;onParent?:(id:number)=>void;onBackToCheckup?:()=>void;onRoles?:()=>void;onUnit?:(id:number,unit:string)=>void}) {
  const [focused,setFocused]=useState(bundle.results[0]?.id)
  const [selection,setSelection]=useState<{id:number;label:string}|null>(null)
  const [chartKinds,setChartKinds]=useState<Record<number,'line'|'bar'>>({})
@@ -33,6 +34,7 @@ export function AnalysisResults({ bundle, dataset, overrides, onEvidence, onFoll
     <header><h3>{result.ai?.taskTitle||result.question}</h3><button className="text-button" onClick={()=>onEvidence(result.id)}>检查 SQL 与来源</button></header>
     {result.rateSummary ? <div className="rate-summary"><strong>{formatNumber(result.rateSummary.value,2)}<small>%</small></strong><span>当前范围总体比例<br/>{formatNumber(result.rateSummary.numerator,0)} / {formatNumber(result.rateSummary.denominator,0)} 条有效记录 · 排除 {result.rateSummary.excluded} 条未知或缺失结果</span></div>:<p>{result.finding}</p>}
     {result.mapping.rate&&<p className="bundle-formula">分子：{result.mapping.metric} = {JSON.stringify(result.mapping.rate.successValue)}；分母：{JSON.stringify(result.mapping.rate.eligibleValues)}。总体比例按总分子 ÷ 总分母计算。</p>}
+    {!result.mapping.rate&&onUnit&&<UnitDeclaration id={result.id} unit={result.mapping.unit} source={result.unitSource} onSave={unit=>onUnit(result.id,unit)} />}
     <InsightBrief result={result} compact />
     <NextCuts dataset={dataset} result={result} overrides={overrides} />
     <div className="chart-action-line"><label className="group-locator">定位分组<select aria-label="定位图表分组" value={label} onChange={e=>setSelection(e.target.value?{id:result.id,label:e.target.value}:null)}><option value="">点击图形或选择分组</option>{result.points.map(p=><option key={p.label} value={p.label}>{p.label}</option>)}</select></label><div className="segmented compact result-chart-kind" aria-label="结果图表类型"><button aria-pressed={chartKind==='line'} className={chartKind==='line'?'active':''} onClick={()=>setChartKinds(kinds=>({...kinds,[result.id]:'line'}))}>折线</button><button aria-pressed={chartKind==='bar'} className={chartKind==='bar'?'active':''} onClick={()=>setChartKinds(kinds=>({...kinds,[result.id]:'bar'}))}>柱状</button></div><span><MousePointer2 size={14}/>选中分组后，查看来源或继续追问</span></div><div className="result-chart-table"><DataChart reference={analysisReference(result)} interaction="select" compact chartId={'bundle-chart-'+result.id} points={result.points} metric={result.ai?.taskTitle||result.mapping.metric} unit={result.mapping.unit} kind={chartKind} selected={label} onSelect={label=>setSelection(label?{id:result.id,label}:null)}/>

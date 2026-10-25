@@ -11,7 +11,7 @@ export type Mapping = { rate?: RateDefinition; x: string; metric: string; filter
 export type RateCounts = { numerator: number; denominator: number; excluded: number }
 export type AnalysisScope = { datasetHash: string; loadedAt: string; parentAnalysisId: number; parentTitle: string; label: string; rowIds: number[]; baseline: { metric: string; aggregate: Mapping['aggregate']; unit: string; value: number; rate?: RateDefinition; counts?: RateCounts } }
 export type Point = { scopeRowIds?: number[]; excludedRowIds?: number[]; rate?: RateCounts; label: string; value: number; rowIds: number[] }
-export type Analysis = { scope?: AnalysisScope; rateSummary?: RateCounts & { value: number }; unavailableGroups?: { label: string; excluded: number; rowIds: number[] }[]; sql?: string; parameters?: (string | number | null)[]; id: number; question: string; mapping: Mapping; points: Point[]; usedRows: number; skipped: number; matched: number; createdAt: string; datasetHash: string; finding: string; operations: string[]; trend?: TimeTrend; ai?: { goal: string; taskId: string; taskTitle: string; model: string; plannedAt: string } }
+export type Analysis = { scope?: AnalysisScope; unitSource?: 'user'; rateSummary?: RateCounts & { value: number }; unavailableGroups?: { label: string; excluded: number; rowIds: number[] }[]; sql?: string; parameters?: (string | number | null)[]; id: number; question: string; mapping: Mapping; points: Point[]; usedRows: number; skipped: number; matched: number; createdAt: string; datasetHash: string; finding: string; operations: string[]; trend?: TimeTrend; ai?: { goal: string; taskId: string; taskTitle: string; model: string; plannedAt: string } }
 // Pin the upstream commit so the same button always loads the same bytes and
 // evidence snapshots stay reproducible. This is the commit used by the
 // verified fixtures in tests/fixtures/owid-provenance.json.
@@ -150,6 +150,27 @@ export function summarize(points: Point[], unit: string, timeOrdered = false) {
   const low = sorted[0], high = sorted.at(-1)!
   return `按当前口径，最高分组为 ${high.label}（${formatNumber(high.value)}${suffix}），最低为 ${low.label}（${formatNumber(low.value)}${suffix}）。该比较不代表时间趋势或因果关系。`
 
+}
+export function normalizeUnit(unit: string) { return unit.trim().slice(0, 40) }
+
+// A declared unit is user metadata, not a new computation. Rates keep their
+// fixed percent denominator. For other analyses the deterministic description
+// is re-rendered with the same calculated points and the declared unit, so the
+// chart, table, conclusion and exports agree without changing any value.
+export function withDeclaredUnit(analysis: Analysis, unit: string): Analysis {
+  if (analysis.mapping.rate) return analysis
+  const next = normalizeUnit(unit)
+  if (analysis.mapping.unit === next && analysis.unitSource === 'user') return analysis
+  const scope = analysis.scope ? { ...analysis.scope, baseline: { ...analysis.scope.baseline, unit: next } } : undefined
+  const result: Analysis = {
+    ...analysis,
+    mapping: { ...analysis.mapping, unit: next },
+    ...(scope ? { scope } : {}),
+    finding: summarize(analysis.points, next, Boolean(analysis.trend)),
+  }
+  delete result.unitSource
+  if (next) result.unitSource = 'user'
+  return result
 }
 export function bucketLabel(raw: string, bucket: Mapping['timeBucket']): string {
   if (!bucket || bucket === 'none') return raw.trim();

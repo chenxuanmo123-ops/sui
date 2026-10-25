@@ -78,7 +78,7 @@ export function decodeWorkspace(value: unknown): WorkspaceSnapshot {
   } else s.fieldRoles = {}
   const ids = new Set<number>()
   for (const result of s.history) {
-   if (!result || !Number.isInteger(result.id) || result.id < 1 || ids.has(result.id) || result.datasetHash !== s.dataset.fingerprint || !result.mapping || !Array.isArray(result.points) || result.points.some(p => !p || typeof p.label !== 'string' || !Number.isFinite(p.value) || !Array.isArray(p.rowIds) || p.rowIds.some(id => !Number.isInteger(id) || id < 2 || id > s.dataset.rows.length + 1))) return invalid()
+   if (!result || !Number.isInteger(result.id) || result.id < 1 || ids.has(result.id) || result.datasetHash !== s.dataset.fingerprint || !result.mapping || typeof result.mapping.unit !== 'string' || result.mapping.unit.length > 40 || (result.unitSource !== undefined && (result.unitSource !== 'user' || !result.mapping.unit || result.mapping.rate)) || !Array.isArray(result.points) || result.points.some(p => !p || typeof p.label !== 'string' || !Number.isFinite(p.value) || !Array.isArray(p.rowIds) || p.rowIds.some(id => !Number.isInteger(id) || id < 2 || id > s.dataset.rows.length + 1))) return invalid()
    ids.add(result.id)
    if (result.scope) validateScope(s.dataset, result.scope)
   }

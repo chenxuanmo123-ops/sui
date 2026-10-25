@@ -93,6 +93,20 @@ with sync_playwright() as p:
     for i,row in enumerate(rows):
         cells=resultrows.nth(i).locator('td').all_text_contents()
         assert cells[0]==row['year'] and math.isclose(float(cells[1].replace(',','')),float(row['renewables_electricity']),abs_tol=.0051)
+    unit=focused.locator('.unit-declaration')
+    expect(unit).to_be_visible()
+    expect(unit.locator('.unit-declaration-heading span')).to_have_text('口径单位 TWh')
+    expect(unit).to_contain_text('当前单位来自已确认的分析口径')
+    unit.locator('input').fill('TWh（年度）')
+    unit.get_by_role('button',name='确认并记录',exact=True).click()
+    expect(unit.locator('.unit-declaration-heading span')).to_have_text('已声明 TWh（年度）')
+    expect(focused.locator('.bundle-table thead')).to_contain_text('结果（TWh（年度））')
+    assert 'TWh（年度）' in focused.locator('svg.data-chart').text_content()
+    assert 'TWh（年度）' in focused.locator('p').first.text_content()
+    for i,row in enumerate(rows):
+        cells=focused.locator('.bundle-table tbody tr').nth(i).locator('td').all_text_contents()
+        assert cells[0]==row['year'] and math.isclose(float(cells[1].replace(',','')),float(row['renewables_electricity']),abs_tol=.0051)
+    checked('AI 计划结果卡可声明单位，图表/结论/结果表同步标注且真实计算值不变')
     expect(page.locator('.ai-questions')).to_contain_text('请确认统计范围和单位')
     checked('问题与任务并存时允许确认并计算，8 个真实年度结果一致，解读失败保留计算和待确认提示')
     state['fail_review']=False
