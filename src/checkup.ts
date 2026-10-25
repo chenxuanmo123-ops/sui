@@ -227,14 +227,19 @@ function roleSupport(role: CheckupRole, facts: RoleFacts): { enabled: boolean; r
 }
 
 function buildField(dataset: Dataset, key: string, summary: FieldSummary, forced?: CheckupRole): CheckupField {
-  const evidence = timeEvidence(dataset, key, summary.missing, summary.unique, forced === 'time')
-  const time = evidence.time
+  // Automatic detection never relaxes the bare-year rule, even while the user
+  // is declaring the field as time. Otherwise the declared role would become
+  // its own "automatic" baseline and the correction would not be marked.
+  const autoEvidence = timeEvidence(dataset, key, summary.missing, summary.unique)
+  const autoTime = autoEvidence.time
   const nonempty = dataset.rows.length - summary.missing
   const values = summary.top.map(item => item.value)
   // A 0/1 "yr" is a calendar index, not a success/failure outcome. Reserving
   // binary for non-calendar columns avoids suggestions such as "share of
-  // yr = 1 by season"; an explicit user correction overrides that guard.
-  const binary = summary.unique === 2 && (!CALENDAR_HEADER.test(key) || forced === 'binary') ? recognizeBinary(values) : null
+  // yr = 1 by season"; an explicit user correction may override that guard.
+  const autoBinary = summary.unique === 2 && !CALENDAR_HEADER.test(key) ? recognizeBinary(values) : null
+  const supportEvidence = forced === 'time' ? timeEvidence(dataset, key, summary.missing, summary.unique, true) : autoEvidence
+  const supportBinary = forced === 'binary' && summary.unique === 2 ? recognizeBinary(values) : autoBinary
   const numericShare = nonempty ? summary.numeric / nonempty : 0
   const uniqueShare = nonempty ? summary.unique / nonempty : 0
   const nearUnique = nonempty >= 20 && uniqueShare >= 0.98
@@ -248,14 +253,16 @@ function buildField(dataset: Dataset, key: string, summary: FieldSummary, forced
   }
   // Small integer codes (season=1..4, weathersit=1..4) are dimensions, not
   // quantities. A named score/amount/count stays a measure even when small.
-  const integerCoded = !time && !binary && !identifier && summary.unique <= 20 &&
+  const integerCoded = !autoTime && !autoBinary && !identifier && summary.unique <= 20 &&
     numericShare >= 0.9 && integerValues === summary.numeric && !MEASURE_HEADER.test(key)
   const measure = !identifier && !integerCoded && numericShare >= 0.9
   const category = summary.unique >= 1 && summary.unique <= 50
-  const autoRole: CheckupRole = time ? 'time' : binary ? 'binary' : identifier ? 'identifier' : integerCoded ? 'category' : measure ? 'measure' : category ? 'category' : 'text'
-  const support = forced ? roleSupport(forced, { time, timeValid: evidence.valid, binary, nonempty, numeric: summary.numeric, unique: summary.unique }) : null
+  const autoRole: CheckupRole = autoTime ? 'time' : autoBinary ? 'binary' : identifier ? 'identifier' : integerCoded ? 'category' : measure ? 'measure' : category ? 'category' : 'text'
+  const support = forced ? roleSupport(forced, { time: supportEvidence.time, timeValid: supportEvidence.valid, binary: supportBinary, nonempty, numeric: summary.numeric, unique: summary.unique }) : null
   const role: CheckupRole = forced && support?.enabled ? forced : autoRole
   const overridden = role !== autoRole
+  const time = role === 'time' ? supportEvidence.time : undefined
+  const binary = role === 'binary' ? supportBinary : undefined
 
   let detail = ''
   if (role === 'time' && time) {

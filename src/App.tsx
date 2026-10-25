@@ -6,7 +6,7 @@ import type { WorkspaceState, WorkspaceView } from './workspace'
 import type { AssistantSeed } from './follow-up'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
-import { AlertCircle, ArrowDownToLine, ArrowUpRight, BarChart3, Check, ChevronRight, CircleHelp, Database, FileSpreadsheet, GitBranch, Layers3, LoaderCircle, MessageSquareText, Plus, RefreshCcw, Search, Settings2, ShieldCheck, Table2, Upload, X } from 'lucide-react'
+import { AlertCircle, ArrowDownToLine, ArrowUpRight, BarChart3, Check, ChevronRight, CircleHelp, Database, FileSpreadsheet, GitBranch, Layers3, ListChecks, LoaderCircle, MessageSquareText, Plus, RefreshCcw, Search, Settings2, ShieldCheck, Table2, Upload, X } from 'lucide-react'
 import DataChart from './DataChart'
 import { SourceSummary, SourceDetails, SourceEditor } from './DatasetSource'
 import { sourceHTML, sourceInfo } from './provenance'
@@ -39,11 +39,14 @@ import type { ResultSort } from './result-rows'
 import type { ExploreSpec } from './analytics'
 import { exploreDataset } from './engine'
 import type { CheckupOverrides, CheckupQuestion } from './checkup'
+import { useCheckup } from './useCheckup'
+import FieldRoles from './FieldRoles'
 import InsightBrief from './InsightBrief'
 import NextCuts from './NextCuts'
 
 type View = WorkspaceView
 type Chat = { text: string; answer: string; run?: number }
+type ReplaceRequest = { kind: 'file'; file: File } | { kind: 'public' } | { kind: 'dataset'; dataset: Dataset }
 const blankMapping: Mapping = { x: '', metric: '', filter: '', value: '', from: '', to: '', unit: '', aggregate: 'sum' }
 const metricNames: Record<string, string> = { renewables_electricity: '可再生能源发电量', solar_electricity: '太阳能发电量', wind_electricity: '风能发电量' }
 
@@ -79,6 +82,11 @@ export default function App() {
   const [assistantSeed, setAssistantSeed] = useState<AssistantSeed>()
   const [preparationHistory, setPreparationHistory] = useState<Dataset[]>([])
   const [fieldRoles, setFieldRoles] = useState<CheckupOverrides>({})
+  const [rolesOpen, setRolesOpen] = useState(false)
+  const [runningQuestion, setRunningQuestion] = useState<string | null>(null)
+  const [questionError, setQuestionError] = useState<{ id: string; message: string } | null>(null)
+  const [pendingReplace, setPendingReplace] = useState<ReplaceRequest | null>(null)
+  const replaceRef = useRef<HTMLDialogElement>(null)
   const datasetRef = useRef<Dataset | null>(null)
   const [computing, setComputing] = useState(false)
   const computeLock = useRef(false)
@@ -113,6 +121,7 @@ export default function App() {
   const request = useRef(0)
   const abort = useRef<AbortController | null>(null)
   const profiles = useMemo(() => dataset ? profileDataset(dataset) : [], [dataset])
+  const { checkup, error: checkupError } = useCheckup(dataset, fieldRoles)
   const numericFields = useMemo(() => profiles.filter(p => p.kind === '数值' || (p.nonempty > 0 && p.numeric / p.nonempty >= .9)), [profiles])
   const active = history.find(h => h.id === activeId) ?? null
   const filterValues = useMemo(() => dataset && mapping.filter ? [...new Set(dataset.rows.map(r => r[mapping.filter]).filter((v): v is string => v !== null))].sort((a, b) => a.localeCompare(b, 'zh-CN')).slice(0, 500) : [], [dataset, mapping.filter])
@@ -158,6 +167,8 @@ export default function App() {
     return()=>{clearTimeout(timer);window.removeEventListener('pagehide',persist);document.removeEventListener('visibilitychange',hidden)}
   },[workspaceReady,storageBlocked,workspaceState,saveRetry])
   useEffect(()=>{if(showClear)clearRef.current?.showModal();else clearRef.current?.close()},[showClear])
+  useEffect(()=>{if(pendingReplace)replaceRef.current?.showModal();else replaceRef.current?.close()},[pendingReplace])
+  useEffect(()=>{setRolesOpen(false)},[dataset])
   async function discardWorkspace(){
     if(clearInProgress.current||computing||loading)return
     clearInProgress.current=true;setClearing(true);cancelPendingSave.current();saveRevision.current++
@@ -165,7 +176,7 @@ export default function App() {
       await clearWorkspace()
       request.current++;abort.current?.abort();datasetRef.current=null
       setDataset(null);setHistory([]);setBundle(null);setBundleHistory([]);bundleRegistry.current.clear()
-      setPreparationHistory([]);setFieldRoles({});setExploreSession(null);setCompareSession(null);setConsoleTable(null);setActiveId(null)
+      setPreparationHistory([]);setFieldRoles({});setRolesOpen(false);setQuestionError(null);setRunningQuestion(null);setPendingReplace(null);setExploreSession(null);setCompareSession(null);setConsoleTable(null);setActiveId(null)
       setMapping(blankMapping);setQuestion(initialQuestion);setChat([]);setChatInput('');setSelectedPoint('');setAssistantSeed(undefined)
       setInspectorOpen(false);setAssistantOpen(false);setImportFile(null);setShowPage(false);setView('workspace');setDataTab('fields')
       setAllowAutoInspection(true);setSavedAt('');setSaveState('empty');setStorageError('');setStorageBlocked(false);setShowClear(false);setError('')
@@ -177,11 +188,15 @@ export default function App() {
   function installDataset(next: Dataset) {
     setAllowAutoInspection(true)
     next = { ...next, originalFileHash: next.originalFileHash || next.origin?.fileHash || (!next.preparation ? next.fingerprint : undefined), originalFileName: next.originalFileName || next.title }
-    setWorkspaceSection('analysis'); setAnalysisDraft(''); setAssistantOpen(false); setFieldsOpen(false); datasetRef.current = next; setBundle(null); setBundleHistory([]); bundleRegistry.current.clear(); setInspectorOpen(false); setExploreSession(null); setCompareSession(null); setConsoleTable(null); setPreparationHistory([]); setFieldRoles({}); setShowPage(false); setDataset(next); setMapping(defaultMapping(next, profileDataset(next))); setHistory([]); setActiveId(null)
+    setWorkspaceSection('analysis'); setAnalysisDraft(''); setAssistantOpen(false); setFieldsOpen(false); datasetRef.current = next; setBundle(null); setBundleHistory([]); bundleRegistry.current.clear(); setInspectorOpen(false); setExploreSession(null); setCompareSession(null); setConsoleTable(null); setPreparationHistory([]); setFieldRoles({}); setRolesOpen(false); setQuestionError(null); setRunningQuestion(null); setPendingReplace(null); setShowPage(false); setDataset(next); setMapping(defaultMapping(next, profileDataset(next))); setHistory([]); setActiveId(null)
     setQuestion(next.isPublic ? initialQuestion : ''); setChat([]); setChatInput(''); setSelectedPoint('')
     setFieldSearch(''); setResultQuery(''); setResultSort('original'); setDataTab('fields'); setEvidenceTab('method'); setView('workspace'); setNotice('数据已读取。请先说明分析目标、业务背景与字段口径。')
   }
-  async function loadPublicDataset() {
+  function loadPublicDataset() {
+    if (dataset) { setPendingReplace({ kind: 'public' }); return }
+    void fetchPublicDataset()
+  }
+  async function fetchPublicDataset() {
     const version = ++request.current
     abort.current?.abort(); const controller = new AbortController(); abort.current = controller
     setLoading(true); setError(''); setNotice('')
@@ -205,8 +220,12 @@ export default function App() {
   async function importSelectedFile(file: File) {
     if (!/\.(csv|xlsx|xls|pdf)$/i.test(file.name)) { setError('支持 CSV、Excel（.xlsx / .xls）和 PDF 文件，请选择对应文件。'); return }
     if (file.size > 30 * 1024 * 1024) { setError('文件超过 30 MB，请拆分后重试。'); return }
-    const version = ++request.current; abort.current?.abort(); setError(''); setLoading(false)
     if (!/\.csv$/i.test(file.name)) { setImportFile(file); return }
+    if (dataset) { setPendingReplace({ kind: 'file', file }); return }
+    await loadCSVFile(file)
+  }
+  async function loadCSVFile(file: File) {
+    const version = ++request.current; abort.current?.abort(); setError(''); setLoading(false)
     setLoading(true)
     try {
       const bytes = await file.arrayBuffer(), decoded = decodeTextBytes(new Uint8Array(bytes)), text = decoded.text, parsed = parseCSV(text), separator = detectDelimiter(text), [hash, originalFileHash] = await Promise.all([fingerprint(text), fileHash(bytes)])
@@ -219,6 +238,14 @@ export default function App() {
   }
   function handleFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; e.target.value = ''; if (file) void importSelectedFile(file)
+  }
+  function confirmReplace() {
+    const action = pendingReplace
+    setPendingReplace(null)
+    if (!action) return
+    if (action.kind === 'file') void loadCSVFile(action.file)
+    else if (action.kind === 'public') void fetchPublicDataset()
+    else installDataset(action.dataset)
   }
   async function run(nextMapping: Mapping, text: string) {
     if (!dataset || loading || computeLock.current) throw new Error('请等待当前数据或计算就绪。')
@@ -247,21 +274,29 @@ export default function App() {
     return execution
   }
   async function runCheckupQuestion(question: CheckupQuestion) {
-    if (question.execution.kind !== 'aggregate') return
+    if (question.execution.kind !== 'aggregate' || computing) return
+    setRunningQuestion(question.id); setQuestionError(null)
     try { await run(question.execution.mapping, question.question); setChartKind(question.chart) }
-    catch (e) { setError(e instanceof Error ? e.message : '计算失败') }
+    catch (e) {
+      const message = e instanceof Error ? e.message : '计算失败'
+      setError(message); setQuestionError({ id: question.id, message })
+    }
+    finally { setRunningQuestion(null) }
   }
   async function exploreCheckupQuestion(question: CheckupQuestion) {
     if (!dataset || question.execution.kind !== 'explore' || computeLock.current) return
-    computeLock.current = true; setComputing(true)
+    computeLock.current = true; setComputing(true); setRunningQuestion(question.id); setQuestionError(null)
     const snapshot = dataset
     try {
       const next = await exploreDataset(dataset, question.execution.spec)
       if (datasetRef.current !== snapshot) throw new Error('数据已变化，旧探索结果已丢弃。')
       setExploreSession({ datasetHash: dataset.fingerprint, spec: question.execution.spec, result: next, selected: null })
       setView('explore'); setError(''); setNotice(`已执行“${question.title}”的真实探索计算。`)
-    } catch (e) { setError(e instanceof Error ? e.message : '探索计算失败') }
-    finally { computeLock.current = false; setComputing(false) }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : '探索计算失败'
+      setError(message); setQuestionError({ id: question.id, message })
+    }
+    finally { computeLock.current = false; setComputing(false); setRunningQuestion(null) }
   }
   function askFromCheckup(question: string) {
     setAssistantSeed({ question, context: '来自数据体检。字段角色与问题由本地规则判断；业务含义、单位与统计范围仍需你确认。', nonce: Date.now() })
@@ -321,6 +356,12 @@ export default function App() {
     } catch (e) { const answer = e instanceof Error ? e.message : '未能执行'; setChat(c => [...c, { text, answer }]); setChatInput('') }
   }
   function restore(item: Analysis) { setWorkspaceSection('analysis'); setInspectorOpen(true); setActiveId(item.id); setMapping(item.mapping); setQuestion(item.question); setSelectedPoint(''); setView('workspace'); setNotice(`已切换至分析 #${item.id} 的结果快照。`) }
+  function backToCheckup() {
+    if (!dataset) return
+    setBundle(null); setActiveId(null); setWorkspaceSection('analysis'); setInspectorOpen(false); setSelectedPoint(''); setView('workspace'); setQuestionError(null)
+    setNotice('已回到数据体检；已有结果仍保留在“分析分支”，可随时切回。')
+    requestAnimationFrame(() => document.getElementById('workspace-analysis')?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' }))
+  }
   function newAnalysis() { setWorkspaceSection('analysis'); setAnalysisDraft(''); setBundle(null); setInspectorOpen(false); if (dataset) { setAssistantSeed({ question: '', context: '', nonce: Date.now() }); setAssistantOpen(true); } else pickFile(); setActiveId(null); setQuestion(''); setSelectedPoint(''); setError(''); setNotice('已创建空白分析，现有分支保留。'); setView('workspace') }
   function showRows(label: string) { setWorkspaceSection('evidence'); setSelectedPoint(label); setEvidenceTab('rows'); requestAnimationFrame(()=>document.getElementById('evidence')?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'nearest' })) }
   function openInExplore() {
@@ -382,7 +423,7 @@ export default function App() {
         {error && <div className="banner error" role="alert"><AlertCircle size={19} /><span>{error}</span><button aria-label="关闭错误提示" className="icon-button" onClick={() => setError('')}><X size={17} /></button></div>}
         <div className="status-message" role="status" aria-live="polite">{notice && <><Check size={15} /><span>{notice}</span></>}</div>
 
-        {fieldsOpen && dataset && <div className="field-drawer" id="dataset-field-drawer"><header><strong>核对字段与质量</strong><button className="icon-button" aria-label="关闭字段面板" onClick={()=>setFieldsOpen(false)}><X size={18}/></button></header><FieldShelf dataset={dataset} profiles={profiles} search={fieldSearch} onSearch={setFieldSearch} onData={field=>{setView('workspace');setWorkspaceSection('data');setDataTab('fields');if(field)setFieldSearch(field);setFieldsOpen(false)}} onPrepare={()=>setView('prepare')} onSource={()=>setView('source')}/></div>}
+        {fieldsOpen && dataset && <div className="field-drawer" id="dataset-field-drawer"><header><strong>核对字段与质量</strong><button className="icon-button" aria-label="关闭字段面板" onClick={()=>setFieldsOpen(false)}><X size={18}/></button></header><FieldShelf dataset={dataset} profiles={profiles} checkup={checkup} search={fieldSearch} onSearch={setFieldSearch} onData={field=>{setView('workspace');setWorkspaceSection('data');setDataTab('fields');if(field)setFieldSearch(field);setFieldsOpen(false)}} onPrepare={()=>setView('prepare')} onSource={()=>setView('source')} onRoles={()=>setRolesOpen(true)} onCheckup={active||bundle?()=>{setFieldsOpen(false);backToCheckup()}:undefined}/></div>}
 
         {dataset && view !== 'source' && view !== 'workspace' && <SourceSummary dataset={dataset} onOpen={() => setView('source')} />}
         {(view === 'prepare' || view === 'explore' || view === 'compare') && !dataset && <section className="panel core-panel"><p>先导入真实文件，再检查质量与执行探索。</p><button className="primary" onClick={() => pickFile()}>导入数据</button></section>}
@@ -401,10 +442,10 @@ export default function App() {
             <button className="text-button" onClick={()=>setView('explore')}><Layers3 size={16}/>自由探索<ArrowUpRight size={14}/></button>
           </div>
           <section id="workspace-analysis" className="workspace-section" aria-label="分析与图表" hidden={workspaceSection!=='analysis'}>
-            {dataset && !bundle && !active && <AnalysisStart dataset={dataset} profiles={profiles} overrides={fieldRoles} onOverrides={setFieldRoles} onPrepare={()=>setView('prepare')} onExplore={()=>setView('explore')} onData={()=>{setWorkspaceSection('data');setDataTab('raw')}} onField={field=>{setFieldSearch(field);setWorkspaceSection('data');setDataTab('fields')}} onRunQuestion={question=>void runCheckupQuestion(question)} onRunExploreQuestion={question=>void exploreCheckupQuestion(question)} onAsk={askFromCheckup} />}
+            {dataset && !bundle && !active && <AnalysisStart dataset={dataset} profiles={profiles} checkup={checkup} error={checkupError} computing={computing} runningQuestion={runningQuestion} questionError={questionError} onPrepare={()=>setView('prepare')} onExplore={()=>setView('explore')} onData={()=>{setWorkspaceSection('data');setDataTab('raw')}} onField={field=>{setFieldSearch(field);setWorkspaceSection('data');setDataTab('fields')}} onRoles={()=>setRolesOpen(true)} onRunQuestion={question=>void runCheckupQuestion(question)} onRunExploreQuestion={question=>void exploreCheckupQuestion(question)} onAsk={askFromCheckup} />}
 
           {dataset && bundleHistory.length>0 && <nav className="analysis-thread" aria-label="分析路径"><div><strong>分析路径</strong><small>保留每次计算，可切换对照</small></div><div className="analysis-thread-items">{bundleHistory.map((item,index)=><button key={item.id||item.response.generatedAt} aria-current={bundle?.id===item.id?'step':undefined} className={bundle?.id===item.id?'is-current':''} onClick={()=>showBundle(item)}><span>{String(index+1).padStart(2,'0')}</span><div><strong>{item.response.scope?'追问 · '+item.response.scope.label:'起始分析'}</strong><small>{item.response.scope?'来源 #'+item.response.scope.parentAnalysisId+' · ':''}{item.results.length} 项计算</small></div></button>)}</div></nav>}
-          {dataset && bundle && <AnalysisResults key={bundle.id||bundle.response.generatedAt} bundle={bundle} dataset={dataset} overrides={fieldRoles} onEvidence={openAiEvidence} onFollowUp={askSelected} onParent={showParent}/>}
+          {dataset && bundle && <AnalysisResults key={bundle.id||bundle.response.generatedAt} bundle={bundle} dataset={dataset} overrides={fieldRoles} onEvidence={openAiEvidence} onFollowUp={askSelected} onParent={showParent} onBackToCheckup={backToCheckup} onRoles={()=>setRolesOpen(true)}/>}
           {!bundle && <div className="studio-layout"><div className="canvas-column">
               <details className="dataset-orientation" open={bundle ? inspectorOpen : undefined}><summary><Database size={17}/><span>AI 数据定位与授权</span><small>理解字段 · 确认分析边界</small><ChevronRight size={16}/></summary>
             <InitialAnalysis allowAutomatic={allowAutoInspection} dataset={dataset} profile={models.defaultProfile} loading={loading} onConfigure={() => setShowModels(true)} onQuestion={(question, context) => { setAssistantSeed({ question, context, nonce: Date.now() }); setAssistantOpen(true); }} />
@@ -420,6 +461,7 @@ export default function App() {
                 <div className="mapping-extras"><label htmlFor="time-bucket">时间分桶</label><select id="time-bucket" value={mapping.timeBucket ?? 'none'} onChange={e => setMapping(m => ({ ...m, timeBucket: e.target.value as Mapping['timeBucket'] }))}><option value="none">保持原始分组</option><option value="month">按月（需要标准日期）</option><option value="year">按年（需要标准日期）</option></select>{!!mapping.conditions?.length && <div><p>附加条件：{mapping.conditions.map(c => `${c.field} ${c.operator} ${JSON.stringify(c.value)}`).join('；')}</p><button type="button" className="text-button" onClick={() => setMapping(m => ({ ...m, conditions: [] }))}>清除附加条件</button></div>}</div>
                 <div className="mapping-bottom"><span>空值不当作 0 · 单位不自动猜测</span><button className="primary" onClick={executeManual} disabled={!dataset || !mapping.metric || loading}><BarChart3 size={16} />按确认口径分析</button></div>
               </section></details>
+              {active && <div className="result-checkup-links"><button className="text-button" onClick={backToCheckup}><ListChecks size={15}/>回到数据体检</button><button className="text-button" onClick={()=>setRolesOpen(true)}>纠正字段类型</button><span>结果保留在“分析分支”，切换不会丢失。</span></div>}
               {active && <InsightBrief result={active} />}
               {active && dataset && <NextCuts dataset={dataset} result={active} overrides={fieldRoles} />}
               <section className={"panel chart-panel"+(!active?" is-empty":"")}><div className="section-heading"><div><h2>{displayMetric}</h2><p>{active ? `${active.mapping.value || '全部记录'} · ${active.mapping.from || '不限'} — ${active.mapping.to || '不限'} · ${active.mapping.rate ? '条件计数比例（%）' : aggregateNames[active.mapping.aggregate]}` : '完成一次真实计算后，图表和证据会同时出现。'}</p></div><div className="segmented" aria-label="图表类型"><button aria-pressed={chartKind === 'line'} className={chartKind === 'line' ? 'active' : ''} onClick={() => setChartKind('line')}>折线</button><button aria-pressed={chartKind === 'bar'} className={chartKind === 'bar' ? 'active' : ''} onClick={() => setChartKind('bar')}>柱状</button></div></div>
@@ -428,9 +470,9 @@ export default function App() {
               </div></div></div></div></div>}
           </section>
           <section id="workspace-data" className="workspace-section" aria-label="数据预览" hidden={workspaceSection!=='data'}>
-            <div className="workspace-section-heading"><div><h2>检查数据，确认分析口径</h2><p>字段类型是候选判断；原始值与来源位置保持可回查。</p></div><button className="secondary" onClick={()=>setView('prepare')}><Settings2 size={16}/>清理与处理</button></div>
+            <div className="workspace-section-heading"><div><h2>检查数据，确认分析口径</h2><p>字段类型是候选判断；原始值与来源位置保持可回查。</p></div><div className="heading-actions">{checkup&&<button className="text-button" onClick={()=>setRolesOpen(true)}><ListChecks size={16}/>纠正字段类型</button>}{(active||bundle)&&<button className="text-button" onClick={backToCheckup}>回到数据体检</button>}<button className="secondary" onClick={()=>setView('prepare')}><Settings2 size={16}/>清理与处理</button></div></div>
               <section className="panel data-panel"><div className="data-toolbar"><div className="tabs" aria-label="数据查看方式">{([{ key: 'fields', label: '字段质量' }, { key: 'raw', label: '原始记录' }, { key: 'result', label: '计算结果' }] as const).map(t => <button key={t.key} aria-pressed={dataTab === t.key} className={dataTab === t.key ? 'active' : ''} onClick={() => setDataTab(t.key)}>{t.label}</button>)}</div>{dataTab === 'fields' ? <input aria-label="搜索字段" className="search-input" value={fieldSearch} onChange={e => setFieldSearch(e.target.value)} placeholder="搜索字段" /> : dataTab === 'result' && <div className="result-table-controls"><label className="result-table-search"><Search size={14} /><span className="sr-only">搜索计算结果分组</span><input aria-label="搜索计算结果分组" value={resultQuery} onChange={e => setResultQuery(e.target.value)} placeholder="搜索分组" /></label><label>排序<select aria-label="计算结果排序" value={resultSort} onChange={e => setResultSort(e.target.value as ResultSort)}><option value="original">计算顺序</option><option value="desc">数值从高到低</option><option value="asc">数值从低到高</option><option value="label">分组名排序</option></select></label>{active && <span>{resultQuery.trim() ? `显示 ${resultRows.length} / ${active.points.length} 个分组` : `共 ${active.points.length} 个分组`}</span>}<button className="text-button" disabled={!active} onClick={exportResultCSV}><ArrowDownToLine size={15} />CSV</button></div>}</div>
-                <div className="table-scroll">{dataTab === 'fields' ? <table><thead><tr><th>字段名</th><th>类型候选</th><th>非空记录</th><th>空值率</th></tr></thead><tbody>{profiles.filter(p => p.key.toLowerCase().includes(fieldSearch.toLowerCase())).slice(0, 200).map(p => <tr key={p.key}><td className="mono">{p.key}</td><td><span className={`type-label ${p.kind === '数值' ? 'numeric' : ''}`}>{p.kind}</span></td><td>{formatNumber(p.nonempty, 0)}</td><td>{formatNumber(p.missing / dataset!.rows.length * 100, 1)}%</td></tr>)}</tbody></table> : dataTab === 'raw' ? <table><thead><tr><th>记录号</th>{dataset?.headers.slice(0, 8).map(c => <th key={c}>{c}</th>)}</tr></thead><tbody>{dataset?.rows.slice(0, 20).map((r, i) => <tr key={i}><td>{i + 2}</td>{dataset.headers.slice(0, 8).map(c => <td key={c}>{r[c] ?? <span className="null-value">空值</span>}</td>)}</tr>)}</tbody></table> : active ? <table><thead><tr><th>{active.mapping.x}</th><th>{active.mapping.metric}</th><th>来源记录</th></tr></thead><tbody>{resultRows.map(p => <tr key={p.label}><td>{p.label}</td><td>{formatNumber(p.value)}</td><td><button className="table-link" onClick={() => showRows(p.label)}>{p.rowIds.length} 条 <ArrowUpRight size={13} /></button></td></tr>)}{resultRows.length === 0 && <tr><td colSpan={3} className="result-table-empty">没有匹配的分组，请换一个关键词。</td></tr>}</tbody></table> : <div className="small-empty">尚未执行分析，没有计算结果。</div>}</div><p className="table-note">{dataTab === 'raw' ? '预览前 20 条记录和前 8 列；来源位置可在证据检查器与报告中查看。' : dataTab === 'fields' ? '数值候选：非空值中至少 90% 可解析为数值。标识符仍保留原文，请人工确认。' : '完整分组结果；缺失和非数值不会作为 0 参与计算。'}</p>
+                <div className="table-scroll">{dataTab === 'fields' ? <table><thead><tr><th>字段名</th><th>类型候选</th><th>判断依据</th><th>非空记录</th><th>空值率</th></tr></thead><tbody>{(checkup ? checkup.all.map(f => ({ key: f.key, role: f.roleLabel, nonempty: f.nonempty, missing: f.missing, overridden: !!f.overridden, autoLabel: f.autoRoleLabel, detail: f.detail, numeric: f.role === 'measure' })) : profiles.map(p => ({ key: p.key, role: p.kind, nonempty: p.nonempty, missing: p.missing, overridden: false, autoLabel: undefined, detail: '按原始取值分布自动判断', numeric: p.kind === '数值' }))).filter(f => f.key.toLowerCase().includes(fieldSearch.toLowerCase())).slice(0, 200).map(f => <tr key={f.key}><td className="mono">{f.key}</td><td><span className={`type-label ${f.numeric ? 'numeric' : ''}`}>{f.role}</span>{f.overridden && <em className="field-role-corrected" title={'自动判断为 ' + (f.autoLabel ?? '其他')}>已纠正</em>}</td><td className="field-cell-detail">{f.detail}</td><td>{formatNumber(f.nonempty, 0)}</td><td>{formatNumber(f.missing / dataset!.rows.length * 100, 1)}%</td></tr>)}</tbody></table> : dataTab === 'raw' ? <table><thead><tr><th>记录号</th>{dataset?.headers.slice(0, 8).map(c => <th key={c}>{c}</th>)}</tr></thead><tbody>{dataset?.rows.slice(0, 20).map((r, i) => <tr key={i}><td>{i + 2}</td>{dataset.headers.slice(0, 8).map(c => <td key={c}>{r[c] ?? <span className="null-value">空值</span>}</td>)}</tr>)}</tbody></table> : active ? <table><thead><tr><th>{active.mapping.x}</th><th>{active.mapping.metric}</th><th>来源记录</th></tr></thead><tbody>{resultRows.map(p => <tr key={p.label}><td>{p.label}</td><td>{formatNumber(p.value)}</td><td><button className="table-link" onClick={() => showRows(p.label)}>{p.rowIds.length} 条 <ArrowUpRight size={13} /></button></td></tr>)}{resultRows.length === 0 && <tr><td colSpan={3} className="result-table-empty">没有匹配的分组，请换一个关键词。</td></tr>}</tbody></table> : <div className="small-empty">尚未执行分析，没有计算结果。</div>}</div><p className="table-note">{dataTab === 'raw' ? '预览前 20 条记录和前 8 列；来源位置可在证据检查器与报告中查看。' : dataTab === 'fields' ? '数值候选：非空值中至少 90% 可解析为数值。标识符仍保留原文，请人工确认；“已纠正”只影响体检建议与后续分组候选，不改原值，也不改写已算出的结果。' : '完整分组结果；缺失和非数值不会作为 0 参与计算。'}</p>
               </section>
           </section>
           <section id="workspace-evidence" className="workspace-section" aria-label="证据与报告" hidden={workspaceSection!=='evidence'}>
@@ -452,7 +494,14 @@ export default function App() {
     </main>
     <button hidden={studio && workspaceSection==='analysis'} className={'assistant-launcher' + (assistantOpen ? ' is-open' : '')} aria-label={assistantOpen ? '收起 AI 分析助手' : '打开 AI 分析助手'} aria-expanded={assistantOpen} aria-controls="ai-assistant-window" onClick={() => setAssistantOpen(!assistantOpen)}><MessageSquareText size={21} /><span>AI 分析助手</span><span className="launcher-dot" /></button>
     <AssistantWindow docked open={assistantOpen} onClose={() => setAssistantOpen(false)}><AiWorkbench seed={assistantSeed} dataset={dataset} loading={loading || computing} onExecute={executeAi} onBundle={receiveBundle} onEvidence={(id, label) => { openAiEvidence(id, label); }} profiles={models.profiles} selected={models.selected} onSelect={models.setSelectedId} onConfigure={() => setShowModels(true)} status={models.status} ready={models.ready} /></AssistantWindow>
-    {importFile && <ImportDialog key={importFile.name + importFile.lastModified} file={importFile} models={models.profiles} selected={models.selected} onSelect={models.setSelectedId} onConfigure={() => setShowModels(true)} onClose={() => setImportFile(null)} onImport={next => { installDataset(next); setImportFile(null); }} />}
+    {importFile && <ImportDialog key={importFile.name + importFile.lastModified} file={importFile} models={models.profiles} selected={models.selected} onSelect={models.setSelectedId} onConfigure={() => setShowModels(true)} onClose={() => setImportFile(null)} onImport={next => { setImportFile(null); if (dataset) setPendingReplace({ kind: 'dataset', dataset: next }); else installDataset(next) }} />}
+    {dataset && checkup && rolesOpen && <FieldRoles dataset={dataset} fields={checkup.all} overrides={fieldRoles} onChange={setFieldRoles} onClose={() => setRolesOpen(false)} />}
+    {pendingReplace && <dialog ref={replaceRef} className="workspace-clear-dialog" aria-labelledby="replace-workspace-title" onCancel={event=>{event.preventDefault();setPendingReplace(null)}}>
+      <h2 id="replace-workspace-title">替换当前工作区？</h2>
+      <p>将用「{pendingReplace.kind === 'file' ? pendingReplace.file.name : pendingReplace.kind === 'public' ? 'OWID 公开能源数据' : pendingReplace.dataset.title}」替换当前数据。当前数据、{history.length} 个计算分支、{bundleHistory.length} 项 AI 分析{bundleHistory.length ? '' : '（暂无）'}、{Object.keys(fieldRoles).length} 项字段纠正与 {preparationHistory.length} 步处理记录会从本机工作区清除。</p>
+      <p>原文件与已导出的报告不受影响。如仍需当前结果，请先取消并导出报告。</p>
+      <div><button className="secondary" autoFocus onClick={()=>setPendingReplace(null)}>保留当前工作区</button><button className="primary" onClick={confirmReplace}>替换并导入</button></div>
+    </dialog>}
     {showClear&&<dialog ref={clearRef} className="workspace-clear-dialog" aria-labelledby="clear-workspace-title" onCancel={event=>{event.preventDefault();if(!clearing)setShowClear(false)}}><h2 id="clear-workspace-title">清除本机工作区？</h2><p>将删除此浏览器保存的当前数据、来源备注、处理撤销记录、分析路径和计算结果。请先导出需要保留的报告。</p><p>原文件、已导出的报告和 AI 模型连接配置不受影响。</p><div><button className="secondary" autoFocus disabled={clearing} onClick={()=>setShowClear(false)}>保留工作区</button><button className="primary" disabled={clearing} onClick={()=>void discardWorkspace()}>{clearing?'正在清除…':'确认清除工作区'}</button></div></dialog>}
     {showPage && dataset?.origin?.pageImage && <PDFSourcePage image={dataset.origin.pageImage} onClose={() => setShowPage(false)} />}
     <ModelManager open={showModels} onClose={() => setShowModels(false)} profiles={models.profiles} selectedId={models.selectedId} onSelect={models.setSelectedId} onSave={models.save} onRemove={models.remove} defaultId={models.defaultId} canManage={models.canManage} onDefault={models.setDefault} />

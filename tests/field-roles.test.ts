@@ -74,6 +74,8 @@ describe('字段角色手动纠正：只在数据支持时生效', () => {
     const corrected = buildCheckup(data, { period: 'time' })
     const field = corrected.all.find(item => item.key === 'period')!
     expect(field.role).toBe('time')
+    expect(field.overridden).toBe(true)
+    expect(field.autoRoleLabel).toBe('分类维度')
     expect(field.time).toMatchObject({ granularity: 'year', min: '2015', max: '2022' })
     expect(corrected.timeField?.key).toBe('period')
     expect(corrected.questions.some(question => question.id.startsWith('trend:period:'))).toBe(true)

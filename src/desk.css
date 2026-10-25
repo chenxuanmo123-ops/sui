@@ -835,3 +835,54 @@ button, input, select, textarea { font-family: inherit; }
   .field-role-tools .text-button { margin-left: 0; }
   .field-role-list { max-height: none; }
 }
+
+/* Role corrections and checkup navigation stay consistent across the
+   checkup page, field drawer, data table and result pages. */
+.question-card-error {
+  grid-column: 2;
+  grid-row: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  margin: 2px 0 0;
+  color: var(--desk-red);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.question-card-error svg { flex: none; margin-top: 2px; }
+.field-role-corrected {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 5px;
+  color: var(--desk-ink);
+  background: rgba(232, 212, 77, .2);
+  border: 1px solid rgba(176, 148, 24, .45);
+  font-size: 9px;
+  font-style: normal;
+  white-space: nowrap;
+}
+.field-cell-detail { max-width: 340px; color: var(--desk-muted); font-size: 11px; line-height: 1.6; }
+.result-checkup-links {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin: 14px 0 4px;
+  padding: 8px 12px;
+  background: var(--desk-sheet);
+  border: 1px solid var(--desk-rule);
+  font-size: 11px;
+}
+.result-checkup-links .text-button { font-size: 11px; }
+.result-checkup-links > span { margin-left: auto; color: var(--desk-faint); font-size: 10px; }
+.bundle-heading-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.bundle-heading-actions .text-button { font-size: 11px; }
+.shelf-field em { flex: none; padding: 1px 4px; color: var(--desk-ink); background: rgba(232, 212, 77, .18); font-size: 9px; font-style: normal; }
+.shelf-quality .text-button { margin-right: 8px; }
+
+@media (max-width: 760px) {
+  .question-card-error { grid-column: auto; }
+  .bundle-heading-actions { justify-content: flex-start; }
+  .field-cell-detail { max-width: 180px; }
+  .result-checkup-links > span { display: none; }
+}
