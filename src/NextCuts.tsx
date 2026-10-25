@@ -9,7 +9,7 @@ import { buildCheckup } from './checkup'
 import { buildNextCuts } from './next-cuts'
 import type { NextCut } from './next-cuts'
 import type { Analysis, Dataset } from './data'
-import type { Checkup } from './checkup'
+import type { Checkup, CheckupOverrides } from './checkup'
 
 let temporaryId = 900000
 
@@ -18,7 +18,7 @@ let temporaryId = 900000
  * recompute them locally. Nothing here reads AI output, and the original result
  * is never relabelled — the dialog is a separate SQLite computation.
  */
-export default function NextCuts({ dataset, result }: { dataset: Dataset; result: Analysis }) {
+export default function NextCuts({ dataset, result, overrides = {} }: { dataset: Dataset; result: Analysis; overrides?: CheckupOverrides }) {
   const [checkup, setCheckup] = useState<Checkup | null>(null)
   const [cut, setCut] = useState<NextCut | null>(null)
   const cuts = checkup ? buildNextCuts(result, checkup) : []
@@ -26,7 +26,7 @@ export default function NextCuts({ dataset, result }: { dataset: Dataset; result
   return <>
     <details className="next-cuts" onToggle={event => {
       if (!event.currentTarget.open || checkup) return
-      try { setCheckup(buildCheckup(dataset)) } catch { setCheckup(null) }
+      try { setCheckup(buildCheckup(dataset, overrides)) } catch { setCheckup(null) }
     }}>
       <summary><Compass size={15} /><span>接着看：换一个维度</span><small>同一指标，本地重新计算</small></summary>
       {cuts.length ? <div className="next-cut-list">{cuts.map(item => <button key={item.id} onClick={() => setCut(item)}>

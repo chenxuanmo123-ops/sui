@@ -3,12 +3,15 @@ import { AlertCircle, ArrowRight, ArrowUpRight, Clock3, Hash, ShieldCheck, Setti
 import { formatNumber } from './data'
 import type { Dataset } from './data'
 import { buildCheckup } from './checkup'
-import type { Checkup, CheckupQuestion } from './checkup'
+import type { Checkup, CheckupOverrides, CheckupQuestion } from './checkup'
+import FieldRoles from './FieldRoles'
 
 type Profile = { key: string; kind: string; missing: number; nonempty: number }
 type Props = {
   dataset: Dataset
   profiles: Profile[]
+  overrides: CheckupOverrides
+  onOverrides: (next: CheckupOverrides) => void
   onPrepare: () => void
   onExplore: () => void
   onData: () => void
@@ -27,28 +30,35 @@ const KIND_LABELS: Record<CheckupQuestion['kind'], string> = {
   correlation: '两列关系',
 }
 
-export default function AnalysisStart({ dataset, profiles, onPrepare, onExplore, onData, onField, onRunQuestion, onRunExploreQuestion, onAsk }: Props) {
+export default function AnalysisStart({ dataset, profiles, overrides, onOverrides, onPrepare, onExplore, onData, onField, onRunQuestion, onRunExploreQuestion, onAsk }: Props) {
   const headers = dataset.headers.slice(0, 6)
   const missing = profiles.reduce((total, profile) => total + profile.missing, 0)
-  const [checkup, setCheckup] = useState<Checkup | null>(null)
+  // Keep the previous inspection while a correction recomputes, so the role
+  // dialog does not unmount under the user's cursor. A result built for another
+  // dataset is never shown.
+  const [inspection, setInspection] = useState<{ dataset: Dataset; checkup: Checkup } | null>(null)
   const [error, setError] = useState('')
+  const [rolesOpen, setRolesOpen] = useState(false)
+  const checkup = inspection?.dataset === dataset ? inspection.checkup : null
 
   useEffect(() => {
     let cancelled = false
-    setCheckup(null); setError('')
+    setError('')
     // Let the first paint show the imported file before a full quality pass.
     const timer = setTimeout(() => {
       try {
-        const next = buildCheckup(dataset)
-        if (!cancelled) setCheckup(next)
+        const next = buildCheckup(dataset, overrides)
+        if (!cancelled) setInspection({ dataset, checkup: next })
       } catch (reason) {
         if (!cancelled) setError(reason instanceof Error ? reason.message : '无法完成数据体检')
       }
     }, 0)
     return () => { cancelled = true; clearTimeout(timer) }
-  }, [dataset])
+  }, [dataset, overrides])
 
-  const fields = checkup?.all ?? profiles.map(profile => ({ key: profile.key, roleLabel: profile.kind, missing: profile.missing }))
+  useEffect(() => { setRolesOpen(false) }, [dataset])
+
+  const fields = checkup?.all ?? profiles.map(profile => ({ key: profile.key, roleLabel: profile.kind, missing: profile.missing, overridden: false, autoRoleLabel: undefined }))
   const timeRange = checkup?.timeField?.time ? `${checkup.timeField.time.min}–${checkup.timeField.time.max}` : ''
   const questionCount = checkup?.questions.length ?? 0
 
@@ -141,11 +151,14 @@ export default function AnalysisStart({ dataset, profiles, onPrepare, onExplore,
     </section>
 
     <div className="review-fields">
-      <p>字段速览 <span>角色是候选；点击核对含义和质量</span></p>
-      <div>{fields.slice(0, 10).map(field => <button key={field.key} onClick={() => onField(field.key)} title={field.key + ' · ' + field.roleLabel + (field.missing ? ' · 空值 ' + field.missing : '')}>
-        <span>{field.key}</span><small>{field.roleLabel}</small>{field.missing > 0 && <i />}
+      <p>字段速览 <span>角色是候选；点击核对含义和质量</span>
+        {checkup && <button className="text-button" onClick={() => setRolesOpen(true)}><Settings2 size={14} />类型不对？纠正</button>}
+      </p>
+      <div>{fields.slice(0, 10).map(field => <button key={field.key} onClick={() => onField(field.key)} title={field.key + ' · ' + field.roleLabel + (field.overridden ? '（手动纠正，自动判断为 ' + field.autoRoleLabel + '）' : '') + (field.missing ? ' · 空值 ' + field.missing : '')}>
+        <span>{field.key}</span><small>{field.roleLabel}</small>{field.overridden && <em>已纠正</em>}{field.missing > 0 && <i />}
       </button>)}{fields.length > 10 && <button className="remaining-fields" onClick={() => onField('')}>其余 {fields.length - 10} 个字段<ArrowUpRight size={13} /></button>}</div>
       {checkup && <p className="review-fields-note"><Clock3 size={13} />时间字段按真实取值验证，不只凭列名；单位仍需要你确认。</p>}
     </div>
+    {checkup && rolesOpen && <FieldRoles dataset={dataset} fields={checkup.all} overrides={overrides} onChange={onOverrides} onClose={() => setRolesOpen(false)} />}
   </div>
 }

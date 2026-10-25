@@ -38,7 +38,7 @@ import { queryResultRows, sortResultRows } from './result-rows'
 import type { ResultSort } from './result-rows'
 import type { ExploreSpec } from './analytics'
 import { exploreDataset } from './engine'
-import type { CheckupQuestion } from './checkup'
+import type { CheckupOverrides, CheckupQuestion } from './checkup'
 import InsightBrief from './InsightBrief'
 import NextCuts from './NextCuts'
 
@@ -78,6 +78,7 @@ export default function App() {
   const [assistantOpen, setAssistantOpen] = useState(false)
   const [assistantSeed, setAssistantSeed] = useState<AssistantSeed>()
   const [preparationHistory, setPreparationHistory] = useState<Dataset[]>([])
+  const [fieldRoles, setFieldRoles] = useState<CheckupOverrides>({})
   const datasetRef = useRef<Dataset | null>(null)
   const [computing, setComputing] = useState(false)
   const computeLock = useRef(false)
@@ -127,7 +128,7 @@ export default function App() {
       if(snapshot){
         const s=snapshot.state
         setAllowAutoInspection(false)
-        datasetRef.current=s.dataset;setDataset(s.dataset);setAssistantOpen(false);setPreparationHistory(s.preparationHistory)
+        datasetRef.current=s.dataset;setDataset(s.dataset);setAssistantOpen(false);setPreparationHistory(s.preparationHistory);setFieldRoles(s.fieldRoles??{})
         setHistory(s.history);setActiveId(s.activeId);setMapping(s.mapping);setQuestion(s.question)
         setBundleHistory(s.bundles);bundleRegistry.current=new Map(s.bundles.map(item=>[bundleKey(item),item]))
         setBundle(s.bundles.find(item=>bundleKey(item)===s.currentBundleKey)||null)
@@ -139,7 +140,7 @@ export default function App() {
     }).catch(e=>{if(!cancelled){setStorageError(e instanceof Error?e.message:'本机工作区恢复失败。');setStorageBlocked(true);setSaveState('error')}}).finally(()=>{if(!cancelled)setWorkspaceReady(true)})
     return()=>{cancelled=true}
   },[])
-  const workspaceState=useMemo<WorkspaceState|null>(()=>dataset?({dataset,preparationHistory,history,bundles:bundleHistory,currentBundleKey:bundle?bundleKey(bundle):null,activeId,mapping,question,chartKind,view,dataTab,inspectorOpen,exploreSession,compareSession}):null,[dataset,preparationHistory,history,bundleHistory,bundle,activeId,mapping,question,chartKind,view,dataTab,inspectorOpen,exploreSession,compareSession])
+  const workspaceState=useMemo<WorkspaceState|null>(()=>dataset?({dataset,preparationHistory,fieldRoles,history,bundles:bundleHistory,currentBundleKey:bundle?bundleKey(bundle):null,activeId,mapping,question,chartKind,view,dataTab,inspectorOpen,exploreSession,compareSession}):null,[dataset,preparationHistory,fieldRoles,history,bundleHistory,bundle,activeId,mapping,question,chartKind,view,dataTab,inspectorOpen,exploreSession,compareSession])
   useEffect(()=>{
     if(!workspaceReady||storageBlocked||!workspaceState)return
     const version=++saveRevision.current
@@ -164,7 +165,7 @@ export default function App() {
       await clearWorkspace()
       request.current++;abort.current?.abort();datasetRef.current=null
       setDataset(null);setHistory([]);setBundle(null);setBundleHistory([]);bundleRegistry.current.clear()
-      setPreparationHistory([]);setExploreSession(null);setCompareSession(null);setConsoleTable(null);setActiveId(null)
+      setPreparationHistory([]);setFieldRoles({});setExploreSession(null);setCompareSession(null);setConsoleTable(null);setActiveId(null)
       setMapping(blankMapping);setQuestion(initialQuestion);setChat([]);setChatInput('');setSelectedPoint('');setAssistantSeed(undefined)
       setInspectorOpen(false);setAssistantOpen(false);setImportFile(null);setShowPage(false);setView('workspace');setDataTab('fields')
       setAllowAutoInspection(true);setSavedAt('');setSaveState('empty');setStorageError('');setStorageBlocked(false);setShowClear(false);setError('')
@@ -176,7 +177,7 @@ export default function App() {
   function installDataset(next: Dataset) {
     setAllowAutoInspection(true)
     next = { ...next, originalFileHash: next.originalFileHash || next.origin?.fileHash || (!next.preparation ? next.fingerprint : undefined), originalFileName: next.originalFileName || next.title }
-    setWorkspaceSection('analysis'); setAnalysisDraft(''); setAssistantOpen(false); setFieldsOpen(false); datasetRef.current = next; setBundle(null); setBundleHistory([]); bundleRegistry.current.clear(); setInspectorOpen(false); setExploreSession(null); setCompareSession(null); setConsoleTable(null); setPreparationHistory([]); setShowPage(false); setDataset(next); setMapping(defaultMapping(next, profileDataset(next))); setHistory([]); setActiveId(null)
+    setWorkspaceSection('analysis'); setAnalysisDraft(''); setAssistantOpen(false); setFieldsOpen(false); datasetRef.current = next; setBundle(null); setBundleHistory([]); bundleRegistry.current.clear(); setInspectorOpen(false); setExploreSession(null); setCompareSession(null); setConsoleTable(null); setPreparationHistory([]); setFieldRoles({}); setShowPage(false); setDataset(next); setMapping(defaultMapping(next, profileDataset(next))); setHistory([]); setActiveId(null)
     setQuestion(next.isPublic ? initialQuestion : ''); setChat([]); setChatInput(''); setSelectedPoint('')
     setFieldSearch(''); setResultQuery(''); setResultSort('original'); setDataTab('fields'); setEvidenceTab('method'); setView('workspace'); setNotice('数据已读取。请先说明分析目标、业务背景与字段口径。')
   }
@@ -400,10 +401,10 @@ export default function App() {
             <button className="text-button" onClick={()=>setView('explore')}><Layers3 size={16}/>自由探索<ArrowUpRight size={14}/></button>
           </div>
           <section id="workspace-analysis" className="workspace-section" aria-label="分析与图表" hidden={workspaceSection!=='analysis'}>
-            {dataset && !bundle && !active && <AnalysisStart dataset={dataset} profiles={profiles} onPrepare={()=>setView('prepare')} onExplore={()=>setView('explore')} onData={()=>{setWorkspaceSection('data');setDataTab('raw')}} onField={field=>{setFieldSearch(field);setWorkspaceSection('data');setDataTab('fields')}} onRunQuestion={question=>void runCheckupQuestion(question)} onRunExploreQuestion={question=>void exploreCheckupQuestion(question)} onAsk={askFromCheckup} />}
+            {dataset && !bundle && !active && <AnalysisStart dataset={dataset} profiles={profiles} overrides={fieldRoles} onOverrides={setFieldRoles} onPrepare={()=>setView('prepare')} onExplore={()=>setView('explore')} onData={()=>{setWorkspaceSection('data');setDataTab('raw')}} onField={field=>{setFieldSearch(field);setWorkspaceSection('data');setDataTab('fields')}} onRunQuestion={question=>void runCheckupQuestion(question)} onRunExploreQuestion={question=>void exploreCheckupQuestion(question)} onAsk={askFromCheckup} />}
 
           {dataset && bundleHistory.length>0 && <nav className="analysis-thread" aria-label="分析路径"><div><strong>分析路径</strong><small>保留每次计算，可切换对照</small></div><div className="analysis-thread-items">{bundleHistory.map((item,index)=><button key={item.id||item.response.generatedAt} aria-current={bundle?.id===item.id?'step':undefined} className={bundle?.id===item.id?'is-current':''} onClick={()=>showBundle(item)}><span>{String(index+1).padStart(2,'0')}</span><div><strong>{item.response.scope?'追问 · '+item.response.scope.label:'起始分析'}</strong><small>{item.response.scope?'来源 #'+item.response.scope.parentAnalysisId+' · ':''}{item.results.length} 项计算</small></div></button>)}</div></nav>}
-          {dataset && bundle && <AnalysisResults key={bundle.id||bundle.response.generatedAt} bundle={bundle} dataset={dataset} onEvidence={openAiEvidence} onFollowUp={askSelected} onParent={showParent}/>} 
+          {dataset && bundle && <AnalysisResults key={bundle.id||bundle.response.generatedAt} bundle={bundle} dataset={dataset} overrides={fieldRoles} onEvidence={openAiEvidence} onFollowUp={askSelected} onParent={showParent}/>}
           {!bundle && <div className="studio-layout"><div className="canvas-column">
               <details className="dataset-orientation" open={bundle ? inspectorOpen : undefined}><summary><Database size={17}/><span>AI 数据定位与授权</span><small>理解字段 · 确认分析边界</small><ChevronRight size={16}/></summary>
             <InitialAnalysis allowAutomatic={allowAutoInspection} dataset={dataset} profile={models.defaultProfile} loading={loading} onConfigure={() => setShowModels(true)} onQuestion={(question, context) => { setAssistantSeed({ question, context, nonce: Date.now() }); setAssistantOpen(true); }} />
@@ -420,7 +421,7 @@ export default function App() {
                 <div className="mapping-bottom"><span>空值不当作 0 · 单位不自动猜测</span><button className="primary" onClick={executeManual} disabled={!dataset || !mapping.metric || loading}><BarChart3 size={16} />按确认口径分析</button></div>
               </section></details>
               {active && <InsightBrief result={active} />}
-              {active && dataset && <NextCuts dataset={dataset} result={active} />}
+              {active && dataset && <NextCuts dataset={dataset} result={active} overrides={fieldRoles} />}
               <section className={"panel chart-panel"+(!active?" is-empty":"")}><div className="section-heading"><div><h2>{displayMetric}</h2><p>{active ? `${active.mapping.value || '全部记录'} · ${active.mapping.from || '不限'} — ${active.mapping.to || '不限'} · ${active.mapping.rate ? '条件计数比例（%）' : aggregateNames[active.mapping.aggregate]}` : '完成一次真实计算后，图表和证据会同时出现。'}</p></div><div className="segmented" aria-label="图表类型"><button aria-pressed={chartKind === 'line'} className={chartKind === 'line' ? 'active' : ''} onClick={() => setChartKind('line')}>折线</button><button aria-pressed={chartKind === 'bar'} className={chartKind === 'bar' ? 'active' : ''} onClick={() => setChartKind('bar')}>柱状</button></div></div>
                 {active ? <><div className="chart-meta"><span className="legend"><i />{displayMetric}</span><span>分析 #{active.id} · {active.points.length} 个分组{pending ? ' · 显示上次结果' : ''}</span></div><DataChart points={active.points} metric={displayMetric} unit={active.mapping.unit} kind={chartKind} selected={selectedPoint} onSelect={showRows} /><div className="chart-bottom"><span>点击数据点查看对应来源记录</span><div className="chart-bottom-actions">{!active.mapping.rate && !active.mapping.conditions?.length && <button className="text-button" onClick={openInExplore} title="带入当前分组、指标与筛选，在散点、热力或表格中继续查看"><Layers3 size={16} />在探索分析中打开<ArrowUpRight size={14} /></button>}<button className="text-button" onClick={() => { download(chartSVG(), 'image/svg+xml', `数鉴-分析${active.id}.svg`); setNotice('当前图表 SVG 已导出。') }}><ArrowDownToLine size={16} />导出 SVG</button></div></div><div className="finding"><span><ShieldCheck size={17} />计算结论</span><p>{active.finding}</p><small>有效来源 {active.usedRows} 条；跳过空分组 / 非数值 {active.skipped} 条。字段候选不等同业务语义已自动确认。</small></div></> : <div className="chart-empty"><div className="canvas-emblem"><FileSpreadsheet size={36} strokeWidth={1.3} /><span><Settings2 size={16} /></span></div><span className="empty-kicker">你的数据，你的分析方向</span><h3>{dataset ? (models.ready ? '数据已就绪，先问一个好问题。' : '数据已就绪，可以从字段开始。') : '让一份数据，回答一个真实问题。'}</h3><p>{dataset ? (models.ready ? '在 AI 助手中说明你想解决的问题与业务口径。确认计划后，计算结果将显示在这里。' : '当前站点尚未配置 AI 模型。先选分组与指标做一次真实计算，图表、来源与报告同样可用；配置模型后再让 AI 规划。') : '导入 CSV，告诉 AI 你关心什么。从理解数据到图表与证据，在同一个工作台完成。'}</p><div className="empty-actions">{dataset && !models.ready ? <><button className="primary" onClick={() => setInspectorOpen(true)}><Table2 size={17} />手动选择字段与计算</button><button className="text-button" onClick={() => models.profiles.length ? setAssistantOpen(true) : setShowModels(true)}>{models.profiles.length ? '改用 AI 规划' : '配置分析模型'}<ArrowUpRight size={15} /></button></> : <><button className="primary" onClick={() => dataset ? setAssistantOpen(true) : pickFile()}>{dataset ? <MessageSquareText size={17} /> : <Upload size={17} />}{dataset ? '开始 AI 分析' : '导入我的数据'}</button><button className="text-button" disabled={loading} onClick={() => dataset ? setShowModels(true) : void loadPublicDataset()}>{dataset ? '配置分析模型' : '使用可验证的公开数据'}<ArrowUpRight size={15} /></button></>}</div><div className="canvas-principles"><span><Database size={15} />原始记录保留</span><span><Check size={15} />确认口径后计算</span><span><ShieldCheck size={15} />结论有据可查</span></div></div>}
               </section>

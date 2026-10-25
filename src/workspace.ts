@@ -1,4 +1,5 @@
 import type { Dataset, Analysis, Mapping } from './data'
+import type { CheckupOverrides } from './checkup'
 import type { AnalysisBundle } from './AnalysisResults'
 import type { ExploreSession } from './ExploreView'
 import type { CompareSession } from './CompareView'
@@ -6,7 +7,7 @@ import { validateScope } from './follow-up'
 
 export type WorkspaceView = 'workspace' | 'prepare' | 'explore' | 'compare' | 'query' | 'branches' | 'source'
 export type WorkspaceState = {
- dataset: Dataset; preparationHistory: Dataset[]; history: Analysis[]; bundles: AnalysisBundle[];
+ dataset: Dataset; preparationHistory: Dataset[]; fieldRoles: CheckupOverrides; history: Analysis[]; bundles: AnalysisBundle[];
  currentBundleKey: string | null; activeId: number | null; mapping: Mapping; question: string;
  chartKind: 'line' | 'bar'; view: WorkspaceView; dataTab: 'fields' | 'raw' | 'result'; inspectorOpen: boolean;
  exploreSession: ExploreSession | null; compareSession: CompareSession | null;
@@ -68,6 +69,13 @@ export function decodeWorkspace(value: unknown): WorkspaceSnapshot {
   if (!value || typeof value !== 'object') return invalid()
   const snapshot = value as WorkspaceSnapshot, s = snapshot.state
   if (snapshot.version !== 1 || typeof snapshot.savedAt !== 'string' || !Number.isFinite(Date.parse(snapshot.savedAt)) || !s || !validDataset(s.dataset) || !Array.isArray(s.preparationHistory) || !s.preparationHistory.every(validDataset) || !Array.isArray(s.history) || !Array.isArray(s.bundles)) return invalid()
+  // Older snapshots have no field-role corrections; an absent map means "auto".
+  if (s.fieldRoles !== undefined) {
+   if (!s.fieldRoles || typeof s.fieldRoles !== 'object' || Array.isArray(s.fieldRoles)) return invalid()
+   for (const [key, role] of Object.entries(s.fieldRoles)) {
+    if (!s.dataset.headers.includes(key) || !['time','measure','category','binary','identifier','text'].includes(role)) return invalid()
+   }
+  } else s.fieldRoles = {}
   const ids = new Set<number>()
   for (const result of s.history) {
    if (!result || !Number.isInteger(result.id) || result.id < 1 || ids.has(result.id) || result.datasetHash !== s.dataset.fingerprint || !result.mapping || !Array.isArray(result.points) || result.points.some(p => !p || typeof p.label !== 'string' || !Number.isFinite(p.value) || !Array.isArray(p.rowIds) || p.rowIds.some(id => !Number.isInteger(id) || id < 2 || id > s.dataset.rows.length + 1))) return invalid()

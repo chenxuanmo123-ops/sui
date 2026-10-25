@@ -766,3 +766,72 @@ button, input, select, textarea { font-family: inherit; }
   .cut-chart-toolbar { flex-direction: column; align-items: flex-start; gap: 6px; }
   .cut-sources li { flex-direction: column; gap: 2px; }
 }
+
+/* Field-role corrections --------------------------------------------------- */
+.review-fields > p { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.review-fields > p .text-button { margin-left: auto; }
+.review-fields button em {
+  padding: 0 4px;
+  background: var(--desk-marker);
+  color: var(--desk-ink);
+  font-size: 9px;
+  font-style: normal;
+  line-height: 1.5;
+}
+.field-roles { width: min(880px, 100%); }
+.field-role-tools { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.field-role-tools label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  border: 1px solid var(--desk-rule);
+  background: var(--desk-sheet);
+}
+.field-role-tools input {
+  min-width: 180px;
+  padding: 7px 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+}
+.field-role-tools > span { color: var(--desk-muted); font-size: 11px; }
+.field-role-tools .text-button { margin-left: auto; }
+.field-role-list {
+  display: grid;
+  max-height: 52vh;
+  overflow: auto;
+  border-top: 1px solid var(--desk-rule);
+}
+.field-role-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 14px;
+  padding: 11px 2px;
+  border-bottom: 1px solid var(--desk-rule-soft);
+}
+.field-role-row.corrected { background: linear-gradient(90deg, rgba(232, 212, 77, .18), transparent 45%); }
+.field-role-name { display: grid; gap: 2px; min-width: 0; }
+.field-role-name strong { overflow-wrap: anywhere; font-family: var(--desk-mono); font-size: 12px; }
+.field-role-name small { color: var(--desk-muted); font-size: 10px; }
+.field-role-detail { color: var(--desk-faint); font-size: 10px; overflow-wrap: anywhere; }
+.field-role-choose { display: grid; gap: 5px; min-width: 0; }
+.field-role-choose select {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--desk-rule);
+  background: var(--desk-sheet);
+  font: inherit;
+  font-size: 11px;
+}
+.field-role-reason { color: var(--desk-muted); font-size: 10px; line-height: 1.5; }
+.field-role-reason.blocked { color: var(--desk-red); }
+.field-role-empty { color: var(--desk-muted); font-size: 12px; }
+
+@media (max-width: 720px) {
+  .field-role-row { grid-template-columns: 1fr; gap: 6px; }
+  .field-role-tools .text-button { margin-left: 0; }
+  .field-role-list { max-height: none; }
+}

@@ -22,7 +22,7 @@ function snapshot():WorkspaceSnapshot{
   const scope=createFollowUpScope(dataset,parent,'New_Visitor')
   const child=runAggregate(db,dataset,{...mapping,x:'Weekend'},'新访客内按周末比较',2,scope)
   const response={datasetHash:dataset.fingerprint,scope,model:'explicit-validation-fixture',providerName:'结构恢复测试，不评价模型',generatedAt:'2026-10-19T00:00:00Z',plan:{goal:'范围恢复',scene:'描述比较',grain:'一次访问',fieldRoles:[],assumptions:[],questions:[],limitations:[],tasks:[]}}
-  return {version:1,savedAt:'2026-10-19T00:00:00Z',state:{dataset,preparationHistory:[],history:[parent,child],bundles:[{id:'child',response,results:[structuredClone(child)],facts:[],review:null,failures:[]}],currentBundleKey:'child',activeId:2,mapping:child.mapping,question:child.question,chartKind:'bar',view:'workspace',dataTab:'result',inspectorOpen:false,exploreSession:null,compareSession:null}}
+  return {version:1,savedAt:'2026-10-19T00:00:00Z',state:{dataset,preparationHistory:[],fieldRoles:{Browser:'measure'},history:[parent,child],bundles:[{id:'child',response,results:[structuredClone(child)],facts:[],review:null,failures:[]}],currentBundleKey:'child',activeId:2,mapping:child.mapping,question:child.question,chartKind:'bar',view:'workspace',dataTab:'result',inspectorOpen:false,exploreSession:null,compareSession:null}}
  }finally{db.close()}
 }
 it('真实SQL结果、分组范围、原始快照和来源基准完整恢复，引用规范到历史结果',()=>{
@@ -39,6 +39,14 @@ it('损坏版本、表头、行结构与无效活动引用拒绝恢复',()=>{
 })
 it('数据指纹、分组加载快照、索引和bundle关联不一致时拒绝混合恢复',()=>{
  for(const change of [(s:WorkspaceSnapshot)=>{s.state.history[1].datasetHash='0'.repeat(64)},(s:WorkspaceSnapshot)=>{s.state.history[1].scope!.loadedAt='2025-01-01'},(s:WorkspaceSnapshot)=>{s.state.history[1].scope!.rowIds=[99999]},(s:WorkspaceSnapshot)=>{s.state.bundles[0].response.scope=undefined},(s:WorkspaceSnapshot)=>{s.state.history.push(s.state.history[0])}]){
+  const value=structuredClone(snapshot());change(value);expect(()=>decodeWorkspace(value)).toThrow('保留旧记录')
+ }
+})
+it('字段角色纠正随工作区恢复；旧快照按自动判断处理，无效纠正拒绝恢复',()=>{
+ expect(decodeWorkspace(snapshot()).state.fieldRoles).toEqual({Browser:'measure'})
+ const legacy=snapshot();delete (legacy.state as {fieldRoles?:unknown}).fieldRoles
+ expect(decodeWorkspace(legacy).state.fieldRoles).toEqual({})
+ for(const change of [(s:WorkspaceSnapshot)=>{s.state.fieldRoles={missing:'measure'}},(s:WorkspaceSnapshot)=>{s.state.fieldRoles={Browser:'amount' as never}}]){
   const value=structuredClone(snapshot());change(value);expect(()=>decodeWorkspace(value)).toThrow('保留旧记录')
  }
 })

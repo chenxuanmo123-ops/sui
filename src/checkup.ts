@@ -15,6 +15,16 @@ import type { ExploreSpec } from './analytics'
 
 export type CheckupRole = 'time' | 'measure' | 'category' | 'binary' | 'identifier' | 'text'
 
+/**
+ * User corrections to the automatic role detection, keyed by column name.
+ * A correction is only applied when the imported values actually support the
+ * requested role; otherwise the automatic role is kept, so a declared type can
+ * never turn unparseable text into a summable measure.
+ */
+export type CheckupOverrides = Record<string, CheckupRole>
+
+export type RoleOption = { role: CheckupRole; label: string; enabled: boolean; reason: string }
+
 export type CheckupTime = {
   granularity: 'year' | 'month' | 'date' | 'mixed'
   valid: number
@@ -48,6 +58,10 @@ export type CheckupField = {
   outliers: number
   time?: CheckupTime
   binary?: CheckupBinary
+  /** True when the role comes from a user correction rather than detection. */
+  overridden?: boolean
+  /** The role detection would have chosen; kept for display and "恢复自动". */
+  autoRoleLabel?: string
 }
 
 export type CheckupQuestion = {
@@ -130,7 +144,15 @@ export function recognizeBinary(values: string[]): CheckupBinary | null {
   return null
 }
 
-function timeInfo(dataset: Dataset, key: string, summary: FieldSummary): CheckupTime | undefined {
+type TimeEvidence = { time: CheckupTime | undefined; valid: number; nonempty: number }
+
+/**
+ * Parse time values without deciding the role. `allowBareYear` is used only
+ * when the user explicitly declares a column to be time: detection refuses to
+ * guess from bare four-digit values because 1248 can be a daily ride count,
+ * but a user correction carries that meaning.
+ */
+function timeEvidence(dataset: Dataset, key: string, missing: number, unique: number, allowBareYear = false): TimeEvidence {
   let year = 0, month = 0, date = 0, valid = 0
   const labels: string[] = []
   for (const row of dataset.rows) {
@@ -138,12 +160,12 @@ function timeInfo(dataset: Dataset, key: string, summary: FieldSummary): Checkup
     if (!raw) continue
     if (DATE.test(raw)) { date++; valid++; labels.push(raw) }
     else if (MONTH.test(raw)) { month++; valid++; labels.push(raw) }
-    else if (YEAR.test(raw) && YEAR_HEADER.test(key) && Number(raw) >= 1900 && Number(raw) <= 2100) {
+    else if (YEAR.test(raw) && (allowBareYear || YEAR_HEADER.test(key)) && Number(raw) >= 1900 && Number(raw) <= 2100) {
       year++; valid++; labels.push(raw)
     }
   }
-  const nonempty = dataset.rows.length - summary.missing
-  if (!nonempty || summary.unique < 2 || valid / nonempty < 0.8) return undefined
+  const nonempty = dataset.rows.length - missing
+  if (!nonempty || unique < 2 || valid / nonempty < 0.8) return { time: undefined, valid, nonempty }
   const granularity: CheckupTime['granularity'] = date / valid >= 0.8 ? 'date' : month / valid >= 0.8 ? 'month' : year / valid >= 0.8 ? 'year' : 'mixed'
   labels.sort(compareLabels)
   const min = labels[0], max = labels.at(-1)!
@@ -160,17 +182,59 @@ function timeInfo(dataset: Dataset, key: string, summary: FieldSummary): Checkup
     const span = index(max) - index(min) + 1
     if (Number.isFinite(span)) gaps = Math.max(0, span - distinct)
   }
-  return { granularity, valid, distinct, min, max, gaps }
+  return { time: { granularity, valid, distinct, min, max, gaps }, valid, nonempty }
 }
 
-function buildField(dataset: Dataset, key: string, summary: FieldSummary): CheckupField {
-  const time = timeInfo(dataset, key, summary)
+type RoleFacts = {
+  time: CheckupTime | undefined
+  timeValid: number
+  binary: CheckupBinary | null
+  nonempty: number
+  numeric: number
+  unique: number
+}
+
+function percent(value: number, total: number) {
+  return total ? Math.round(value / total * 100) : 0
+}
+
+/** Whether the imported values can support a role, with a reason either way. */
+function roleSupport(role: CheckupRole, facts: RoleFacts): { enabled: boolean; reason: string } {
+  if (role === 'time') {
+    return facts.time
+      ? { enabled: true, reason: `可识别 ${formatNumber(facts.time.valid, 0)} 个时间值（${facts.time.min}–${facts.time.max}）` }
+      : { enabled: false, reason: `只有 ${percent(facts.timeValid, facts.nonempty)}% 的非空值可识别为年 / 月 / 日期，至少需要 80%` }
+  }
+  if (role === 'measure') {
+    const share = percent(facts.numeric, facts.nonempty)
+    return share >= 90
+      ? { enabled: true, reason: `${formatNumber(facts.numeric, 0)} / ${formatNumber(facts.nonempty, 0)} 个非空值可解析为数值` }
+      : { enabled: false, reason: `仅 ${share}% 的非空值可解析为数值；先用“数据处理”清理单位、千分位或缺失` }
+  }
+  if (role === 'category') {
+    if (facts.unique < 2) return { enabled: false, reason: '只有一个取值，分组后不会产生差异' }
+    if (facts.unique > 200) return { enabled: false, reason: `${formatNumber(facts.unique, 0)} 个不同取值，超过 200 组上限，请先聚合或筛选` }
+    return { enabled: true, reason: `${formatNumber(facts.unique, 0)} 个不同取值，可直接分组` }
+  }
+  if (role === 'binary') {
+    if (facts.unique !== 2) return { enabled: false, reason: `需要恰好两种取值，当前有 ${formatNumber(facts.unique, 0)} 种` }
+    return facts.binary?.successValue
+      ? { enabled: true, reason: `两种取值（${facts.binary.values.join(' / ')}），可计算「${facts.binary.positiveLabel}」占比` }
+      : { enabled: false, reason: '两种取值无法辨认哪个是“成功”，不能计算比例' }
+  }
+  if (role === 'identifier') return { enabled: true, reason: '按编号 / 标识对待，不参与默认求和或平均' }
+  return { enabled: true, reason: '不作为默认分组或指标，仍可手动选择' }
+}
+
+function buildField(dataset: Dataset, key: string, summary: FieldSummary, forced?: CheckupRole): CheckupField {
+  const evidence = timeEvidence(dataset, key, summary.missing, summary.unique, forced === 'time')
+  const time = evidence.time
   const nonempty = dataset.rows.length - summary.missing
   const values = summary.top.map(item => item.value)
   // A 0/1 "yr" is a calendar index, not a success/failure outcome. Reserving
   // binary for non-calendar columns avoids suggestions such as "share of
-  // yr = 1 by season".
-  const binary = summary.unique === 2 && !CALENDAR_HEADER.test(key) ? recognizeBinary(values) : null
+  // yr = 1 by season"; an explicit user correction overrides that guard.
+  const binary = summary.unique === 2 && (!CALENDAR_HEADER.test(key) || forced === 'binary') ? recognizeBinary(values) : null
   const numericShare = nonempty ? summary.numeric / nonempty : 0
   const uniqueShare = nonempty ? summary.unique / nonempty : 0
   const nearUnique = nonempty >= 20 && uniqueShare >= 0.98
@@ -188,7 +252,10 @@ function buildField(dataset: Dataset, key: string, summary: FieldSummary): Check
     numericShare >= 0.9 && integerValues === summary.numeric && !MEASURE_HEADER.test(key)
   const measure = !identifier && !integerCoded && numericShare >= 0.9
   const category = summary.unique >= 1 && summary.unique <= 50
-  const role: CheckupRole = time ? 'time' : binary ? 'binary' : identifier ? 'identifier' : integerCoded ? 'category' : measure ? 'measure' : category ? 'category' : 'text'
+  const autoRole: CheckupRole = time ? 'time' : binary ? 'binary' : identifier ? 'identifier' : integerCoded ? 'category' : measure ? 'measure' : category ? 'category' : 'text'
+  const support = forced ? roleSupport(forced, { time, timeValid: evidence.valid, binary, nonempty, numeric: summary.numeric, unique: summary.unique }) : null
+  const role: CheckupRole = forced && support?.enabled ? forced : autoRole
+  const overridden = role !== autoRole
 
   let detail = ''
   if (role === 'time' && time) {
@@ -212,7 +279,18 @@ function buildField(dataset: Dataset, key: string, summary: FieldSummary): Check
     numeric: summary.numeric, top: summary.top, min: summary.min, max: summary.max,
     median: summary.median, outliers: summary.outliers,
     ...(time ? { time } : {}), ...(binary ? { binary } : {}),
+    ...(overridden ? { overridden, autoRoleLabel: ROLE_LABELS[autoRole] } : {}),
   }
+}
+
+/** All roles the user may choose for a field, with reasons for disabled ones. */
+export function roleOptions(dataset: Dataset, field: CheckupField): RoleOption[] {
+  const evidence = timeEvidence(dataset, field.key, field.missing, field.unique, true)
+  const binary = field.binary ?? (field.unique === 2 ? recognizeBinary(field.top.map(item => item.value)) : null)
+  const facts: RoleFacts = { time: evidence.time, timeValid: evidence.valid, binary, nonempty: field.nonempty, numeric: field.numeric, unique: field.unique }
+  return (['measure', 'time', 'category', 'binary', 'identifier', 'text'] as CheckupRole[]).map(role => ({
+    role, label: ROLE_LABELS[role], ...roleSupport(role, facts),
+  }))
 }
 
 function measureScore(field: CheckupField) {
@@ -268,9 +346,9 @@ function questionWhy(field: CheckupField) {
     : field.detail
 }
 
-export function buildCheckup(dataset: Dataset): Checkup {
+export function buildCheckup(dataset: Dataset, overrides: CheckupOverrides = {}): Checkup {
   const quality = inspectQuality(dataset)
-  const all = dataset.headers.map(key => buildField(dataset, key, quality.fields.find(field => field.field === key)!))
+  const all = dataset.headers.map(key => buildField(dataset, key, quality.fields.find(field => field.field === key)!, overrides[key]))
   const timeField = all.find((field): field is CheckupField & { time: CheckupTime } => field.role === 'time' && !!field.time) ?? null
   const measures = all.filter(field => field.role === 'measure')
   const categories = all.filter(field => field.role === 'category' && field.unique >= 2)
