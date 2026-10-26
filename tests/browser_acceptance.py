@@ -12,6 +12,10 @@ def checked(name):
     checks.append(name)
     print('PASS ' + name, flush=True)
 
+def open_mapping(page):
+    if not page.locator('.manual-mapping').evaluate('el=>el.open'):
+        page.locator('.manual-mapping > summary').click()
+
 with sync_playwright() as p:
     browser = p.chromium.launch(headless=True, channel='msedge')
     context = browser.new_context(viewport={'width': 1440, 'height': 1000}, accept_downloads=True, reduced_motion='reduce')
@@ -29,7 +33,7 @@ with sync_playwright() as p:
     if not responses:
         assert page.locator('#analysis-svg').count() == 0
         page.get_by_role('button', name='手边没有文件？载入带来源的公开数据', exact=True).click()
-        page.wait_for_function("document.querySelector('.dataset-name strong').textContent==='OWID Energy Data' || document.querySelector('[role=alert]')", timeout=60000)
+        page.wait_for_function("document.querySelector('.dataset-name strong')?.textContent==='OWID Energy Data' || document.querySelector('[role=alert]')", timeout=60000)
         assert page.locator('.dataset-name strong').inner_text()=='OWID Energy Data', page.locator('[role=alert]').all_text_contents()
     assert responses, 'public data response absent'
     source_text = responses[-1].text()
@@ -40,10 +44,12 @@ with sync_playwright() as p:
     expected = {r['year']: float(r['renewables_electricity']) for r in selected}
     assert page.locator('#analysis-svg').count() == 0
     checked('初始不伪造分析结果，真实公开数据已加载')
+    page.locator('.manual-start').click()
     page.locator('.manual-rules').evaluate("el => el.open = true")
     page.locator('.manual-mapping').evaluate("el => el.open = true")
     page.get_by_role('button', name='解析并分析', exact=True).click()
     expect(page.locator('#analysis-svg')).to_be_visible()
+    page.get_by_role('button', name='数据预览', exact=True).click()
     page.get_by_role('button', name='计算结果', exact=True).click()
     result_rows = page.locator('.data-panel tbody tr')
     assert result_rows.count() == 8
@@ -52,18 +58,21 @@ with sync_playwright() as p:
         assert cells[0] == year
         assert math.isclose(float(cells[1].replace(',', '')), value, abs_tol=.0051), (cells, value)
     checked('8 个年度结果逐项与 Python 独立读取的 OWID 原值一致')
+    page.get_by_role('button', name='分析与图表', exact=True).click()
     page.locator('.chart-hit').last.click()
     assert page.locator('.evidence-filter select').input_value() == '2022'
     assert '2022' in page.locator('.source-list').inner_text()
     assert selected[-1]['renewables_electricity'] in page.locator('.source-list').inner_text()
     checked('点击图表定位正确年份和原始数值')
+    page.get_by_role('button', name='分析与图表', exact=True).click()
     page.get_by_role('button', name='柱状', exact=True).click()
-    assert page.locator('#analysis-svg rect').count() == 8
+    assert page.locator('#analysis-svg .chart-hit').count() == 8
     page.get_by_role('button', name='折线', exact=True).click()
     with page.expect_download() as dl:
         page.get_by_role('button', name='导出 SVG', exact=True).click()
     dl.value.save_as(str(root / 'artifacts/chart.svg'))
     assert '<svg' in (root / 'artifacts/chart.svg').read_text(encoding='utf-8')
+    page.get_by_role('button', name='证据与报告', exact=True).click()
     with page.expect_download() as dl:
         page.get_by_role('button', name='导出证据报告', exact=True).click()
     dl.value.save_as(str(root / 'artifacts/evidence-report.html'))
@@ -78,16 +87,19 @@ with sync_playwright() as p:
     checked('SVG 与内嵌证据 HTML 报告导出并离线打开成功')
     page.get_by_label('输入追问').fill('2018—2020 年中国太阳能发电量如何变化？')
     page.get_by_role('button', name='发送追问', exact=True).click()
+    page.get_by_role('button', name='分析与图表', exact=True).click()
     expect(page.locator('.chart-panel h2')).to_have_text('太阳能发电量')
+    page.get_by_role('button', name='数据预览', exact=True).click()
     page.get_by_role('button', name='计算结果', exact=True).click()
     assert page.locator('.data-panel tbody tr').count() == 3
     checked('追问切换太阳能指标及年份，真实重算产生新分支')
+    page.get_by_role('button', name='证据与报告', exact=True).click()
     page.get_by_label('输入追问').fill('为什么下降？')
     page.get_by_role('button', name='发送追问', exact=True).click()
     assert '未执行计算' in page.locator('.chat-pair').last.inner_text()
     page.get_by_role('button', name='分析分支', exact=False).click()
-    assert page.locator('.branch-list > button').count() == 2
-    page.locator('.branch-list > button').last.click()
+    assert page.locator('.branch-list .branch-row').count() == 2
+    page.locator('.branch-list .branch-main').last.click()
     expect(page.locator('.chart-panel h2')).to_have_text('可再生能源发电量')
     checked('不支持的归因追问明确拒绝，历史分支可恢复')
     page.screenshot(path=str(root / 'artifacts/desktop-analysis.png'), full_page=True)
@@ -105,7 +117,8 @@ with sync_playwright() as p:
     expect(page.locator('.help-dialog')).not_to_be_visible()
     page.get_by_role('button', name='数据与来源', exact=True).click()
     assert page.locator('.provenance-panel a').count() == 2
-    assert len(page.locator('.provenance-panel .mono').inner_text()) == 64
+    hash_value = page.locator('.source-details > div').filter(has_text='原文件 SHA-256').locator('dd').inner_text().strip()
+    assert len(hash_value) == 64, hash_value
     checked('帮助键盘关闭，来源链接及 SHA-256 快照可查看')
     invariants = page.evaluate(r"""async () => {
         const d = await import('/src/data.ts');
@@ -130,35 +143,52 @@ with sync_playwright() as p:
     subset = buf.getvalue()
     (root / 'artifacts/owid-China-2015-2022.csv').write_text(subset, encoding='utf-8')
     page.locator('#file-upload').set_input_files({'name': 'owid-China-2015-2022.csv', 'mimeType': 'text/csv', 'buffer': subset.encode('utf-8')})
-    page.wait_for_function("document.querySelector('.dataset-name strong').textContent==='owid-China-2015-2022.csv' && !document.querySelector('.loading-indicator')")
+    page.get_by_role('dialog',name='替换当前工作区？').get_by_role('button',name='替换并导入',exact=True).click()
+    page.wait_for_function("document.querySelector('.dataset-name strong')?.textContent==='owid-China-2015-2022.csv' && !document.querySelector('.loading-indicator')")
     assert page.locator('#analysis-svg').count() == 0
     expect(page.locator('.manual-rules')).to_be_hidden()
     assert page.locator('.manual-rules button[type=submit]').is_disabled()
+    page.locator('.manual-start').click()
+    open_mapping(page)
     page.get_by_label('分组 / 时间字段', exact=True).select_option('year')
     page.get_by_label('数值指标', exact=True).select_option('renewables_electricity')
     page.get_by_label('指标单位', exact=True).fill('TWh')
     page.get_by_role('button', name='按确认口径分析', exact=True).click()
+    assert selected[-1]['renewables_electricity'][:4] in page.locator('.finding').inner_text().replace(',', '')
+    page.get_by_role('button', name='数据预览', exact=True).click()
     page.get_by_role('button', name='计算结果', exact=True).click()
     assert page.locator('.data-panel tbody tr').count() == 8
-    assert selected[-1]['renewables_electricity'][:4] in page.locator('.finding').inner_text().replace(',', '')
     checked('上传真实公开子集后手动映射，得到相同真实结果')
+    page.get_by_role('button', name='分析与图表', exact=True).click()
+    open_mapping(page)
     page.get_by_label('汇总方式', exact=True).select_option('average')
     expect(page.locator('.mapping-panel .tag')).to_have_text('口径已修改')
     page.get_by_role('button', name='按确认口径分析', exact=True).click()
     checked('口径修改有旧结果提示，均值计算可执行')
+    open_mapping(page)
     page.get_by_label('分组 / 时间字段', exact=True).select_option('country')
     page.get_by_label('汇总方式', exact=True).select_option('sum')
     page.get_by_role('button', name='按确认口径分析', exact=True).click()
+    page.get_by_role('button', name='数据预览', exact=True).click()
+    page.get_by_role('button', name='计算结果', exact=True).click()
     expected_sum = sum(expected.values())
     actual_sum = float(page.locator('.data-panel tbody tr td').nth(1).inner_text().replace(',', ''))
     assert math.isclose(actual_sum, expected_sum, abs_tol=.0051)
+    page.get_by_role('button', name='分析与图表', exact=True).click()
+    open_mapping(page)
     page.get_by_label('汇总方式', exact=True).select_option('average')
     page.get_by_role('button', name='按确认口径分析', exact=True).click()
+    page.get_by_role('button', name='数据预览', exact=True).click()
+    page.get_by_role('button', name='计算结果', exact=True).click()
     actual_avg = float(page.locator('.data-panel tbody tr td').nth(1).inner_text().replace(',', ''))
     assert math.isclose(actual_avg, expected_sum / len(selected), abs_tol=.0051)
     checked('真实八年数据合并为一个地区分组，求和与均值均匹配 Python 独立计算')
+    page.get_by_role('button', name='分析与图表', exact=True).click()
+    open_mapping(page)
     page.get_by_label('分组 / 时间字段', exact=True).select_option('year')
     page.get_by_role('button', name='按确认口径分析', exact=True).click()
+    page.get_by_role('button', name='数据预览', exact=True).click()
+    page.get_by_role('button', name='计算结果', exact=True).click()
 
     with page.expect_download() as dl:
         page.get_by_role('button', name='CSV', exact=True).click()
@@ -175,13 +205,14 @@ with sync_playwright() as p:
     expect(preview).to_have_count(0)
     assert page.locator('#analysis-svg').count() == 1
     checked('结果 CSV 含 8 个分组；重复表头在预览中被拦截，取消后保留上次有效数据')
-    blocked = context.new_page()
+    blocked_context = browser.new_context(viewport={'width': 1440, 'height': 1000}, reduced_motion='reduce')
+    blocked = blocked_context.new_page()
     blocked.route('**/owid-energy-data.csv', lambda route: route.abort())
     blocked.goto(BASE_URL + '/', wait_until='networkidle')
     blocked.get_by_role('button', name='手边没有文件？载入带来源的公开数据', exact=True).click()
     expect(blocked.get_by_role('alert')).to_contain_text('公开数据加载失败')
     assert blocked.locator('#analysis-svg').count() == 0
-    blocked.close()
+    blocked.close(); blocked_context.close()
     checked('公开源故障显示可恢复错误，没有伪造结果')
     assert not errors, errors
     (root / 'artifacts/validation.json').write_text(json.dumps({'checks':checks,'browser_errors':errors,'source_url':responses[-1].url,'source_validation_mode':'cached real OWID fixture' if cached_source else 'live public network','public_rows':len(source_rows),'subset_rows':len(selected),'expected_values':expected}, ensure_ascii=False, indent=2), encoding='utf-8')

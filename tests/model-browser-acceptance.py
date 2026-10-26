@@ -109,7 +109,9 @@ try:
     page.get_by_role('button',name='收起 AI 助手',exact=True).click()
     page.reload(wait_until='networkidle'); expect(page.locator('.model-trigger')).to_contain_text('本机契约测试二')
     # The redesigned empty workspace exposes intake first; consent lives with a loaded dataset.
+    expect(page.locator('.dataset-name strong')).to_have_text('owid-China-2015-2022.csv', timeout=30000)
     page.locator('#file-upload').set_input_files(str(root/'artifacts/owid-China-2015-2022.csv'))
+    page.get_by_role('dialog',name='替换当前工作区？').get_by_role('button',name='替换并导入',exact=True).click()
     page.locator('.dataset-orientation > summary').click()
     page.get_by_label('允许上传后自动发送字段与质量摘要给默认模型',exact=True).check()
     expect(page.locator('.initial-summary')).to_be_visible()

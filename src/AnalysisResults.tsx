@@ -31,18 +31,35 @@ export function AnalysisResults({ bundle, dataset, overrides, onEvidence, onFoll
    const planChart=bundle.response.plan.tasks.find(t=>t.id===result.ai?.taskId)?.chart||'bar'
    const chartKind=chartKinds[result.id]??planChart
    return <article className={'bundle-result'+(point?' has-selection':'')} key={result.id} hidden={focused!==result.id}>
-    <header><h3>{result.ai?.taskTitle||result.question}</h3><button className="text-button" onClick={()=>onEvidence(result.id)}>检查 SQL 与来源</button></header>
-    {result.rateSummary ? <div className="rate-summary"><strong>{formatNumber(result.rateSummary.value,2)}<small>%</small></strong><span>当前范围总体比例<br/>{formatNumber(result.rateSummary.numerator,0)} / {formatNumber(result.rateSummary.denominator,0)} 条有效记录 · 排除 {result.rateSummary.excluded} 条未知或缺失结果</span></div>:<p>{result.finding}</p>}
+    <header className="result-sheet-head">
+      <div>
+        <span className="result-sheet-kicker">任务 {result.ai?.taskId ?? '手动'} · 已真实计算</span>
+        <h3>{result.ai?.taskTitle||result.question}</h3>
+      </div>
+      <div className="result-sheet-tools">
+        <span className="result-record-count">{result.usedRows.toLocaleString()} 条有效记录 · {result.points.length} 个分组</span>
+        <button className="text-button" onClick={()=>onEvidence(result.id)}>检查 SQL 与来源</button>
+      </div>
+    </header>
+    <div className="result-answer">
+      {result.rateSummary ? <div className="rate-summary"><strong>{formatNumber(result.rateSummary.value,2)}<small>%</small></strong><span>当前范围总体比例<br/>{formatNumber(result.rateSummary.numerator,0)} / {formatNumber(result.rateSummary.denominator,0)} 条有效记录 · 排除 {result.rateSummary.excluded} 条未知或缺失结果</span></div>:<p className="result-finding">{result.finding}</p>}
+    </div>
     {result.mapping.rate&&<p className="bundle-formula">分子：{result.mapping.metric} = {JSON.stringify(result.mapping.rate.successValue)}；分母：{JSON.stringify(result.mapping.rate.eligibleValues)}。总体比例按总分子 ÷ 总分母计算。</p>}
     {!result.mapping.rate&&onUnit&&<UnitDeclaration id={result.id} unit={result.mapping.unit} source={result.unitSource} onSave={unit=>onUnit(result.id,unit)} />}
-    <InsightBrief result={result} compact />
-    <NextCuts dataset={dataset} result={result} overrides={overrides} />
+    <div className="result-body">
+    <div className="result-visual">
     <div className="chart-action-line"><label className="group-locator">定位分组<select aria-label="定位图表分组" value={label} onChange={e=>setSelection(e.target.value?{id:result.id,label:e.target.value}:null)}><option value="">点击图形或选择分组</option>{result.points.map(p=><option key={p.label} value={p.label}>{p.label}</option>)}</select></label><div className="segmented compact result-chart-kind" aria-label="结果图表类型"><button aria-pressed={chartKind==='line'} className={chartKind==='line'?'active':''} onClick={()=>setChartKinds(kinds=>({...kinds,[result.id]:'line'}))}>折线</button><button aria-pressed={chartKind==='bar'} className={chartKind==='bar'?'active':''} onClick={()=>setChartKinds(kinds=>({...kinds,[result.id]:'bar'}))}>柱状</button></div><span><MousePointer2 size={14}/>选中分组后，查看来源或继续追问</span></div><div className="result-chart-table"><DataChart reference={analysisReference(result)} interaction="select" compact chartId={'bundle-chart-'+result.id} points={result.points} metric={result.ai?.taskTitle||result.mapping.metric} unit={result.mapping.unit} kind={chartKind} selected={label} onSelect={label=>setSelection(label?{id:result.id,label}:null)}/>
-    <aside className="result-detail" aria-label="图表分组操作" hidden={!point}>
+    <aside className="result-detail" aria-label="图表分组操作">
     {point ? <div className="selected-group" aria-label="已选分组"><div className="context-heading"><span>当前选择</span><button className="icon-button" aria-label="取消分组选择" onClick={()=>setSelection(null)}><X size={15}/></button></div><strong>{point.label}</strong><div className="context-value">{formatNumber(point.value,2)}<small>{result.mapping.unit}</small></div><p>{(point.scopeRowIds?.length??point.rowIds.length).toLocaleString()} 条匹配记录{point.rate?<><br/>分子 {point.rate.numerator.toLocaleString()} / 分母 {point.rate.denominator.toLocaleString()}</>:null}</p><div className="selected-group-actions">{onFollowUp&&!!point.scopeRowIds?.length&&<button className="primary" onClick={()=>onFollowUp(result,point.label)}><CornerDownRight size={16}/>围绕此分组追问</button>}<button className="secondary" onClick={()=>onEvidence(result.id,point.label)}>查看来源记录<ArrowUpRight size={14}/></button></div><small>追问范围限定为此分组全部匹配记录；发送前仍可修改问题并核对计划。</small></div>:<div className="group-context-empty"><MousePointer2 size={22} strokeWidth={1.5}/><h4>选中分组，继续分析</h4><p>点击图形后，在这里核对数值、查看来源，或让 AI 针对此分组继续分析。</p>{result.points.length>1&&<div className="group-shortcuts">{(['max','min'] as const).map(kind=>{const target=result.points.reduce((a,b)=>(kind==='max'?a.value>=b.value:a.value<=b.value)?a:b);return <button key={kind} onClick={()=>setSelection({id:result.id,label:target.label})}><span>{kind==='max'?'数值最高':'数值最低'}</span><strong>{target.label}</strong><small>{formatNumber(target.value,2)}{result.mapping.unit}<ArrowUpRight size={12}/></small></button>})}</div>}</div>}
     </aside></div>
     {result.trend&&<p className="result-trend">描述性线性趋势：按时间顺序对 {result.trend.n} 个分组拟合，平均每{result.trend.period==='year'?'年':'月'}变化 {result.trend.slope>=0?'+':''}{formatNumber(result.trend.slope,4)}{result.mapping.unit}；R² {formatNumber(result.trend.r2,3)}。仅描述图中聚合值，不是预测、显著性检验或因果结论。</p>}
     <details className="result-data-details"><summary>查看分组结果表 <span>{result.points.length} 个分组 · 完整数值与来源</span></summary><ResultTable result={result} onEvidence={onEvidence} selected={label} onSelect={label=>setSelection({id:result.id,label})}/></details>
+    </div>
+    <aside className="result-insights" aria-label="结果解读与下一步">
+      <InsightBrief result={result} compact />
+      <NextCuts dataset={dataset} result={result} overrides={overrides} />
+    </aside>
+    </div>
    </article>
   })}</div>
   </div>

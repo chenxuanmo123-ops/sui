@@ -122,7 +122,7 @@ with sync_playwright() as p:
     assert rows[0]['renewables_electricity'] in page.locator('.source-list').inner_text()
     assert len(state['plan_requests'])==2 and len(state['review_requests'])==2
     page.get_by_role('button',name='分析分支',exact=False).click()
-    assert page.locator('.branch-list > button').count()==1
+    assert page.locator('.branch-list .branch-row').count()==1
     page.get_by_role('button',name='分析工作台',exact=True).click()
     checked('重试解读不重复计算，引用跳到正确原始记录，页面切换保留计划')
     # Real computation boundary checks; strings below are parser unit fixtures only.

@@ -63,81 +63,85 @@ export default function AnalysisStart({ dataset, profiles, checkup, error, compu
 
     {error && <p className="checkup-error" role="alert"><AlertCircle size={15} />数据体检未能完成：{error}。仍可手动选择字段分析。</p>}
 
-    {checkup && <>
-      <section className={'checkup-verdict tone-' + (checkup.questions.length ? 'ready' : 'limited')} aria-label="数据体检结论">
-        <div className="checkup-score">
-          <strong>{formatNumber(checkup.completeness * 100, 0)}<small>%</small></strong>
-          <span>单元格完整度</span>
-        </div>
-        <div className="checkup-verdict-copy">
-          <span className="checkup-kicker">数据体检 · 未调用模型</span>
-          <h2>{questionCount ? `这份数据可以先从 ${questionCount} 个问题开始。` : '这份数据还需要先确认字段口径。'}</h2>
-          <p>{questionCount
-            ? '下面的问题都对应可执行的描述性计算：点一下就会生成真实 SQL、图表和来源记录。它们不代表已经知道业务原因。'
-            : '没有找到稳定的时间字段、数值指标或可分组维度。可以先做字段清理，或者让 AI 帮你判断这份表适合问什么。'}</p>
-        </div>
-        <div className="checkup-role-counts">
-          <span><strong>{checkup.measures.length}</strong> 数值指标</span>
-          <span><strong>{checkup.categories.length}</strong> 分类维度</span>
-          <span><strong>{checkup.binaries.length}</strong> 二值结果</span>
-          <span><strong>{checkup.timeField ? 1 : 0}</strong> 时间字段</span>
-        </div>
-      </section>
+    {checkup && <section className={'checkup-verdict tone-' + (checkup.questions.length ? 'ready' : 'limited')} aria-label="数据体检结论">
+      <div className="checkup-score">
+        <strong>{formatNumber(checkup.completeness * 100, 0)}<small>%</small></strong>
+        <span>单元格完整度</span>
+      </div>
+      <div className="checkup-verdict-copy">
+        <span className="checkup-kicker">数据体检 · 未调用模型</span>
+        <h2>{questionCount ? `这份数据可以先从 ${questionCount} 个问题开始。` : '这份数据还需要先确认字段口径。'}</h2>
+        <p>{questionCount
+          ? '下面的问题都对应可执行的描述性计算：点一下就会生成真实 SQL、图表和来源记录。它们不代表已经知道业务原因。'
+          : '没有找到稳定的时间字段、数值指标或可分组维度。可以先做字段清理，或者让 AI 帮你判断这份表适合问什么。'}</p>
+      </div>
+      <div className="checkup-role-counts">
+        <span><strong>{checkup.measures.length}</strong> 数值指标</span>
+        <span><strong>{checkup.categories.length}</strong> 分类维度</span>
+        <span><strong>{checkup.binaries.length}</strong> 二值结果</span>
+        <span><strong>{checkup.timeField ? 1 : 0}</strong> 时间字段</span>
+      </div>
+    </section>}
 
-      <section className="answerable-questions" aria-label="可直接执行的问题">
-        <header>
-          <div><span className="section-kicker">从这里开始</span><h2>这份数据现在能回答</h2><p>不用先懂字段配置。每个问题都会落到一条可核对的 SQL；你可以先看结果，再决定要不要追问。</p></div>
-          <button className="text-button" onClick={() => onAsk('请根据这份数据体检结果，补充我可能没想到的分析角度，并说明哪些问题当前数据回答不了。')}><Sparkles size={15} />让 AI 再想几个<ArrowUpRight size={14} /></button>
-        </header>
-        <div className="question-grid">
-          {checkup.questions.map((question, index) => <article className="question-card" key={question.id}>
-            <div className="question-card-top">
-              <span className="question-number">{String(index + 1).padStart(2, '0')}</span>
-              <span className="question-kind">{KIND_LABELS[question.kind]}</span>
-            </div>
-            <h3>{question.title}</h3>
-            <p>{question.why}</p>
-            {questionError?.id === question.id && <p className="question-card-error" role="alert"><AlertCircle size={14} />{questionError.message}</p>}
-            <div className="question-card-actions">
-              <button className="primary" disabled={computing} onClick={() => question.execution.kind === 'aggregate' ? onRunQuestion(question) : onRunExploreQuestion(question)}>
-                {runningQuestion === question.id
-                  ? <><LoaderCircle size={15} className="spin" />{question.execution.kind === 'aggregate' ? '正在计算…' : '正在读取…'}</>
-                  : <>{question.execution.kind === 'aggregate' ? '直接算给我看' : '查看关系图'}<ArrowRight size={15} /></>}
-              </button>
-              <button className="text-button" onClick={() => onAsk(question.question + ' 请说明需要核对的口径、证据边界和不能得出的结论。')}>让 AI 深入</button>
-            </div>
-          </article>)}
-          {!checkup.questions.length && <div className="question-empty">
-            <Hash size={22} strokeWidth={1.5} />
-            <h3>还没有可以自动生成的问题</h3>
-            <p>先检查字段类型与缺失，或让 AI 根据字段摘要提出方向。手动选择字段也始终可用。</p>
-            <div><button className="secondary" onClick={onPrepare}>检查数据质量</button><button className="text-button" onClick={() => onAsk('这份数据没有自动生成可执行问题，请帮我判断原因并给出下一步。')}>让 AI 帮我找问题<ArrowRight size={14} /></button></div>
-          </div>}
+    <div className="review-workbench">
+      <div className="review-main">
+        {checkup ? <section className="answerable-questions" aria-label="可直接执行的问题">
+          <header>
+            <div><span className="section-kicker">从这里开始</span><h2>这份数据现在能回答</h2><p>不用先懂字段配置。每个问题都会落到一条可核对的 SQL；你可以先看结果，再决定要不要追问。</p></div>
+            <button className="text-button" onClick={() => onAsk('请根据这份数据体检结果，补充我可能没想到的分析角度，并说明哪些问题当前数据回答不了。')}><Sparkles size={15} />让 AI 再想几个<ArrowUpRight size={14} /></button>
+          </header>
+          <div className="question-grid">
+            {checkup.questions.map((question, index) => <article className="question-card" key={question.id}>
+              <div className="question-card-top">
+                <span className="question-number">{String(index + 1).padStart(2, '0')}</span>
+                <span className="question-kind">{KIND_LABELS[question.kind]}</span>
+              </div>
+              <h3>{question.title}</h3>
+              <p>{question.why}</p>
+              {questionError?.id === question.id && <p className="question-card-error" role="alert"><AlertCircle size={14} />{questionError.message}</p>}
+              <div className="question-card-actions">
+                <button className="primary" disabled={computing} onClick={() => question.execution.kind === 'aggregate' ? onRunQuestion(question) : onRunExploreQuestion(question)}>
+                  {runningQuestion === question.id
+                    ? <><LoaderCircle size={15} className="spin" />{question.execution.kind === 'aggregate' ? '正在计算…' : '正在读取…'}</>
+                    : <>{question.execution.kind === 'aggregate' ? '直接算给我看' : '查看关系图'}<ArrowRight size={15} /></>}
+                </button>
+                <button className="text-button" onClick={() => onAsk(question.question + ' 请说明需要核对的口径、证据边界和不能得出的结论。')}>让 AI 深入</button>
+              </div>
+            </article>)}
+            {!checkup.questions.length && <div className="question-empty">
+              <Hash size={22} strokeWidth={1.5} />
+              <h3>还没有可以自动生成的问题</h3>
+              <p>先检查字段类型与缺失，或让 AI 根据字段摘要提出方向。手动选择字段也始终可用。</p>
+              <div><button className="secondary" onClick={onPrepare}>检查数据质量</button><button className="text-button" onClick={() => onAsk('这份数据没有自动生成可执行问题，请帮我判断原因并给出下一步。')}>让 AI 帮我找问题<ArrowRight size={14} /></button></div>
+            </div>}
+          </div>
+        </section> : <section className="answerable-questions"><div className="question-empty"><LoaderCircle className="spin" size={22}/><h3>正在生成可执行问题</h3><p>体检完成后，这里会列出能直接落到 SQL 的问题。</p></div></section>}
+
+        <section className="checkup-warnings" aria-label="需要先确认的数据问题">
+          <header><span className="section-kicker">体检提示</span><h2>先确认这些，不是“错误”</h2><p>系统只报告候选，不自动删改原始值。</p></header>
+          {checkup ? <ul>{checkup.warnings.map((warning, index) => <li key={index} className={'tone-' + warning.tone}>
+            <span className="warning-dot" aria-hidden="true" />
+            <div><strong>{warning.title}</strong><p>{warning.detail}</p></div>
+          </li>)}</ul> : <p className="review-pending-note">体检完成后显示需要核对的数据问题。</p>}
+        </section>
+      </div>
+
+      <aside className="review-aside" aria-label="数据概况与字段">
+        <section className="canvas-data-preview" aria-label="原始数据快速预览">
+          <header><span><Table2 size={16} />原始记录</span><small>前 {Math.min(dataset.rows.length, 5)} 行 · 前 {headers.length} 列</small><button className="text-button" onClick={onData}>查看全部<ArrowUpRight size={13} /></button></header>
+          <div className="canvas-preview-scroll"><table><thead><tr><th>记录号</th>{headers.map(header => <th key={header} title={header}>{header}</th>)}</tr></thead><tbody>{dataset.rows.slice(0, 5).map((row, index) => <tr key={index}><td>{dataset.sourceRecords?.[index] ?? index + 2}</td>{headers.map(header => <td key={header} title={String(row[header] ?? '')}>{String(row[header] ?? '—')}</td>)}</tr>)}</tbody></table></div>
+        </section>
+
+        <div className="review-fields">
+          <p>字段速览 <span>角色是候选；点击核对含义和质量</span>
+            {checkup && <button className="text-button" onClick={onRoles}><Settings2 size={14} />类型不对？纠正</button>}
+          </p>
+          <div>{fields.slice(0, 10).map(field => <button key={field.key} onClick={() => onField(field.key)} title={field.key + ' · ' + field.roleLabel + (field.overridden ? '（手动纠正，自动判断为 ' + field.autoRoleLabel + '）' : '') + (field.missing ? ' · 空值 ' + field.missing : '')}>
+            <span>{field.key}</span><small>{field.roleLabel}</small>{field.overridden && <em>已纠正</em>}{field.missing > 0 && <i />}
+          </button>)}{fields.length > 10 && <button className="remaining-fields" onClick={() => onField('')}>其余 {fields.length - 10} 个字段<ArrowUpRight size={13} /></button>}</div>
+          {checkup && <p className="review-fields-note"><Clock3 size={13} />时间字段按真实取值验证，不只凭列名；单位仍需要你确认。</p>}
         </div>
-      </section>
-
-      <section className="checkup-warnings" aria-label="需要先确认的数据问题">
-        <header><span className="section-kicker">体检提示</span><h2>先确认这些，不是“错误”</h2><p>系统只报告候选，不自动删改原始值。</p></header>
-        <ul>{checkup.warnings.map((warning, index) => <li key={index} className={'tone-' + warning.tone}>
-          <span className="warning-dot" aria-hidden="true" />
-          <div><strong>{warning.title}</strong><p>{warning.detail}</p></div>
-        </li>)}</ul>
-      </section>
-    </>}
-
-    <section className="canvas-data-preview" aria-label="原始数据快速预览">
-      <header><span><Table2 size={16} />原始记录</span><small>前 {Math.min(dataset.rows.length, 5)} 行 · 前 {headers.length} 列</small><button className="text-button" onClick={onData}>查看全部数据<ArrowUpRight size={14} /></button></header>
-      <div className="canvas-preview-scroll"><table><thead><tr><th>记录号</th>{headers.map(header => <th key={header} title={header}>{header}</th>)}</tr></thead><tbody>{dataset.rows.slice(0, 5).map((row, index) => <tr key={index}><td>{dataset.sourceRecords?.[index] ?? index + 2}</td>{headers.map(header => <td key={header} title={String(row[header] ?? '')}>{String(row[header] ?? '—')}</td>)}</tr>)}</tbody></table></div>
-    </section>
-
-    <div className="review-fields">
-      <p>字段速览 <span>角色是候选；点击核对含义和质量</span>
-        {checkup && <button className="text-button" onClick={onRoles}><Settings2 size={14} />类型不对？纠正</button>}
-      </p>
-      <div>{fields.slice(0, 10).map(field => <button key={field.key} onClick={() => onField(field.key)} title={field.key + ' · ' + field.roleLabel + (field.overridden ? '（手动纠正，自动判断为 ' + field.autoRoleLabel + '）' : '') + (field.missing ? ' · 空值 ' + field.missing : '')}>
-        <span>{field.key}</span><small>{field.roleLabel}</small>{field.overridden && <em>已纠正</em>}{field.missing > 0 && <i />}
-      </button>)}{fields.length > 10 && <button className="remaining-fields" onClick={() => onField('')}>其余 {fields.length - 10} 个字段<ArrowUpRight size={13} /></button>}</div>
-      {checkup && <p className="review-fields-note"><Clock3 size={13} />时间字段按真实取值验证，不只凭列名；单位仍需要你确认。</p>}
+      </aside>
     </div>
   </div>
 }

@@ -47,6 +47,32 @@ import NextCuts from './NextCuts'
 import { UnitDeclaration } from './UnitDeclaration'
 
 type View = WorkspaceView
+
+const NAV_GROUPS = [
+  { label: '分析', items: [
+    { key: 'workspace', label: '分析工作台', icon: BarChart3 },
+    { key: 'explore', label: '探索分析', icon: Search },
+    { key: 'compare', label: '对比诊断', icon: ListChecks },
+    { key: 'query', label: 'SQL 查询', icon: Database },
+  ] },
+  { label: '数据', items: [
+    { key: 'prepare', label: '数据处理', icon: Settings2 },
+    { key: 'source', label: '数据与来源', icon: ShieldCheck },
+  ] },
+  { label: '记录', items: [
+    { key: 'branches', label: '分析分支', icon: GitBranch },
+  ] },
+] as const
+
+const VIEW_META: Record<View, { group: string; title: string; hint: string }> = {
+  workspace: { group: '分析', title: '分析工作台', hint: '体检、提问、计算与证据' },
+  prepare: { group: '数据', title: '数据处理', hint: '清理记录与撤销' },
+  explore: { group: '分析', title: '探索分析', hint: '多维度图表与相关性' },
+  compare: { group: '分析', title: '对比诊断', hint: '同口径换维度对照' },
+  query: { group: '分析', title: 'SQL 查询', hint: '只读 SQLite 控制台' },
+  source: { group: '数据', title: '数据与来源', hint: '出处、快照与解析记录' },
+  branches: { group: '记录', title: '分析分支', hint: '每次计算都可回查' },
+}
 type Chat = { text: string; answer: string; run?: number }
 type ReplaceRequest = { kind: 'file'; file: File } | { kind: 'public' } | { kind: 'dataset'; dataset: Dataset }
 const blankMapping: Mapping = { x: '', metric: '', filter: '', value: '', from: '', to: '', unit: '', aggregate: 'sum' }
@@ -482,10 +508,44 @@ export default function App() {
   return <div className={"app-shell"+(studio?" is-studio":"")+(studio&&assistantOpen?" has-ai-dock":"")}>
     <a className="skip-link" href="#main">跳转到分析内容</a>
     <input ref={uploadRef} id="file-upload" className="sr-only" aria-label="导入 CSV、Excel 或 PDF 文件" type="file" accept=".csv,.xlsx,.xls,.pdf" onChange={e => void handleFile(e)} />
+    <aside className="app-rail" aria-label="应用导航">
+      <a className="brand" href="#main" onClick={() => setView('workspace')}><span className="brand-mark"><Layers3 size={21}/></span><span><strong>数鉴</strong><small>Evidence workbench</small></span></a>
+      <button className="new-analysis primary" onClick={newAnalysis}><Plus size={16}/><span>新建分析</span></button>
+      <nav className="primary-navigation" aria-label="功能导航">
+        {NAV_GROUPS.map(group => <div className="rail-group" key={group.label}>
+          <span className="rail-label">{group.label}</span>
+          {group.items.map(({ key, label, icon: Icon }) => <button key={key} className={'nav-item'+(view===key?' active':'')} aria-current={view===key?'page':undefined} onClick={()=>setView(key as View)}>
+            <Icon size={16}/><span>{label}</span>{key==='branches'&&history.length>0&&<b>{history.length}</b>}
+          </button>)}
+        </div>)}
+      </nav>
+      <div className="rail-dataset" hidden={!dataset}>
+        <span className="rail-label">当前数据</span>
+        <button className="rail-dataset-name" onClick={() => setView('workspace')} title={dataset?.title}>
+          <FileSpreadsheet size={15}/><span><strong>{dataset?.title}</strong><small>{dataset ? `${dataset.rows.length.toLocaleString()} 行 · ${dataset.headers.length} 字段` : ''}</small></span>
+        </button>
+        <div className="rail-dataset-actions">
+          <button onClick={() => setFieldsOpen(!fieldsOpen)}>字段</button>
+          <button onClick={() => setView('source')}>来源</button>
+          <button onClick={() => pickFile()} disabled={loading}>更换</button>
+        </div>
+      </div>
+      <div className="rail-footer">
+        {dataset && <section className={'workspace-storage'+(saveState==='error'?' has-error':'')} aria-label="本机工作区">
+          <div className="storage-line"><span className="storage-state" role="status">{saveState==='saved'?<ShieldCheck size={14}/>:saveState==='pending'||saveState==='saving'?<LoaderCircle size={14} className="spin"/>:<Database size={14}/>}<strong>{saveState==='saved'?'已保存到本机':saveState==='saving'?'正在保存…':saveState==='pending'?'等待保存…':saveState==='error'?'本机保存不可用':'本机工作区'}</strong>{savedAt&&saveState==='saved'&&<time dateTime={savedAt}>{new Date(savedAt).toLocaleTimeString('zh-CN',{hour12:false})}</time>}</span></div>
+          {storageError && <p role="alert">{storageError}</p>}
+          <div className="storage-actions">
+            <details className="storage-details"><summary>说明</summary><p>数据、来源备注与计算记录保存在此浏览器；刷新可恢复，不会因保存而上传。</p></details>
+            {saveState==='error'&&!storageBlocked&&<button onClick={()=>setSaveRetry(value=>value+1)} disabled={clearing}>重试</button>}
+            <button onClick={()=>setShowClear(true)} disabled={computing||loading||clearing}>清除本机工作区</button>
+          </div>
+        </section>}
+      </div>
+    </aside>
+    <div className="app-body">
     <header className="app-header">
-      <a className="brand" href="#main" onClick={() => setView('workspace')}><span className="brand-mark"><Layers3 size={22}/></span><span><strong>数鉴</strong><small>让分析有据可查</small></span></a>
-      <nav className="primary-navigation" aria-label="功能导航">{[{key:'workspace',label:'分析工作台'},{key:'prepare',label:'数据处理'},{key:'explore',label:'探索分析'},{key:'compare',label:'对比诊断'},{key:'query',label:'SQL 查询'},{key:'source',label:'数据与来源'},{key:'branches',label:'分析分支'}].map(({key,label})=><button key={key} className={'nav-item'+(view===key?' active':'')} aria-current={view===key?'page':undefined} onClick={()=>setView(key as View)}>{label}{key==='branches'&&history.length>0&&<b>{history.length}</b>}</button>)}</nav>
-      <div className="header-actions"><button className="new-analysis secondary" onClick={newAnalysis}><Plus size={16}/><span>新建分析</span></button><button className="icon-button" aria-label="使用说明" onClick={()=>setShowHelp(true)}><CircleHelp size={19}/></button><button className={'model-trigger'+(models.ready?' connected':'')} onClick={()=>setShowModels(true)}><span className="connection-dot"/><span>{models.selected?.name||'连接 AI'}</span><Settings2 size={15}/></button></div>
+      <div className="breadcrumb"><span>数鉴工作台</span><ChevronRight size={14}/><strong>{VIEW_META[view].title}</strong><small>{VIEW_META[view].hint}</small></div>
+      <div className="header-actions"><button className="secondary header-new" onClick={newAnalysis}><Plus size={15}/><span>新建分析</span></button><button className="icon-button" aria-label="使用说明" onClick={()=>setShowHelp(true)}><CircleHelp size={18}/></button><button className={'model-trigger'+(models.ready?' connected':'')} onClick={()=>setShowModels(true)}><span className="connection-dot"/><span>{models.selected?.name||'连接 AI'}</span><Settings2 size={14}/></button></div>
     </header>
     <main id="main" className="main" tabIndex={-1}>
       {dataset && <header className="topbar dataset-ribbon"><div className="dataset-ribbon-name"><FileSpreadsheet size={20}/><div className="dataset-name"><strong title={dataset.title}>{dataset.title}</strong><span>{dataset.rows.length.toLocaleString()} 行 · {dataset.headers.length} 个字段</span></div></div><div className="top-actions"><button className="text-button" aria-expanded={fieldsOpen} aria-controls="dataset-field-drawer" onClick={()=>setFieldsOpen(!fieldsOpen)}><Table2 size={16}/>字段与质量</button><button className="text-button" onClick={()=>setView('source')}><ShieldCheck size={16}/>来源</button><button className="secondary top-import" onClick={()=>pickFile()} disabled={loading}><Upload size={16}/>更换文件</button><button className="text-button top-public" onClick={()=>void loadPublicDataset()} disabled={loading}>公开数据</button></div></header>}
@@ -534,12 +594,18 @@ export default function App() {
                 <div className="mapping-bottom"><span>空值不当作 0 · 单位不自动猜测</span><button className="primary" onClick={executeManual} disabled={!dataset || !mapping.metric || loading}><BarChart3 size={16} />按确认口径分析</button></div>
               </section></details>
               {active && <div className="result-checkup-links"><button className="text-button" onClick={backToCheckup}><ListChecks size={15}/>回到数据体检</button><button className="text-button" onClick={()=>setRolesOpen(true)}>纠正字段类型</button><span>结果保留在“分析分支”，切换不会丢失。</span></div>}
-              {active && !active.mapping.rate && <UnitDeclaration id={active.id} unit={active.mapping.unit} source={active.unitSource} onSave={unit=>declareUnit(active.id,unit)} />}
-              {active && <InsightBrief result={active} />}
-              {active && dataset && <NextCuts dataset={dataset} result={active} overrides={fieldRoles} />}
+              <div className={"result-stage"+(active?" has-result":"")}>
+                <div className="result-stage-main">
               <section className={"panel chart-panel"+(!active?" is-empty":"")}><div className="section-heading"><div><h2>{displayMetric}</h2><p>{active ? `${active.mapping.value || '全部记录'} · ${active.mapping.from || '不限'} — ${active.mapping.to || '不限'} · ${active.mapping.rate ? '条件计数比例（%）' : aggregateNames[active.mapping.aggregate]}` : '完成一次真实计算后，图表和证据会同时出现。'}</p></div><div className="segmented" aria-label="图表类型"><button aria-pressed={chartKind === 'line'} className={chartKind === 'line' ? 'active' : ''} onClick={() => setChartKind('line')}>折线</button><button aria-pressed={chartKind === 'bar'} className={chartKind === 'bar' ? 'active' : ''} onClick={() => setChartKind('bar')}>柱状</button></div></div>
                 {active ? <><div className="chart-meta"><span className="legend"><i />{displayMetric}</span><span>分析 #{active.id} · {active.points.length} 个分组{pending ? ' · 显示上次结果' : ''}</span></div><DataChart points={active.points} metric={displayMetric} unit={active.mapping.unit} kind={chartKind} selected={selectedPoint} onSelect={showRows} /><div className="chart-bottom"><span>点击数据点查看对应来源记录</span><div className="chart-bottom-actions">{!active.mapping.rate && !active.mapping.conditions?.length && <button className="text-button" onClick={openInExplore} title="带入当前分组、指标与筛选，在散点、热力或表格中继续查看"><Layers3 size={16} />在探索分析中打开<ArrowUpRight size={14} /></button>}<button className="text-button" onClick={() => { download(chartSVG(), 'image/svg+xml', `数鉴-分析${active.id}.svg`); setNotice('当前图表 SVG 已导出。') }}><ArrowDownToLine size={16} />导出 SVG</button></div></div><div className="finding"><span><ShieldCheck size={17} />计算结论</span><p>{active.finding}</p><small>有效来源 {active.usedRows} 条；跳过空分组 / 非数值 {active.skipped} 条。字段候选不等同业务语义已自动确认。</small></div></> : <div className="chart-empty"><div className="canvas-emblem"><FileSpreadsheet size={36} strokeWidth={1.3} /><span><Settings2 size={16} /></span></div><span className="empty-kicker">你的数据，你的分析方向</span><h3>{dataset ? (models.ready ? '数据已就绪，先问一个好问题。' : '数据已就绪，可以从字段开始。') : '让一份数据，回答一个真实问题。'}</h3><p>{dataset ? (models.ready ? '在 AI 助手中说明你想解决的问题与业务口径。确认计划后，计算结果将显示在这里。' : '当前站点尚未配置 AI 模型。先选分组与指标做一次真实计算，图表、来源与报告同样可用；配置模型后再让 AI 规划。') : '导入 CSV，告诉 AI 你关心什么。从理解数据到图表与证据，在同一个工作台完成。'}</p><div className="empty-actions">{dataset && !models.ready ? <><button className="primary" onClick={() => setInspectorOpen(true)}><Table2 size={17} />手动选择字段与计算</button><button className="text-button" onClick={() => models.profiles.length ? setAssistantOpen(true) : setShowModels(true)}>{models.profiles.length ? '改用 AI 规划' : '配置分析模型'}<ArrowUpRight size={15} /></button></> : <><button className="primary" onClick={() => dataset ? setAssistantOpen(true) : pickFile()}>{dataset ? <MessageSquareText size={17} /> : <Upload size={17} />}{dataset ? '开始 AI 分析' : '导入我的数据'}</button><button className="text-button" disabled={loading} onClick={() => dataset ? setShowModels(true) : void loadPublicDataset()}>{dataset ? '配置分析模型' : '使用可验证的公开数据'}<ArrowUpRight size={15} /></button></>}</div><div className="canvas-principles"><span><Database size={15} />原始记录保留</span><span><Check size={15} />确认口径后计算</span><span><ShieldCheck size={15} />结论有据可查</span></div></div>}
               </section>
+                </div>
+                {active && <aside className="result-stage-side" aria-label="结果解读与下一步">
+                  {!active.mapping.rate && <UnitDeclaration id={active.id} unit={active.mapping.unit} source={active.unitSource} onSave={unit=>declareUnit(active.id,unit)} />}
+                  <InsightBrief result={active} />
+                  {dataset && <NextCuts dataset={dataset} result={active} overrides={fieldRoles} />}
+                </aside>}
+              </div>
               </div></div></div></div></div>}
           </section>
           <section id="workspace-data" className="workspace-section" aria-label="数据预览" hidden={workspaceSection!=='data'}>
@@ -561,11 +627,11 @@ export default function App() {
         {view === 'branches' && <section className="panel branch-panel"><div className="section-heading"><h2>已保存的计算分支</h2><span className="tag">{history.length} 个</span></div>{history.length ? <div className="branch-list">{[...history].reverse().map(item => <article key={item.id} className={'branch-row' + (activeId === item.id ? ' current' : '')}><button className="branch-main" onClick={() => restore(item)}><span className="branch-number">#{item.id}</span><div><strong>{item.question}</strong><p>{item.mapping.metric} · {item.mapping.from || '不限'} → {item.mapping.to || '不限'} · {item.points.length} 个分组</p><small>{new Date(item.createdAt).toLocaleString('zh-CN')} · {item.usedRows} 条有效来源</small></div><ArrowUpRight size={18} /></button><div className="branch-actions"><button className="text-button" onClick={() => openRenameBranch(item)} aria-label={'重命名分析分支 #' + item.id}><Pencil size={14} />重命名</button><button className="text-button danger" onClick={() => openDeleteBranch(item)} aria-label={'删除分析分支 #' + item.id}><Trash2 size={14} />删除</button></div></article>)}</div> : <div className="small-empty"><GitBranch size={30} /><p>还没有计算分支。执行分析或追问后，会在这里保留结果。</p><button className="secondary" onClick={() => setView('workspace')}>开始分析</button></div>}<p className="table-note">当前工作区会保存到此浏览器，显示“已保存到本机”后刷新可恢复。重命名只改变分支名称；删除会同时移除该分支的追问结果和包含它们的 AI 分析，不可撤销。更换数据集会替换当前工作区；请先导出需要保留的报告。</p></section>}
         {view === 'source' && <section className="panel provenance-panel"><div className="section-heading"><h2>来源与数据快照</h2><span className="tag">{dataset ? (sourceInfo(dataset).status.includes('已核验公开') ? '公开文件匹配' : dataset.sourceNotes ? '上传者备注' : dataset.isPublic ? '公开来源' : '上传文件') : '未载入'}</span></div>{dataset ? <><SourceDetails dataset={dataset}/><SourceEditor key={dataset.fingerprint} dataset={dataset} onSave={sourceNotes => { const next = {...dataset, sourceNotes}; datasetRef.current = next; setDataset(next); setPreparationHistory(past => past.map(d => ({...d, sourceNotes}))); setNotice('出处备注已更新，分析结果与数据快照保持绑定。') }}/><p className="source-handling">文件在浏览器内读取与计算；PDF 视觉识别需另外授权发送当前页图像。AI 的字段摘要、样本与类别字典按独立授权发送。来源备注不会自动发送给模型；数据与备注自动保存于此浏览器，可通过“清除本机工作区”删除。</p>{dataset.origin && <section className="import-origin"><h3>文件解析与核对记录</h3><p>{dataset.origin.format} · {dataset.origin.method} · 表头原行 {dataset.origin.headerRow}</p><code>原文件 SHA-256: {dataset.origin.fileHash}</code><ul>{dataset.origin.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>{dataset.origin.pageImage && <button className="secondary" onClick={() => setShowPage(true)}>查看 PDF 原始页</button>}</section>}<div className="source-limit"><AlertCircle size={18} /><p>类型扫描只提供候选，不保证识别财务口径、统计范围或单位。数值字段可能是编号，汇总前需要人工确认；Excel 可选择工作表与表头；PDF 文字与视觉提取均需核对。暂不支持跨表联结与因果推断。</p></div><button className="secondary" onClick={() => { setDataTab('fields'); setWorkspaceSection('data'); setView('workspace') }}><Table2 size={16} />检查字段质量</button></> : <div className="small-empty">尚未载入数据，可导入 CSV、Excel、PDF 或重试公开来源。</div>}</section>}
         {studio && workspaceSection==='analysis' && <form className="investigation-composer" aria-label="分析问题" onSubmit={e=>{e.preventDefault();setAssistantSeed({question:analysisDraft.trim(),context:'',nonce:Date.now()});setAssistantOpen(true)}}><div className="composer-label"><button type="button" className="icon-button composer-open" aria-label={assistantOpen?'收起 AI 分析助手':'打开 AI 分析助手'} onClick={()=>setAssistantOpen(!assistantOpen)}><MessageSquareText size={18}/></button><label htmlFor="analysis-draft">{bundle||active?'沿着发现，继续追问':'从这份数据中，你想了解什么？'}</label><span>{models.ready ? '理解 → 确认口径 → 真实计算' : '未配置模型 · 本地手动计算仍可用'}</span></div><div className="composer-entry"><textarea id="analysis-draft" value={analysisDraft} onChange={e=>setAnalysisDraft(e.target.value)} maxLength={4000} rows={1} placeholder={bundle||active?'提出新问题，或点选图表分组限定追问范围…':'输入分析问题；也可以留空，让 AI 先帮你理解数据…'}/><button className="primary" type="submit">与 AI 一起分析<ArrowUpRight size={17}/></button></div></form>}
-        <section className={'workspace-storage'+(saveState==='error'?' has-error':'')} aria-label="本机工作区"><div><span className="storage-state" role="status">{saveState==='saved'?<ShieldCheck size={16}/>:saveState==='pending'||saveState==='saving'?<LoaderCircle size={16} className="spin"/>:<Database size={16}/>}<strong>{saveState==='saved'?'已保存到本机':saveState==='saving'?'正在保存…':saveState==='pending'?'等待保存…':saveState==='error'?'本机保存不可用':'本机工作区'}</strong>{savedAt&&saveState==='saved'&&<time dateTime={savedAt}>{new Date(savedAt).toLocaleTimeString('zh-CN',{hour12:false})}</time>}</span>{storageError?<p role="alert">{storageError}</p>:<details className="storage-details"><summary>保存说明</summary><p>数据、来源备注与计算记录保存在此浏览器；刷新可恢复，不会因保存而上传。新导入会替换当前工作区。</p></details>}</div>{saveState==='error'&&!storageBlocked&&dataset&&<button className="text-button" onClick={()=>setSaveRetry(value=>value+1)} disabled={clearing}>重试保存</button>}{(dataset||storageError)&&<button className="text-button" onClick={()=>setShowClear(true)} disabled={computing||loading||clearing}>清除本机工作区</button>}</section>
         <footer><span>数鉴 Agent · 本地工作台 0.7</span><span>真实数据 · 明确口径 · 可回查证据</span></footer>
       </div>
     </main>
-    <button hidden={studio && workspaceSection==='analysis'} className={'assistant-launcher' + (assistantOpen ? ' is-open' : '')} aria-label={assistantOpen ? '收起 AI 分析助手' : '打开 AI 分析助手'} aria-expanded={assistantOpen} aria-controls="ai-assistant-window" onClick={() => setAssistantOpen(!assistantOpen)}><MessageSquareText size={21} /><span>AI 分析助手</span><span className="launcher-dot" /></button>
+    </div>
+    <button hidden={(studio && workspaceSection==='analysis') || assistantOpen} className={'assistant-launcher' + (assistantOpen ? ' is-open' : '')} aria-label={assistantOpen ? '收起 AI 分析助手' : '打开 AI 分析助手'} aria-expanded={assistantOpen} aria-controls="ai-assistant-window" onClick={() => setAssistantOpen(!assistantOpen)}><MessageSquareText size={21} /><span>AI 分析助手</span><span className="launcher-dot" /></button>
     <AssistantWindow docked open={assistantOpen} onClose={() => setAssistantOpen(false)}><AiWorkbench seed={assistantSeed} dataset={dataset} confirmedRoles={confirmedRoles} loading={loading || computing} onExecute={executeAi} onBundle={receiveBundle} onEvidence={(id, label) => { openAiEvidence(id, label); }} profiles={models.profiles} selected={models.selected} onSelect={models.setSelectedId} onConfigure={() => setShowModels(true)} status={models.status} ready={models.ready} /></AssistantWindow>
     {importFile && <ImportDialog key={importFile.name + importFile.lastModified} file={importFile} models={models.profiles} selected={models.selected} onSelect={models.setSelectedId} onConfigure={() => setShowModels(true)} onClose={() => setImportFile(null)} onImport={next => { setImportFile(null); if (dataset) setPendingReplace({ kind: 'dataset', dataset: next }); else installDataset(next) }} />}
     {dataset && checkup && rolesOpen && <FieldRoles dataset={dataset} fields={checkup.all} overrides={fieldRoles} onChange={setFieldRoles} onClose={() => setRolesOpen(false)} />}

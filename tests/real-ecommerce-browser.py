@@ -56,7 +56,7 @@ with sync_playwright() as p:
   for t in rates:
    page.locator('.result-navigation button').filter(has_text=t['title']).click()
    card=page.locator('.bundle-result:visible')
-   expect(card.locator(':scope > header > h3')).to_have_text(t['title'])
+   expect(card.locator('.result-sheet-head h3')).to_have_text(t['title'])
    rows=card.locator('tbody tr')
    expected=oracle['groups'][t['mapping']['x']]
    assert rows.count()==len(expected)

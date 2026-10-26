@@ -7,6 +7,7 @@ import './workspace.css'
 import './investigation.css'
 import './notebook.css'
 import './desk.css'
+import './app.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
