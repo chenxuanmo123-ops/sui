@@ -6,7 +6,8 @@ import type { WorkspaceState, WorkspaceView } from './workspace'
 import type { AssistantSeed } from './follow-up'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent, FormEvent } from 'react'
-import { AlertCircle, ArrowDownToLine, ArrowUpRight, BarChart3, Check, ChevronRight, CircleHelp, Database, FileSpreadsheet, GitBranch, Layers3, ListChecks, LoaderCircle, MessageSquareText, Plus, RefreshCcw, Search, Settings2, ShieldCheck, Table2, Upload, X } from 'lucide-react'
+import { AlertCircle, ArrowDownToLine, ArrowUpRight, BarChart3, Check, ChevronRight, CircleHelp, Database, FileSpreadsheet, GitBranch, Layers3, ListChecks, LoaderCircle, MessageSquareText, Pencil, Plus, RefreshCcw, Search, Settings2, ShieldCheck, Table2, Trash2, Upload, X } from 'lucide-react'
+import { BRANCH_TITLE_LIMIT, normalizeBranchTitle, planBranchRemoval, removeBranches, renameBranch } from './branches'
 import DataChart from './DataChart'
 import { SourceSummary, SourceDetails, SourceEditor } from './DatasetSource'
 import { sourceHTML, sourceInfo } from './provenance'
@@ -103,6 +104,9 @@ export default function App() {
   const bundleRegistry=useRef(new Map<string,AnalysisBundle>())
   const [history, setHistory] = useState<Analysis[]>([])
   const [activeId, setActiveId] = useState<number | null>(null)
+  const [branchDialog, setBranchDialog] = useState<{ kind: 'rename' | 'delete'; id: number; title: string } | null>(null)
+  const [branchTitle, setBranchTitle] = useState('')
+  const branchDialogRef = useRef<HTMLDialogElement>(null)
   const [view, setView] = useState<View>('workspace')
   const [workspaceSection, setWorkspaceSection] = useState<'analysis' | 'data' | 'evidence'>('analysis')
   const [fieldsOpen, setFieldsOpen] = useState(false)
@@ -128,6 +132,9 @@ export default function App() {
   const confirmedRoles = useMemo(() => Object.fromEntries((checkup?.all ?? []).filter(field => field.overridden).map(field => [field.key, field.role])), [checkup])
   const numericFields = useMemo(() => profiles.filter(p => p.kind === '数值' || (p.nonempty > 0 && p.numeric / p.nonempty >= .9)), [profiles])
   const active = history.find(h => h.id === activeId) ?? null
+  const branchRemoval = useMemo(() => branchDialog?.kind === 'delete'
+    ? planBranchRemoval(history, bundleHistory.map(item => ({ key: bundleKey(item), results: item.results })), branchDialog.id)
+    : null, [branchDialog, history, bundleHistory])
   const filterValues = useMemo(() => dataset && mapping.filter ? [...new Set(dataset.rows.map(r => r[mapping.filter]).filter((v): v is string => v !== null))].sort((a, b) => a.localeCompare(b, 'zh-CN')).slice(0, 500) : [], [dataset, mapping.filter])
   const resultRows = useMemo(() => active ? sortResultRows(queryResultRows(active.points, resultQuery), resultSort) : [], [active, resultQuery, resultSort])
   const scopedRowIds = active?.points.find(p => p.label === selectedPoint)?.rowIds ?? active?.points.flatMap(p => p.rowIds) ?? []
@@ -172,6 +179,7 @@ export default function App() {
   },[workspaceReady,storageBlocked,workspaceState,saveRetry])
   useEffect(()=>{if(showClear)clearRef.current?.showModal();else clearRef.current?.close()},[showClear])
   useEffect(()=>{if(pendingReplace)replaceRef.current?.showModal();else replaceRef.current?.close()},[pendingReplace])
+  useEffect(()=>{if(branchDialog)branchDialogRef.current?.showModal();else branchDialogRef.current?.close()},[branchDialog])
   useEffect(()=>{setRolesOpen(false)},[dataset])
   async function discardWorkspace(){
     if(clearInProgress.current||computing||loading)return
@@ -390,6 +398,36 @@ export default function App() {
     } catch (e) { const answer = e instanceof Error ? e.message : '未能执行'; setChat(c => [...c, { text, answer }]); setChatInput('') }
   }
   function restore(item: Analysis) { setWorkspaceSection('analysis'); setInspectorOpen(true); setActiveId(item.id); setMapping(item.mapping); setQuestion(item.question); setSelectedPoint(''); setView('workspace'); setNotice(`已切换至分析 #${item.id} 的结果快照。`) }
+  function openRenameBranch(item: Analysis) { setBranchTitle(item.question); setBranchDialog({ kind: 'rename', id: item.id, title: item.question }) }
+  function openDeleteBranch(item: Analysis) { setBranchTitle(item.question); setBranchDialog({ kind: 'delete', id: item.id, title: item.question }) }
+  function submitRenameBranch(event: FormEvent) {
+    event.preventDefault()
+    if (!branchDialog) return
+    try {
+      const next = normalizeBranchTitle(branchTitle)
+      setHistory(items => renameBranch(items, branchDialog.id, next))
+      const applyBundle = (item: AnalysisBundle): AnalysisBundle => ({ ...item, results: item.results.map(result => result.id === branchDialog.id ? { ...result, question: next } : result) })
+      setBundleHistory(items => items.map(applyBundle))
+      setBundle(current => current ? applyBundle(current) : current)
+      bundleRegistry.current = new Map([...bundleRegistry.current].map(([key, item]) => [key, applyBundle(item)]))
+      if (activeId === branchDialog.id) setQuestion(next)
+      setBranchDialog(null); setError('')
+      setNotice('分支已重命名为「' + next + '」；口径、数值与证据没有改变。')
+    } catch (error) { setError(error instanceof Error ? error.message : '重命名失败') }
+  }
+  function confirmDeleteBranch() {
+    if (!branchDialog) return
+    const plan = planBranchRemoval(history, bundleHistory.map(item => ({ key: bundleKey(item), results: item.results })), branchDialog.id)
+    const removed = history.filter(item => plan.ids.has(item.id)).length
+    setHistory(items => removeBranches(items, plan.ids))
+    const kept = bundleHistory.filter(item => !plan.keys.has(bundleKey(item)))
+    setBundleHistory(kept)
+    bundleRegistry.current = new Map(kept.map(item => [bundleKey(item), item]))
+    if (bundle && plan.keys.has(bundleKey(bundle))) setBundle(null)
+    if (activeId !== null && plan.ids.has(activeId)) { setActiveId(null); setSelectedPoint(''); setInspectorOpen(false) }
+    setBranchDialog(null); setError('')
+    setNotice('已删除 ' + removed + ' 个分析分支' + (plan.keys.size ? '和 ' + plan.keys.size + ' 项包含它们的 AI 分析' : '') + '；数据、字段纠正和已导出文件不受影响。')
+  }
   function backToCheckup() {
     if (!dataset) return
     setBundle(null); setActiveId(null); setWorkspaceSection('analysis'); setInspectorOpen(false); setSelectedPoint(''); setView('workspace'); setQuestionError(null)
@@ -520,7 +558,7 @@ export default function App() {
             </aside>
           </section>
         </div>
-        {view === 'branches' && <section className="panel branch-panel"><div className="section-heading"><h2>已保存的计算分支</h2><span className="tag">{history.length} 个</span></div>{history.length ? <div className="branch-list">{[...history].reverse().map(item => <button key={item.id} onClick={() => restore(item)} className={activeId === item.id ? 'current' : ''}><span className="branch-number">#{item.id}</span><div><strong>{item.question}</strong><p>{item.mapping.metric} · {item.mapping.from || '不限'} → {item.mapping.to || '不限'} · {item.points.length} 个分组</p><small>{new Date(item.createdAt).toLocaleString('zh-CN')} · {item.usedRows} 条有效来源</small></div><ArrowUpRight size={18} /></button>)}</div> : <div className="small-empty"><GitBranch size={30} /><p>还没有计算分支。执行分析或追问后，会在这里保留结果。</p><button className="secondary" onClick={() => setView('workspace')}>开始分析</button></div>}<p className="table-note">当前工作区会保存到此浏览器，显示“已保存到本机”后刷新可恢复。更换数据集会替换当前工作区；请先导出需要保留的报告。</p></section>}
+        {view === 'branches' && <section className="panel branch-panel"><div className="section-heading"><h2>已保存的计算分支</h2><span className="tag">{history.length} 个</span></div>{history.length ? <div className="branch-list">{[...history].reverse().map(item => <article key={item.id} className={'branch-row' + (activeId === item.id ? ' current' : '')}><button className="branch-main" onClick={() => restore(item)}><span className="branch-number">#{item.id}</span><div><strong>{item.question}</strong><p>{item.mapping.metric} · {item.mapping.from || '不限'} → {item.mapping.to || '不限'} · {item.points.length} 个分组</p><small>{new Date(item.createdAt).toLocaleString('zh-CN')} · {item.usedRows} 条有效来源</small></div><ArrowUpRight size={18} /></button><div className="branch-actions"><button className="text-button" onClick={() => openRenameBranch(item)} aria-label={'重命名分析分支 #' + item.id}><Pencil size={14} />重命名</button><button className="text-button danger" onClick={() => openDeleteBranch(item)} aria-label={'删除分析分支 #' + item.id}><Trash2 size={14} />删除</button></div></article>)}</div> : <div className="small-empty"><GitBranch size={30} /><p>还没有计算分支。执行分析或追问后，会在这里保留结果。</p><button className="secondary" onClick={() => setView('workspace')}>开始分析</button></div>}<p className="table-note">当前工作区会保存到此浏览器，显示“已保存到本机”后刷新可恢复。重命名只改变分支名称；删除会同时移除该分支的追问结果和包含它们的 AI 分析，不可撤销。更换数据集会替换当前工作区；请先导出需要保留的报告。</p></section>}
         {view === 'source' && <section className="panel provenance-panel"><div className="section-heading"><h2>来源与数据快照</h2><span className="tag">{dataset ? (sourceInfo(dataset).status.includes('已核验公开') ? '公开文件匹配' : dataset.sourceNotes ? '上传者备注' : dataset.isPublic ? '公开来源' : '上传文件') : '未载入'}</span></div>{dataset ? <><SourceDetails dataset={dataset}/><SourceEditor key={dataset.fingerprint} dataset={dataset} onSave={sourceNotes => { const next = {...dataset, sourceNotes}; datasetRef.current = next; setDataset(next); setPreparationHistory(past => past.map(d => ({...d, sourceNotes}))); setNotice('出处备注已更新，分析结果与数据快照保持绑定。') }}/><p className="source-handling">文件在浏览器内读取与计算；PDF 视觉识别需另外授权发送当前页图像。AI 的字段摘要、样本与类别字典按独立授权发送。来源备注不会自动发送给模型；数据与备注自动保存于此浏览器，可通过“清除本机工作区”删除。</p>{dataset.origin && <section className="import-origin"><h3>文件解析与核对记录</h3><p>{dataset.origin.format} · {dataset.origin.method} · 表头原行 {dataset.origin.headerRow}</p><code>原文件 SHA-256: {dataset.origin.fileHash}</code><ul>{dataset.origin.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>{dataset.origin.pageImage && <button className="secondary" onClick={() => setShowPage(true)}>查看 PDF 原始页</button>}</section>}<div className="source-limit"><AlertCircle size={18} /><p>类型扫描只提供候选，不保证识别财务口径、统计范围或单位。数值字段可能是编号，汇总前需要人工确认；Excel 可选择工作表与表头；PDF 文字与视觉提取均需核对。暂不支持跨表联结与因果推断。</p></div><button className="secondary" onClick={() => { setDataTab('fields'); setWorkspaceSection('data'); setView('workspace') }}><Table2 size={16} />检查字段质量</button></> : <div className="small-empty">尚未载入数据，可导入 CSV、Excel、PDF 或重试公开来源。</div>}</section>}
         {studio && workspaceSection==='analysis' && <form className="investigation-composer" aria-label="分析问题" onSubmit={e=>{e.preventDefault();setAssistantSeed({question:analysisDraft.trim(),context:'',nonce:Date.now()});setAssistantOpen(true)}}><div className="composer-label"><button type="button" className="icon-button composer-open" aria-label={assistantOpen?'收起 AI 分析助手':'打开 AI 分析助手'} onClick={()=>setAssistantOpen(!assistantOpen)}><MessageSquareText size={18}/></button><label htmlFor="analysis-draft">{bundle||active?'沿着发现，继续追问':'从这份数据中，你想了解什么？'}</label><span>{models.ready ? '理解 → 确认口径 → 真实计算' : '未配置模型 · 本地手动计算仍可用'}</span></div><div className="composer-entry"><textarea id="analysis-draft" value={analysisDraft} onChange={e=>setAnalysisDraft(e.target.value)} maxLength={4000} rows={1} placeholder={bundle||active?'提出新问题，或点选图表分组限定追问范围…':'输入分析问题；也可以留空，让 AI 先帮你理解数据…'}/><button className="primary" type="submit">与 AI 一起分析<ArrowUpRight size={17}/></button></div></form>}
         <section className={'workspace-storage'+(saveState==='error'?' has-error':'')} aria-label="本机工作区"><div><span className="storage-state" role="status">{saveState==='saved'?<ShieldCheck size={16}/>:saveState==='pending'||saveState==='saving'?<LoaderCircle size={16} className="spin"/>:<Database size={16}/>}<strong>{saveState==='saved'?'已保存到本机':saveState==='saving'?'正在保存…':saveState==='pending'?'等待保存…':saveState==='error'?'本机保存不可用':'本机工作区'}</strong>{savedAt&&saveState==='saved'&&<time dateTime={savedAt}>{new Date(savedAt).toLocaleTimeString('zh-CN',{hour12:false})}</time>}</span>{storageError?<p role="alert">{storageError}</p>:<details className="storage-details"><summary>保存说明</summary><p>数据、来源备注与计算记录保存在此浏览器；刷新可恢复，不会因保存而上传。新导入会替换当前工作区。</p></details>}</div>{saveState==='error'&&!storageBlocked&&dataset&&<button className="text-button" onClick={()=>setSaveRetry(value=>value+1)} disabled={clearing}>重试保存</button>}{(dataset||storageError)&&<button className="text-button" onClick={()=>setShowClear(true)} disabled={computing||loading||clearing}>清除本机工作区</button>}</section>
@@ -531,6 +569,22 @@ export default function App() {
     <AssistantWindow docked open={assistantOpen} onClose={() => setAssistantOpen(false)}><AiWorkbench seed={assistantSeed} dataset={dataset} confirmedRoles={confirmedRoles} loading={loading || computing} onExecute={executeAi} onBundle={receiveBundle} onEvidence={(id, label) => { openAiEvidence(id, label); }} profiles={models.profiles} selected={models.selected} onSelect={models.setSelectedId} onConfigure={() => setShowModels(true)} status={models.status} ready={models.ready} /></AssistantWindow>
     {importFile && <ImportDialog key={importFile.name + importFile.lastModified} file={importFile} models={models.profiles} selected={models.selected} onSelect={models.setSelectedId} onConfigure={() => setShowModels(true)} onClose={() => setImportFile(null)} onImport={next => { setImportFile(null); if (dataset) setPendingReplace({ kind: 'dataset', dataset: next }); else installDataset(next) }} />}
     {dataset && checkup && rolesOpen && <FieldRoles dataset={dataset} fields={checkup.all} overrides={fieldRoles} onChange={setFieldRoles} onClose={() => setRolesOpen(false)} />}
+    {branchDialog && <dialog ref={branchDialogRef} className="workspace-clear-dialog branch-dialog" aria-labelledby="branch-dialog-title" onCancel={event=>{event.preventDefault();setBranchDialog(null)}}>
+      {branchDialog.kind === 'rename'
+        ? <form onSubmit={submitRenameBranch}>
+          <h2 id="branch-dialog-title">重命名分析分支</h2>
+          <p>只改变分支的显示名称；分组、指标、筛选、SQL、数值与来源证据都不变。</p>
+          <label htmlFor="branch-title">分支名称</label>
+          <input id="branch-title" value={branchTitle} maxLength={BRANCH_TITLE_LIMIT} autoComplete="off" autoFocus onChange={event => setBranchTitle(event.target.value)} />
+          <div><button type="button" className="secondary" onClick={() => setBranchDialog(null)}>取消</button><button className="primary" type="submit" disabled={!normalizeBranchTitle(branchTitle)}>保存名称</button></div>
+        </form>
+        : <div>
+          <h2 id="branch-dialog-title">删除分析分支？</h2>
+          <p>将删除「{branchTitle}」{branchRemoval && branchRemoval.ids.size > 1 ? '及其 ' + (branchRemoval.ids.size - 1) + ' 个追问或同组结果' : ''}{branchRemoval && branchRemoval.keys.size ? '，并移除 ' + branchRemoval.keys.size + ' 项包含这些结果的 AI 分析（含解读与引用）' : ''}。</p>
+          <p>数据、字段纠正和已导出的文件不受影响；此操作不可撤销。</p>
+          <div><button className="secondary" autoFocus onClick={() => setBranchDialog(null)}>保留分支</button><button className="primary" onClick={confirmDeleteBranch}>确认删除</button></div>
+        </div>}
+    </dialog>}
     {pendingReplace && <dialog ref={replaceRef} className="workspace-clear-dialog" aria-labelledby="replace-workspace-title" onCancel={event=>{event.preventDefault();setPendingReplace(null)}}>
       <h2 id="replace-workspace-title">替换当前工作区？</h2>
       <p>将用「{pendingReplace.kind === 'file' ? pendingReplace.file.name : pendingReplace.kind === 'public' ? 'OWID 公开能源数据' : pendingReplace.dataset.title}」替换当前数据。当前数据、{history.length} 个计算分支、{bundleHistory.length} 项 AI 分析{bundleHistory.length ? '' : '（暂无）'}、{Object.keys(fieldRoles).length} 项字段纠正与 {preparationHistory.length} 步处理记录会从本机工作区清除。</p>
