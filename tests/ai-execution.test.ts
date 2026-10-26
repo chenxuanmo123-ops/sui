@@ -191,6 +191,15 @@ describe('类别字典授权与失败修正（真实 SEC 数据）', () => {
     const sampleOnly = datasetContext(dataset, true)
     expect(sampleOnly.columns.every(column => !('categoryValues' in column))).toBe(true)
   })
+  it('只把用户纠正过的字段角色作为 confirmedRole 发送，未纠正列保持类型候选', () => {
+    const confirmed = datasetContext(dataset, false, false, { metric: 'category', value: 'measure' })
+    const metric = confirmed.columns.find(column => column.field === 'metric')!
+    expect(metric.confirmedRole).toBe('category')
+    expect(metric.typeCandidate).toBeDefined()
+    expect(confirmed.columns.filter(column => column.field !== 'metric' && column.field !== 'value').every(column => !('confirmedRole' in column))).toBe(true)
+    expect(datasetContext(dataset, false).columns.every(column => !('confirmedRole' in column))).toBe(true)
+    expect(datasetContext(dataset, true, true, { metric: 'category' }).columns.find(column => column.field === 'metric')?.confirmedRole).toBe('category')
+  })
   it('超出长度或基数的列整体省略，不能把截断列表标成完整字典', () => {
     const long = { ...dataset, rows: dataset.rows.map((row, i) => ({ ...row, metric: i ? row.metric : 'x'.repeat(121) })) }
     expect(datasetContext(long, false, true).columns.find(column => column.field === 'metric')?.categoryValues).toBeUndefined()

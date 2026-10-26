@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { BookOpen, BrainCircuit, ChevronRight, FileText, LoaderCircle, Settings2, X } from 'lucide-react';
 import { aiRequest, datasetContext, evidenceFacts, inspectPlanFilters, mergeRepairPlan, mergeExecution } from './ai';
-import type { ExecutionOptions, TaskProgress, Fact, PlanExecution, PlanResponse, Review, ReviewResponse } from './ai';
+import type { ConfirmedRoles, ExecutionOptions, TaskProgress, Fact, PlanExecution, PlanResponse, Review, ReviewResponse } from './ai';
 import { REFERENCE_LIMITS, readReferenceFile, referenceKey, referenceQuery, retrieveReferences } from './references';
 import type { ReferenceDoc, ReferenceExcerpt } from './references';
 import { aggregateNames } from './data';
@@ -14,13 +14,13 @@ import type { ModelProfile } from './models';
 import { scopeContext, validateScope } from './follow-up';
 import type { AssistantSeed } from './follow-up';
 
-type Props = { onBundle?: (bundle: AnalysisBundle) => void; seed?: AssistantSeed; profiles: ModelProfile[]; selected?: ModelProfile; onSelect: (id: string) => void; onConfigure: () => void; status: string; ready: boolean; dataset: Dataset | null; loading: boolean; onExecute: (plan: PlanResponse, question: string, options?: ExecutionOptions) => Promise<PlanExecution>; onEvidence: (id: number, label?: string) => void };
+type Props = { onBundle?: (bundle: AnalysisBundle) => void; seed?: AssistantSeed; profiles: ModelProfile[]; selected?: ModelProfile; onSelect: (id: string) => void; onConfigure: () => void; status: string; ready: boolean; dataset: Dataset | null; confirmedRoles?: ConfirmedRoles; loading: boolean; onExecute: (plan: PlanResponse, question: string, options?: ExecutionOptions) => Promise<PlanExecution>; onEvidence: (id: number, label?: string) => void };
 function describeMapping(mapping: Mapping) {
   const bucket = mapping.timeBucket === 'month' ? '（按月）' : mapping.timeBucket === 'year' ? '（按年）' : '';
   const filters = [mapping.filter ? mapping.filter + ' = “' + mapping.value + '”' : '', ...(mapping.conditions ?? []).map(condition => condition.field + ' ' + (condition.operator === 'eq' ? '=' : condition.operator === 'gte' ? '≥' : '≤') + ' “' + condition.value + '”')].filter(Boolean);
   return ['按 ' + mapping.x + bucket + ' 分组', '指标：' + mapping.metric, '汇总：' + (mapping.rate ? '条件计数比例；分子 ' + mapping.metric + '=' + JSON.stringify(mapping.rate.successValue) + '；分母 ' + JSON.stringify(mapping.rate.eligibleValues) : aggregateNames[mapping.aggregate]), '筛选：' + (filters.join('，') || '不筛选'), '分组范围：' + (mapping.from || '不限') + ' → ' + (mapping.to || '不限'), '单位：' + (mapping.unit || '待确认')].join('；');
 }
-export default function AiWorkbench({ seed, dataset, loading, onExecute, onEvidence, onBundle, profiles, selected, onSelect, onConfigure, status, ready }: Props) {
+export default function AiWorkbench({ seed, dataset, confirmedRoles, loading, onExecute, onEvidence, onBundle, profiles, selected, onSelect, onConfigure, status, ready }: Props) {
   const providerId = selected?.id || '';
   const providerBody = selected ? modelRequest(selected) : { providerId: '' };
   const [scope, setScope] = useState<AssistantSeed['scope']>();
@@ -57,7 +57,7 @@ export default function AiWorkbench({ seed, dataset, loading, onExecute, onEvide
   const [events, setEvents] = useState<string[]>([]);
   const controller = useRef<AbortController | null>(null);
   const version = useRef(0);
-  const inputKey = JSON.stringify({ goal, context, scope, samples, categories, providerId, revision: selected?.revision, hash: dataset?.fingerprint, loadedAt: dataset?.loadedAt, references: referenceKey(referenceDocs) });
+  const inputKey = JSON.stringify({ goal, context, scope, samples, categories, providerId, revision: selected?.revision, hash: dataset?.fingerprint, loadedAt: dataset?.loadedAt, references: referenceKey(referenceDocs), roles: confirmedRoles ?? {} });
   const inputRef = useRef(inputKey); inputRef.current = inputKey;
   const stale = Boolean(planned && inputKey !== plannedInput);
   const filterWarnings = useMemo(() => dataset && planned && !stale ? inspectPlanFilters(dataset, planned.plan) : [], [dataset, planned, stale]);
@@ -89,11 +89,12 @@ export default function AiWorkbench({ seed, dataset, loading, onExecute, onEvide
     setTaskProgress({}); setResumePending(false); setStopping(false);
     controller.current?.abort(); const c = new AbortController(); controller.current = c;
     setBusy('plan'); setError(''); setReview(null); setReviewReferences([]); setFacts([]); setRunIds([]); setRunTaskIds([]); setExecutionFailures([]); setRunResults([]); setHasExecuted(false); setRepairRounds(0); setPendingTaskIds(null); setRepairChanges([]); setPlanned(null); setConfirmed(false);
-    setEvents(['已读取本次数据的字段与质量统计。', '已向所选模型发送分析目标和上下文，等待分析计划。']);
+    const roleCount = Object.keys(confirmedRoles ?? {}).length;
+    setEvents(['已读取本次数据的字段与质量统计。', ...(roleCount ? [`已应用 ${roleCount} 项你确认的字段类型纠正。`] : []), '已向所选模型发送分析目标和上下文，等待分析计划。']);
     try {
       if (scope) validateScope(dataset, scope);
       if(requestContext.length>5000) throw new Error('背景与追问范围合计超过 5000 字，请缩短业务背景后重新规划。');
-      const response = await aiRequest<PlanResponse>('plan', { ...providerBody, question, context: requestContext, includeSamples: samples, includeCategories: categories, dataset: datasetContext(dataset, samples, categories), ...(references.length ? { references } : {}) }, c.signal);
+      const response = await aiRequest<PlanResponse>('plan', { ...providerBody, question, context: requestContext, includeSamples: samples, includeCategories: categories, dataset: datasetContext(dataset, samples, categories, confirmedRoles), ...(references.length ? { references } : {}) }, c.signal);
       if (current !== version.current || key !== inputRef.current) return;
       setPlanned({ ...response, scope }); setPlannedInput(key);
       setEvents(events => [...events, response.plan.questions.length && response.plan.tasks.length ? '模型标记了待确认口径，但已给出可安全执行的描述性任务。' : response.plan.questions.length ? '当前没有可安全执行的任务，请补充澄清信息后重新规划。' : '模型计划通过结构与字段校验，等待确认口径。']);
@@ -108,7 +109,7 @@ export default function AiWorkbench({ seed, dataset, loading, onExecute, onEvide
     setEvents(events => [...events, '修正第 ' + attempt + ' 轮：发送失败任务口径和真实错误，成功任务不重复计算。']);
     try {
       const sentReferences = planned.references ?? references;
-      const response = await aiRequest<PlanResponse>('repair-plan', { ...providerBody, question, context: requestContext, includeSamples: samples, includeCategories: categories, dataset: datasetContext(dataset, samples, categories), ...(sentReferences.length ? { references: sentReferences } : {}), previous: { plan: planned.plan, datasetHash: planned.datasetHash }, failures: executionFailures, attempt }, c.signal);
+      const response = await aiRequest<PlanResponse>('repair-plan', { ...providerBody, question, context: requestContext, includeSamples: samples, includeCategories: categories, dataset: datasetContext(dataset, samples, categories, confirmedRoles), ...(sentReferences.length ? { references: sentReferences } : {}), previous: { plan: planned.plan, datasetHash: planned.datasetHash }, failures: executionFailures, attempt }, c.signal);
       if (current !== version.current || key !== inputRef.current) return;
       const merged = mergeRepairPlan(planned, response, executionFailures);
       setRepairChanges(response.plan.tasks.map(task => ({ title: task.title, before: planned.plan.tasks.find(t => t.id === task.id)!.mapping, after: task.mapping })));

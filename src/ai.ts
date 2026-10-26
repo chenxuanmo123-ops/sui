@@ -15,7 +15,8 @@ export type ReviewInsightItem = { statement: string; evidenceIds: string[]; refe
 export type Review = { answerability: 'partial' | 'descriptive_only' | 'insufficient'; findings: { statement: string; evidenceIds: string[]; interpretation: 'observation' | 'hypothesis'; referenceIds?: string[] }[]; insight?: { possibleMeanings: ReviewInsightItem[]; possibleUses: ReviewInsightItem[] }; limitations: string[]; nextQuestions: string[] };
 export type ReviewResponse = { review: Review; references?: ReferenceExcerpt[] };
 export const CATEGORY_LIMITS = { columns: 12, values: 16, valueLength: 120, totalChars: 8000 } as const;
-export function datasetContext(dataset: Dataset, samples: boolean, categories = false) {
+export type ConfirmedRoles = Record<string, 'time' | 'measure' | 'category' | 'binary' | 'identifier' | 'text'>;
+export function datasetContext(dataset: Dataset, samples: boolean, categories = false, confirmedRoles: ConfirmedRoles = {}) {
   let dictionaryColumns = 0, dictionaryChars = 0;
   return { name: dataset.title, hash: dataset.fingerprint, rowCount: dataset.rows.length, provenance: dataset.isPublic ? dataset.sourceUrl : '用户上传文件，代表性待用户确认', samplePolicy: samples ? '每列最先遇到的非空唯一值，最多三个，不代表整体分布' : '不发送原始单元格样本', categoryPolicy: categories ? '仅发送有界低基数文本列的完整取值集合，无频次；不代表业务定义或总体分布' : '不发送类别取值字典', columns: profileDataset(dataset).map(p => {
     const values: string[] = [];
@@ -36,7 +37,8 @@ export function datasetContext(dataset: Dataset, samples: boolean, categories = 
         categoryValues = [...unique]; dictionaryColumns++; dictionaryChars += chars;
       }
     }
-    return { field: p.key, typeCandidate: p.kind, missing: p.missing, nonempty: p.nonempty, numeric: p.numeric, ...(samples ? { examples: values } : {}), ...(categoryValues ? { categoryValues, categoryValuesComplete: true } : {}) };
+    const confirmedRole = confirmedRoles[p.key];
+    return { field: p.key, typeCandidate: p.kind, missing: p.missing, nonempty: p.nonempty, numeric: p.numeric, ...(samples ? { examples: values } : {}), ...(categoryValues ? { categoryValues, categoryValuesComplete: true } : {}), ...(confirmedRole ? { confirmedRole } : {}) };
   }) };
 }
 export async function aiRequest<T>(path: string, body: unknown, signal: AbortSignal): Promise<T> {

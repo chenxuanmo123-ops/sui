@@ -123,6 +123,9 @@ export default function App() {
   const abort = useRef<AbortController | null>(null)
   const profiles = useMemo(() => dataset ? profileDataset(dataset) : [], [dataset])
   const { checkup, error: checkupError } = useCheckup(dataset, fieldRoles)
+  // Only roles the checkup actually accepted and the user explicitly corrected
+  // are sent as confirmed metadata; automatic guesses stay type candidates.
+  const confirmedRoles = useMemo(() => Object.fromEntries((checkup?.all ?? []).filter(field => field.overridden).map(field => [field.key, field.role])), [checkup])
   const numericFields = useMemo(() => profiles.filter(p => p.kind === '数值' || (p.nonempty > 0 && p.numeric / p.nonempty >= .9)), [profiles])
   const active = history.find(h => h.id === activeId) ?? null
   const filterValues = useMemo(() => dataset && mapping.filter ? [...new Set(dataset.rows.map(r => r[mapping.filter]).filter((v): v is string => v !== null))].sort((a, b) => a.localeCompare(b, 'zh-CN')).slice(0, 500) : [], [dataset, mapping.filter])
@@ -479,7 +482,7 @@ export default function App() {
           {dataset && bundle && <AnalysisResults key={bundle.id||bundle.response.generatedAt} bundle={bundle} dataset={dataset} overrides={fieldRoles} onEvidence={openAiEvidence} onFollowUp={askSelected} onParent={showParent} onBackToCheckup={backToCheckup} onRoles={()=>setRolesOpen(true)} onUnit={declareUnit}/>}
           {!bundle && <div className="studio-layout"><div className="canvas-column">
               <details className="dataset-orientation" open={bundle ? inspectorOpen : undefined}><summary><Database size={17}/><span>AI 数据定位与授权</span><small>理解字段 · 确认分析边界</small><ChevronRight size={16}/></summary>
-            <InitialAnalysis allowAutomatic={allowAutoInspection} dataset={dataset} profile={models.defaultProfile} loading={loading} onConfigure={() => setShowModels(true)} onQuestion={(question, context) => { setAssistantSeed({ question, context, nonce: Date.now() }); setAssistantOpen(true); }} />
+            <InitialAnalysis allowAutomatic={allowAutoInspection} dataset={dataset} profile={models.defaultProfile} confirmedRoles={confirmedRoles} loading={loading} onConfigure={() => setShowModels(true)} onQuestion={(question, context) => { setAssistantSeed({ question, context, nonce: Date.now() }); setAssistantOpen(true); }} />
               </details>
               {!active && <button className="manual-start text-button" onClick={()=>setInspectorOpen(!inspectorOpen)} aria-expanded={inspectorOpen}><Table2 size={16}/>{inspectorOpen?'收起手动计算':'手动选择字段与计算'}<ArrowUpRight size={15}/></button>}
               <div hidden={(!active && !inspectorOpen) || (!!bundle && !inspectorOpen)}>
@@ -525,7 +528,7 @@ export default function App() {
       </div>
     </main>
     <button hidden={studio && workspaceSection==='analysis'} className={'assistant-launcher' + (assistantOpen ? ' is-open' : '')} aria-label={assistantOpen ? '收起 AI 分析助手' : '打开 AI 分析助手'} aria-expanded={assistantOpen} aria-controls="ai-assistant-window" onClick={() => setAssistantOpen(!assistantOpen)}><MessageSquareText size={21} /><span>AI 分析助手</span><span className="launcher-dot" /></button>
-    <AssistantWindow docked open={assistantOpen} onClose={() => setAssistantOpen(false)}><AiWorkbench seed={assistantSeed} dataset={dataset} loading={loading || computing} onExecute={executeAi} onBundle={receiveBundle} onEvidence={(id, label) => { openAiEvidence(id, label); }} profiles={models.profiles} selected={models.selected} onSelect={models.setSelectedId} onConfigure={() => setShowModels(true)} status={models.status} ready={models.ready} /></AssistantWindow>
+    <AssistantWindow docked open={assistantOpen} onClose={() => setAssistantOpen(false)}><AiWorkbench seed={assistantSeed} dataset={dataset} confirmedRoles={confirmedRoles} loading={loading || computing} onExecute={executeAi} onBundle={receiveBundle} onEvidence={(id, label) => { openAiEvidence(id, label); }} profiles={models.profiles} selected={models.selected} onSelect={models.setSelectedId} onConfigure={() => setShowModels(true)} status={models.status} ready={models.ready} /></AssistantWindow>
     {importFile && <ImportDialog key={importFile.name + importFile.lastModified} file={importFile} models={models.profiles} selected={models.selected} onSelect={models.setSelectedId} onConfigure={() => setShowModels(true)} onClose={() => setImportFile(null)} onImport={next => { setImportFile(null); if (dataset) setPendingReplace({ kind: 'dataset', dataset: next }); else installDataset(next) }} />}
     {dataset && checkup && rolesOpen && <FieldRoles dataset={dataset} fields={checkup.all} overrides={fieldRoles} onChange={setFieldRoles} onClose={() => setRolesOpen(false)} />}
     {pendingReplace && <dialog ref={replaceRef} className="workspace-clear-dialog" aria-labelledby="replace-workspace-title" onCancel={event=>{event.preventDefault();setPendingReplace(null)}}>

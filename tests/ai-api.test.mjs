@@ -137,6 +137,14 @@ test('类别与样本分别授权，未知属性和未授权原值不传模型',
   assert.throws(() => sanitizeDataset(oversized, { includeCategories: true }), /类别字典/);
   const repeated = clone(input); repeated.columns.push(repeated.columns[0]);
   assert.throws(() => sanitizeDataset(repeated), /重复/);
+  const corrected = clone(input); corrected.columns[0].confirmedRole = 'category';
+  assert.equal(sanitizeDataset(corrected).columns[0].confirmedRole, 'category');
+  assert.equal(sanitizeDataset(corrected).columns[0].typeCandidate, '文本');
+  assert.equal(sanitizeDataset(input).columns[0].confirmedRole, undefined);
+  for (const role of ['number', 'MEASURE', '', null, 1]) {
+    const broken = clone(input); broken.columns[0].confirmedRole = role;
+    assert.throws(() => sanitizeDataset(broken), /角色集合/);
+  }
 });
 test('失败修正仅允许原失败 ID，拒绝增加、遗漏与替换成功任务', () => {
   const failure = [{ taskId: 'annual', error: '没有有效数值' }];

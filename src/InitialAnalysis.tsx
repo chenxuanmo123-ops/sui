@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, BrainCircuit, Check, LoaderCircle, RefreshCcw, Settings2, ShieldCheck } from 'lucide-react';
 import { aiRequest, datasetContext } from './ai';
+import type { ConfirmedRoles } from './ai';
 import RequestProgress from './RequestProgress';
 import type { Dataset } from './data';
 import type { ModelProfile } from './models';
@@ -8,8 +9,8 @@ type Inspection = { summary: string; scene: string; grain: string; fields: { fie
 type Result = { inspection: Inspection; datasetHash: string; model: string; providerName: string; generatedAt: string };
 const autoKey = 'shujian.auto-inspection.v1';
 function rememberedConsent() { try { return localStorage.getItem(autoKey) === 'true'; } catch { return false; } }
-type Props = { allowAutomatic?: boolean; dataset: Dataset | null; profile?: ModelProfile; loading: boolean; onConfigure: () => void; onQuestion: (question: string, context: string) => void };
-export default function InitialAnalysis({ dataset, profile, loading, onConfigure, onQuestion, allowAutomatic = true }: Props) {
+type Props = { allowAutomatic?: boolean; dataset: Dataset | null; profile?: ModelProfile; confirmedRoles?: ConfirmedRoles; loading: boolean; onConfigure: () => void; onQuestion: (question: string, context: string) => void };
+export default function InitialAnalysis({ dataset, profile, confirmedRoles, loading, onConfigure, onQuestion, allowAutomatic = true }: Props) {
   const [background, setBackground] = useState('');
   const [samples, setSamples] = useState(false);
   const [auto, setAuto] = useState(rememberedConsent);
@@ -18,7 +19,7 @@ export default function InitialAnalysis({ dataset, profile, loading, onConfigure
   const [error, setError] = useState('');
   const controller = useRef<AbortController | null>(null);
   const generation = useRef(0);
-  const key = JSON.stringify([dataset?.fingerprint, dataset?.loadedAt, profile?.id, profile?.revision, background, samples]);
+  const key = JSON.stringify([dataset?.fingerprint, dataset?.loadedAt, profile?.id, profile?.revision, background, samples, confirmedRoles ?? {}]);
   const latest = useRef(key); latest.current = key;
   const sent = useRef('');
   useEffect(() => { try { localStorage.setItem(autoKey, String(auto)); } catch { /* Optional preference. */ } }, [auto]);
@@ -33,7 +34,7 @@ export default function InitialAnalysis({ dataset, profile, loading, onConfigure
     controller.current?.abort(); const c = new AbortController(); controller.current = c;
     setBusy(true); setError(''); setResult(null); sent.current = requestKey;
     try {
-      const response = await aiRequest<Result>('inspect', { consent: true, context: background, includeSamples: samples, dataset: datasetContext(dataset, samples) }, c.signal);
+      const response = await aiRequest<Result>('inspect', { consent: true, context: background, includeSamples: samples, dataset: datasetContext(dataset, samples, false, confirmedRoles) }, c.signal);
       if (current === generation.current && latest.current === requestKey) {
         if (response.datasetHash !== dataset.fingerprint) throw new Error('数据快照不匹配，请重新定位');
         setResult(response);
