@@ -45,6 +45,8 @@ import FieldRoles from './FieldRoles'
 import InsightBrief from './InsightBrief'
 import NextCuts from './NextCuts'
 import { UnitDeclaration } from './UnitDeclaration'
+import CommandPalette from './CommandPalette'
+import type { CommandAction } from './CommandPalette'
 
 type View = WorkspaceView
 
@@ -147,6 +149,7 @@ export default function App() {
   const [chatInput, setChatInput] = useState('')
   const [chat, setChat] = useState<Chat[]>([])
   const [showHelp, setShowHelp] = useState(false)
+  const [commandOpen, setCommandOpen] = useState(false)
   const helpRef = useRef<HTMLDialogElement>(null)
   const uploadRef = useRef<HTMLInputElement>(null)
   const request = useRef(0)
@@ -503,7 +506,28 @@ export default function App() {
 
 
   useEffect(() => { setFieldsOpen(false); if (view !== 'workspace') setAssistantOpen(false) }, [view])
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        setCommandOpen(open => !open)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
   const studio = view === 'workspace' && !!dataset
+  const commandActions: CommandAction[] = [
+    { id: 'new-analysis', group: '分析', label: '新建分析', hint: dataset ? '保留现有分支，开启一份空白分析' : '选择文件开始', icon: <Plus size={16} />, run: newAnalysis },
+    { id: 'import', group: '分析', label: '导入文件', hint: 'CSV / Excel / PDF，原文件在本地读取', icon: <Upload size={16} />, run: () => pickFile(), disabled: loading, disabledReason: '正在读取文件' },
+    { id: 'checkup', group: '分析', label: '回到数据体检', hint: '重新查看字段质量与可执行问题', icon: <ListChecks size={16} />, run: backToCheckup, disabled: !dataset || (!active && !bundle), disabledReason: dataset ? '当前没有可返回的计算结果' : '先导入数据' },
+    { id: 'fields', group: '数据', label: '字段与质量', hint: '打开字段抽屉，核对类型与空值', icon: <Table2 size={16} />, run: () => setFieldsOpen(true), disabled: !dataset, disabledReason: '先导入数据' },
+    { id: 'source', group: '数据', label: '数据与来源', hint: '出处、快照与解析记录', icon: <ShieldCheck size={16} />, run: () => setView('source'), disabled: !dataset, disabledReason: '先导入数据' },
+    { id: 'branches', group: '记录', label: '分析分支', hint: '恢复、重命名或删除已保存的计算', icon: <GitBranch size={16} />, run: () => setView('branches') },
+    { id: 'export', group: '记录', label: '导出证据报告', hint: '单文件 HTML，内嵌 SVG 与来源记录', icon: <ArrowDownToLine size={16} />, run: exportReport, disabled: !active, disabledReason: '执行一次计算后才能导出' },
+    { id: 'help', group: '本机', label: '使用说明', hint: '格式、限制与计算口径', icon: <CircleHelp size={16} />, run: () => setShowHelp(true) },
+    { id: 'clear', group: '本机', label: '清除本机工作区', hint: '删除此浏览器保存的数据与结果', icon: <Trash2 size={16} />, run: () => setShowClear(true), disabled: !dataset, disabledReason: '本机没有已载入的工作区' },
+  ]
   if(!workspaceReady)return <main className="workspace-restoring" aria-busy="true"><LoaderCircle className="spin" size={28}/><h1>正在恢复本机工作区</h1><p>检查已保存的数据、分析结果与来源关联…</p></main>
   return <div className={"app-shell"+(studio?" is-studio":"")+(studio&&assistantOpen?" has-ai-dock":"")}>
     <a className="skip-link" href="#main">跳转到分析内容</a>
@@ -530,6 +554,13 @@ export default function App() {
           <button onClick={() => pickFile()} disabled={loading}>更换</button>
         </div>
       </div>
+      <div className="rail-ai" data-state={models.ready ? (assistantOpen ? 'active' : 'ready') : 'off'} aria-label="AI 助手状态">
+        <span className="rail-ai-dot" />
+        <div className="rail-ai-copy">
+          <strong>{models.ready ? (assistantOpen ? 'AI 助手 · 已展开' : 'AI 助手 · 待命') : 'AI 助手 · 未配置'}</strong>
+          <small>{models.ready ? (models.selected?.name || '已连接模型') : '本地计算与证据仍可用'}</small>
+        </div>
+      </div>
       <div className="rail-footer">
         {dataset && <section className={'workspace-storage'+(saveState==='error'?' has-error':'')} aria-label="本机工作区">
           <div className="storage-line"><span className="storage-state" role="status">{saveState==='saved'?<ShieldCheck size={14}/>:saveState==='pending'||saveState==='saving'?<LoaderCircle size={14} className="spin"/>:<Database size={14}/>}<strong>{saveState==='saved'?'已保存到本机':saveState==='saving'?'正在保存…':saveState==='pending'?'等待保存…':saveState==='error'?'本机保存不可用':'本机工作区'}</strong>{savedAt&&saveState==='saved'&&<time dateTime={savedAt}>{new Date(savedAt).toLocaleTimeString('zh-CN',{hour12:false})}</time>}</span></div>
@@ -545,10 +576,10 @@ export default function App() {
     <div className="app-body">
     <header className="app-header">
       <div className="breadcrumb"><span>数鉴工作台</span><ChevronRight size={14}/><strong>{VIEW_META[view].title}</strong><small>{VIEW_META[view].hint}</small></div>
-      <div className="header-actions"><button className="secondary header-new" onClick={newAnalysis}><Plus size={15}/><span>新建分析</span></button><button className="icon-button" aria-label="使用说明" onClick={()=>setShowHelp(true)}><CircleHelp size={18}/></button><button className={'model-trigger'+(models.ready?' connected':'')} onClick={()=>setShowModels(true)}><span className="connection-dot"/><span>{models.selected?.name||'连接 AI'}</span><Settings2 size={14}/></button></div>
+      <div className="header-actions"><button className="secondary header-new" onClick={newAnalysis}><Plus size={15}/><span>新建分析</span></button><button className="command-trigger" onClick={()=>setCommandOpen(true)} aria-label="打开命令面板"><Search size={14}/><span>命令</span><kbd>Ctrl K</kbd></button><button className="icon-button" aria-label="使用说明" onClick={()=>setShowHelp(true)}><CircleHelp size={18}/></button><button className={'model-trigger'+(models.ready?' connected':'')} onClick={()=>setShowModels(true)}><span className="connection-dot"/><span>{models.selected?.name||'连接 AI'}</span><Settings2 size={14}/></button></div>
     </header>
     <main id="main" className="main" tabIndex={-1}>
-      {dataset && <header className="topbar dataset-ribbon"><div className="dataset-ribbon-name"><FileSpreadsheet size={20}/><div className="dataset-name"><strong title={dataset.title}>{dataset.title}</strong><span>{dataset.rows.length.toLocaleString()} 行 · {dataset.headers.length} 个字段</span></div></div><div className="top-actions"><button className="text-button" aria-expanded={fieldsOpen} aria-controls="dataset-field-drawer" onClick={()=>setFieldsOpen(!fieldsOpen)}><Table2 size={16}/>字段与质量</button><button className="text-button" onClick={()=>setView('source')}><ShieldCheck size={16}/>来源</button><button className="secondary top-import" onClick={()=>pickFile()} disabled={loading}><Upload size={16}/>更换文件</button><button className="text-button top-public" onClick={()=>void loadPublicDataset()} disabled={loading}>公开数据</button></div></header>}
+      {dataset && <header className="topbar dataset-ribbon"><div className="dataset-ribbon-name"><FileSpreadsheet size={20}/><div className="dataset-name"><strong title={dataset.title}>{dataset.title}</strong><span>{dataset.rows.length.toLocaleString()} 行 · {dataset.headers.length} 个字段</span></div><span className="specimen-state">就绪</span><span className="specimen-fingerprint" title="数据快照指纹">SHA {dataset.fingerprint.slice(0, 12)}</span></div><div className="top-actions"><button className="text-button" aria-expanded={fieldsOpen} aria-controls="dataset-field-drawer" onClick={()=>setFieldsOpen(!fieldsOpen)}><Table2 size={16}/>字段与质量</button><button className="text-button" onClick={()=>setView('source')}><ShieldCheck size={16}/>来源</button><button className="secondary top-import" onClick={()=>pickFile()} disabled={loading}><Upload size={16}/>更换文件</button><button className="text-button top-public" onClick={()=>void loadPublicDataset()} disabled={loading}>公开数据</button></div></header>}
       <div className="content">
         {view !== 'workspace' && <div className="page-heading"><div><h1>{view === 'prepare' ? '数据处理' : view === 'explore' ? '探索分析' : view === 'compare' ? '对比诊断' : view === 'query' ? 'SQL 查询' : view === 'branches' ? '分析分支' : '数据与来源'}</h1><p>{view === 'branches' ? '每次计算保存独立结果，切换分支即可对照原来的口径。' : '检查字段质量、公开来源与本次载入的数据快照。'}</p></div><div className="heading-actions"><button className="secondary" onClick={() => pickFile()} disabled={loading}><Upload size={17} />导入文件</button><button className="text-button" onClick={() => void loadPublicDataset()} disabled={loading}><RefreshCcw size={16} className={loading ? 'spin' : ''} />{loading ? '加载数据中' : '加载公开数据'}</button></div></div>}
 
@@ -662,5 +693,6 @@ export default function App() {
     <ModelManager open={showModels} onClose={() => setShowModels(false)} profiles={models.profiles} selectedId={models.selectedId} onSelect={models.setSelectedId} onSave={models.save} onRemove={models.remove} defaultId={models.defaultId} canManage={models.canManage} onDefault={models.setDefault} />
     {loading && <div className="loading-indicator" role="status"><LoaderCircle size={18} className="spin" />正在读取真实数据</div>}
     <dialog ref={helpRef} className="help-dialog" onCancel={() => setShowHelp(false)} onClose={() => setShowHelp(false)}><div className="section-heading"><h2>工作台使用指南</h2><button className="icon-button" aria-label="关闭使用说明" onClick={() => setShowHelp(false)}><X size={20} /></button></div><ol><li>导入 CSV、Excel（XLSX / XLS）、PDF；也可读取 OWID 真实公开数据。</li><li>检查字段质量，确认分组、指标、筛选和单位。</li><li>执行求和、均值、计数、去重数或极值；探索页支持折线、柱状、散点、热力与结果表。</li><li>点选图表或结果表中的分组，查看来源记录。</li><li>使用公开数据的有限中文规则追问，保存计算分支。</li><li>导出 SVG、结果 CSV 或单文件 HTML 证据报告。</li></ol><p>AI 辅助分析可在网页“模型连接”中填写接口地址、API Key 和模型 ID，先理解目标与背景，存在歧义时先澄清，确认计划后真实计算并生成带引用解读。计算已接入 SQLite / sql.js 独立线程；SQL 与参数可查看，MCP 暂未接入。Excel 选择工作表、表头与范围后确认；PDF 支持文字提取和需授权的视觉转录，当前每次导入一页中的一张表，必须核对。当前限制：30 MB、100,000 行、200 列、200 个结果分组；筛选值展示前 500 个不同值。CSV 自动识别 UTF-8 / UTF-16 / GBK(GB18030) 编码与逗号、分号、制表符分隔；原始值保留，类型候选不是准确性承诺。</p><button className="primary" onClick={() => setShowHelp(false)}>返回工作台</button></dialog>
+    <CommandPalette open={commandOpen} onClose={() => setCommandOpen(false)} actions={commandActions} />
   </div>
 }

@@ -5,7 +5,7 @@ root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(root / '.tools/python'))
 from playwright.sync_api import sync_playwright, expect
 
-out = root / 'artifacts/ui-rebuild/after'
+out = root / os.environ.get('SHOT_DIR', 'artifacts/ui-rebuild/after')
 out.mkdir(parents=True, exist_ok=True)
 base = os.environ.get('TEST_BASE_URL', 'http://127.0.0.1:5175')
 
