@@ -1359,6 +1359,13 @@
 @keyframes ingest-spin { to { transform: rotate(360deg); } }
 @keyframes ingest-track { from { left: -40%; } to { left: 104%; } }
 
+/* Byte progress for the public download: same track, but the bar width is the
+   real share of the file received instead of an indefinite shimmer. */
+.ingest-track.is-real > span { left: 0; width: 0; background: linear-gradient(90deg, #6ea8ff, #ffc45c); animation: none; transition: width .28s var(--obs-ease); }
+@media (prefers-reduced-motion: reduce) { .ingest-track.is-real > span { transition: none; } }
+.ingest-cancel { margin-top: 16px; }
+.banner span a { color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
+
 /* The legacy status pill is kept in the DOM for assistive tech and for the
    existing browser tests; the ingest card carries the visible message. */
 .app-shell > .loading-indicator { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }

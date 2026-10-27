@@ -18,6 +18,20 @@ export type Analysis = { scope?: AnalysisScope; unitSource?: 'user'; rateSummary
 export const PUBLIC_DATA_COMMIT = 'e7897aed55b514b8d16e0a3d8f1518789ac3de31'
 export const PUBLIC_DATA_URL = 'https://raw.githubusercontent.com/owid/energy-data/' + PUBLIC_DATA_COMMIT + '/owid-energy-data.csv'
 export const PUBLIC_SOURCE_URL = 'https://github.com/owid/energy-data/tree/' + PUBLIC_DATA_COMMIT
+// The file is ~9 MB, so raw.githubusercontent.com often stalls or resets here
+// before the browser finishes downloading it. The mirrors below serve the same
+// pinned commit; a download is accepted only when its SHA-256 matches
+// PUBLIC_DATA_SHA256, so a slow or dishonest mirror cannot change the evidence.
+// Order matters: the first reachable candidate wins, and later ones are tried
+// when an earlier one stops making progress.
+export const PUBLIC_DATA_MIRRORS: { label: string; url: string }[] = [
+  { label: 'jsDelivr', url: 'https://cdn.jsdelivr.net/gh/owid/energy-data@' + PUBLIC_DATA_COMMIT + '/owid-energy-data.csv' },
+  { label: 'gh-proxy', url: 'https://gh-proxy.com/' + PUBLIC_DATA_URL },
+  { label: 'ghproxy', url: 'https://ghproxy.net/' + PUBLIC_DATA_URL },
+  { label: 'GitHub 原始地址', url: PUBLIC_DATA_URL },
+]
+export const PUBLIC_DATA_BYTES = 9229369
+export const PUBLIC_DATA_SHA256 = '266f2e2baad7975351bc9bb4aa061d22b1da9fe4c47d51d2ac6071e01e171f76'
 // Workspaces saved before the pin still carry the branch URL.
 export const PUBLIC_SOURCE_LEGACY = 'https://github.com/owid/energy-data'
 export const initialQuestion = '2015—2022 年中国可再生能源发电量如何变化？'

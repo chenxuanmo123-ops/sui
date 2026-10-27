@@ -133,7 +133,7 @@ export default function EmptyStage({ view, onImport, onPublic, onWorkspace, hasD
             : <button className="secondary" onClick={onPublic} disabled={loading}><Globe2 size={16} />{loading ? '正在下载…' : '从网页载入公开数据'}<ArrowUpRight size={14} /></button>}
         </div>
 
-        <p className="empty-stage-note"><ShieldCheck size={14} />公开数据由浏览器直接向发布方下载；未载入前不生成示例数字、图表或查询结果。</p>
+        <p className="empty-stage-note"><ShieldCheck size={14} />公开数据由浏览器直接下载固定提交的 CSV，校验 SHA-256 后载入；未载入前不生成示例数字、图表或查询结果。</p>
       </div>
 
       <div className="empty-stage-art" aria-hidden="true">

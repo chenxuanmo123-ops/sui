@@ -108,7 +108,7 @@ export default function WorkspaceWelcome({ onPick, onFile, busy, configured, onC
       <button className="public-entry text-button" onClick={onPublic} disabled={busy}>
         手边没有文件？从网页直接下载公开数据<ArrowUpRight size={15} />
       </button>
-      <small className="public-entry-source">OWID Energy Data · GitHub 原始 CSV · 载入时计算 SHA-256</small>
+      <small className="public-entry-source">OWID Energy Data · 固定提交 CSV · 校验 SHA-256 后载入</small>
 
       <div className="intake-trust">
         <span><ShieldCheck size={14} />原文件不会上传</span>
