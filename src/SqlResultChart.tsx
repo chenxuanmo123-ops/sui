@@ -21,15 +21,16 @@ export default function SqlResultChart({ columns, rows }: { columns: string[]; r
     if (!ref.current || spec.y < 0) return
     const chart = echarts.init(ref.current, undefined, { renderer: 'svg' })
     const { labels, values } = sqlChartSeries(spec, rows)
-    const zoom = rows.length > 12
-    const text = { color: '#6e6b60', fontSize: 11, fontFamily: 'sans-serif' }
+    const zoom = rows.length > 24
+    const text = { color: '#a7b4c6', fontSize: 11, fontFamily: 'system-ui, sans-serif' }
+    const seriesColor = '#ffb547'
     chart.setOption({
       animation: false,
-      color: ['#2c5a48'],
-      textStyle: { fontFamily: 'sans-serif' },
+      color: [seriesColor],
+      textStyle: { fontFamily: 'system-ui, sans-serif' },
       aria: { enabled: true },
       tooltip: {
-        trigger: 'item', renderMode: 'richText', confine: true, backgroundColor: '#fff', borderColor: '#ded7c8', textStyle: { color: '#1c2b24', fontSize: 12 }, padding: 14,
+        trigger: 'item', renderMode: 'richText', confine: true, backgroundColor: '#111923', borderColor: 'rgba(226,236,255,.22)', textStyle: { color: '#eef3fb', fontSize: 12 }, padding: 14,
         formatter: (params: unknown) => {
           const item = params as { dataIndex: number }
           const row = rows[item.dataIndex]
@@ -37,17 +38,17 @@ export default function SqlResultChart({ columns, rows }: { columns: string[]; r
           return (spec.x >= 0 ? columns[spec.x] + '：' + String(row[spec.x] ?? '（空）') + '\n' : '') + columns[spec.y] + '：' + formatNumber(values[item.dataIndex], 8) + '\n第 ' + (item.dataIndex + 1) + ' 行（按查询结果顺序）'
         },
       },
-      grid: { left: 76, right: 28, top: 34, bottom: zoom ? 84 : 62 },
-      xAxis: { type: 'category', data: labels, axisTick: { show: false }, axisLine: { show: false }, axisLabel: { ...text, hideOverlap: true, overflow: 'truncate', width: 90 }, name: spec.x >= 0 ? columns[spec.x] : '结果行号', nameLocation: 'middle', nameGap: 34 },
-      yAxis: { type: 'value', axisLine: { show: false }, axisTick: { show: false }, axisLabel: { ...text, formatter: (value: number) => formatNumber(value, 2) }, splitLine: { lineStyle: { color: '#e6e0d3', type: 'dashed' } }, name: columns[spec.y], nameGap: 20 },
-      ...(zoom ? { dataZoom: [{ type: 'slider', bottom: 8, height: 16, start: 0, end: Math.min(100, 12 / rows.length * 100), filterMode: 'none', borderColor: '#e0dacd', fillerColor: '#2c5a481a', handleStyle: { color: '#2c5a48' }, textStyle: text }, { type: 'inside', filterMode: 'none', zoomOnMouseWheel: 'ctrl', moveOnMouseWheel: false }] } : {}),
+      grid: { left: 76, right: 28, top: 34, bottom: 62 },
+      xAxis: { type: 'category', data: labels, axisTick: { show: false }, axisLine: { show: false }, axisLabel: { ...text, hideOverlap: true, overflow: 'truncate', width: 90 }, name: spec.x >= 0 ? columns[spec.x] : '结果行号', nameLocation: 'middle', nameGap: 34, nameTextStyle: text },
+      yAxis: { type: 'value', axisLine: { show: false }, axisTick: { show: false }, axisLabel: { ...text, formatter: (value: number) => formatNumber(value, 2) }, splitLine: { lineStyle: { color: 'rgba(226,236,255,.11)', type: 'dashed' } }, name: columns[spec.y], nameGap: 20, nameTextStyle: text },
+      ...(zoom ? { dataZoom: [{ type: 'inside', start: 0, end: Math.min(100, 24 / rows.length * 100), filterMode: 'none', zoomOnMouseWheel: 'ctrl', moveOnMouseWheel: false }] } : {}),
       series: [{
         type: spec.kind,
         data: values,
         barMaxWidth: 26,
-        ...(spec.kind === 'bar' ? { itemStyle: { borderRadius: [3, 3, 0, 0] }, label: { show: rows.length <= 12, position: 'top', fontSize: 11, color: '#2b3a32', formatter: (params: { value: unknown }) => params.value == null ? '' : formatNumber(Number(params.value), 2) } } : {}),
-        ...(spec.kind === 'line' ? { lineStyle: { width: 2.5 }, symbol: 'circle', label: { show: rows.length <= 12, position: 'top', fontSize: 11, color: '#2b3a32' }, areaStyle: { color: '#2c5a48', opacity: .06 } } : {}),
-        emphasis: { itemStyle: { color: '#1c2b24' } },
+        ...(spec.kind === 'bar' ? { itemStyle: { borderRadius: [3, 3, 0, 0] }, label: { show: rows.length <= 12, position: 'top', fontSize: 11, color: '#eef3fb', formatter: (params: { value: unknown }) => params.value == null ? '' : formatNumber(Number(params.value), 2) } } : {}),
+        ...(spec.kind === 'line' ? { lineStyle: { width: 2.5 }, symbol: 'circle', label: { show: rows.length <= 12, position: 'top', fontSize: 11, color: '#eef3fb' }, areaStyle: { color: seriesColor, opacity: .12 } } : {}),
+        emphasis: { itemStyle: { color: '#ffd089' } },
       }],
     })
     const observer = new ResizeObserver(() => chart.resize())
@@ -65,6 +66,6 @@ export default function SqlResultChart({ columns, rows }: { columns: string[]; r
       <span className="viz-order-note">按查询结果顺序；不重新聚合，也不插补缺失值</span>
     </div></div>
     <div ref={ref} className="exploration-chart" role="img" aria-label="查询结果图表。悬停查看对应行与数值；完整数据以下方结果表为准。" />
-    <p className="viz-footer">{rows.length > 12 ? '拖动缩放条浏览；按住 Ctrl 并滚轮缩放。' : ''}图表只重绘本次 SQL 返回的行，不新增统计；要回查记录，请在 SQL 中选择 <code>_record</code>。</p>
+    <p className="viz-footer">{rows.length > 24 ? '按住 Ctrl 并滚轮缩放，拖动图表可平移。' : ''}图表只重绘本次 SQL 返回的行，不新增统计；要回查记录，请在 SQL 中选择 <code>_record</code>。</p>
   </div>
 }

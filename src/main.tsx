@@ -9,6 +9,10 @@ import './notebook.css'
 import './desk.css'
 import './app.css'
 import './instrument.css'
+import './observation.css'
+import './redesign.css'
+import './studio.css'
+import './motion.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

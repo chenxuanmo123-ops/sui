@@ -21,7 +21,7 @@ with sync_playwright() as p:
  page.on('pageerror',lambda e:errors.append(str(e)))
  page.route('**/api/ai/status',lambda r:r.fulfill(json={'configured':False,'providers':[],'canManage':True}))
  page.goto(os.environ.get('TEST_BASE_URL','http://127.0.0.1:5174')+'/',wait_until='networkidle')
- expect(page.get_by_role('heading',name='让数据里的问题， 有答案，有依据。')).to_be_visible()
+ expect(page.get_by_role('heading',name='把数据放进来， 从第一个问题开始。')).to_be_visible()
  assert page.locator('.sidebar').count()==0
  page.screenshot(path=str(out/'welcome.png'),full_page=True)
  page.locator('#file-upload').set_input_files(str(root/'tests/fixtures/uci-online-shoppers.csv'))

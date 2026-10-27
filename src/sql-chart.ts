@@ -25,10 +25,26 @@ export function numericColumns(columns: string[], rows: ConsoleRow[]) {
   return columns.map((_, index) => numericColumn(index, rows) ? index : -1).filter(index => index >= 0)
 }
 
+function relativeSpread(index: number, rows: ConsoleRow[]) {
+  const values = rows.map(row => numericCell(row[index])).filter((value): value is number => value !== null)
+  if (!values.length) return 0
+  const min = Math.min(...values)
+  const max = Math.max(...values)
+  const mean = values.reduce((sum, value) => sum + value, 0) / values.length
+  return (max - min) / Math.max(Math.abs(mean), 1e-9)
+}
+
 export function sqlChartDefaults(columns: string[], rows: ConsoleRow[]): SqlChartDefaults {
   const numeric = numericColumns(columns, rows)
   const label = columns.findIndex((_, index) => !numeric.includes(index))
-  const y = numeric.find(index => index !== label) ?? numeric[0] ?? -1
+  // A query often returns both a row counter and the measure being counted
+  // (COUNT(*) + SUM(value)). The counter is almost flat, so plotting it by
+  // default produces a chart that says nothing; prefer the numeric column with
+  // the widest relative range and fall back to the first when all are flat.
+  const y = numeric
+    .filter(index => index !== label)
+    .sort((a, b) => relativeSpread(b, rows) - relativeSpread(a, rows))[0]
+    ?? numeric[0] ?? -1
   // Prefer a real label column; otherwise plot against the result row order.
   const x = label >= 0 ? label : y >= 0 && numeric.length > 1 ? numeric.find(index => index !== y)! : -1
   return { x, y, kind: 'bar' }

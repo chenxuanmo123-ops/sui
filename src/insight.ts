@@ -51,7 +51,7 @@ export function buildInsight(result: Analysis): InsightBrief {
   const uniform = points.length > 1 && points.every(point => point.value === points[0].value)
   // COUNT(*) counts rows, not the selected metric's values. Naming the metric
   // here would imply a sum of that column, so use the actual numerator.
-  const measure = mapping.aggregate === 'count' ? '记录数' : ' ' + mapping.metric
+  const measure = mapping.aggregate === 'count' ? '记录数' : '「' + mapping.metric + '」'
 
   let headline = `${mapping.x} 各组的${measure}：最高 ${high.label}（${formatNumber(high.value, 2)}${unit}），最低 ${low.label}（${formatNumber(low.value, 2)}${unit}）。`
   let tone: InsightBrief['tone'] = 'mixed'
@@ -70,7 +70,10 @@ export function buildInsight(result: Analysis): InsightBrief {
   } else if (trend) {
     const direction = trend.slope > 0 ? '上升' : trend.slope < 0 ? '下降' : '基本持平'
     const strength = trend.r2 >= 0.5 ? '' : '，但线性解释力有限'
-    headline = `按 ${trend.n} 个时间分组拟合，${mapping.metric} 整体${direction}，平均每${periodName(trend.period)}变化 ${trend.slope >= 0 ? '+' : ''}${formatNumber(trend.slope, 4)}${unit}${strength}（R² ${formatNumber(trend.r2, 3)}）。`
+    // Four decimals on a monthly total are noise for a reader; keep just
+    // enough precision to see direction and size.
+    const slopeDigits = Math.abs(trend.slope) >= 1000 ? 0 : Math.abs(trend.slope) >= 10 ? 1 : 2
+    headline = `按 ${trend.n} 个时间分组拟合，「${mapping.metric}」整体${direction}，平均每${periodName(trend.period)}变化 ${trend.slope >= 0 ? '+' : ''}${formatNumber(trend.slope, slopeDigits)}${unit}${strength}（R² ${formatNumber(trend.r2, 3)}）。`
     tone = trend.r2 < 0.5 ? 'mixed' : trend.slope > 0 ? 'up' : trend.slope < 0 ? 'down' : 'flat'
   }
 

@@ -86,7 +86,9 @@ describe('只读 SQL 控制台', () => {
     const columns = ['country', 'n', 'total']
     const rows: (string | number | null)[][] = [['China', 8, '15738.01'], ['India', 8, '205.01']]
     expect(numericColumns(columns, rows)).toEqual([1, 2])
-    expect(sqlChartDefaults(columns, rows)).toEqual({ x: 0, y: 1, kind: 'bar' })
+    // `n` is flat (8, 8); `total` carries the variation, so it becomes the
+    // default measure instead of producing a meaningless flat chart.
+    expect(sqlChartDefaults(columns, rows)).toEqual({ x: 0, y: 2, kind: 'bar' })
     expect(sqlChartSeries({ x: 0, y: 2, kind: 'bar' }, rows)).toEqual({ labels: ['China', 'India'], values: [15738.01, 205.01] })
     expect(sqlChartDefaults(['n'], [['3'], ['4']])).toEqual({ x: -1, y: 0, kind: 'bar' })
     expect(sqlChartDefaults(['name'], [['a']])).toEqual({ x: 0, y: -1, kind: 'bar' })

@@ -1,0 +1,189 @@
+/* Motion layer — loaded after every visual sheet so it can animate the newest
+   surfaces without changing layout. Two rules:
+   1. Content is never hidden by motion: the scroll reveal floors opacity at .72.
+   2. Everything stops under prefers-reduced-motion (see the end of the file). */
+
+@keyframes obs-grid-drift {
+  from { background-position: 0 0, 0 0; }
+  to { background-position: 54px 54px, 54px 54px; }
+}
+@keyframes obs-grid-drift-sm {
+  from { background-position: 0 0, 0 0; }
+  to { background-position: 44px 44px, 44px 44px; }
+}
+@keyframes obs-orbit-rev { to { transform: rotate(-360deg); } }
+@keyframes obs-float {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -7px, 0); }
+}
+@keyframes obs-float-soft {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(4px, -5px, 0); }
+}
+@keyframes obs-scroll-rise {
+  from { opacity: .72; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes obs-scanline {
+  0% { top: -12%; opacity: 0; }
+  10%, 74% { opacity: .55; }
+  100% { top: 108%; opacity: 0; }
+}
+@keyframes obs-headline-glow {
+  0%, 100% { opacity: .55; }
+  50% { opacity: .9; }
+}
+@keyframes obs-button-sheen {
+  from { transform: translateX(-130%) skewX(-18deg); }
+  to { transform: translateX(230%) skewX(-18deg); }
+}
+@keyframes obs-dash {
+  to { stroke-dashoffset: -60; }
+}
+
+/* ---------- welcome deck ambience ---------- */
+.workspace-welcome .welcome-field::before { animation: obs-grid-drift 48s linear infinite; }
+.welcome-glow-a { animation: obs-float 15s ease-in-out infinite, obs-headline-glow 9s ease-in-out infinite; }
+.welcome-glow-b { animation: obs-float-soft 18s ease-in-out infinite reverse; }
+.welcome-copy { animation: obs-rise 620ms var(--obs-ease) both; }
+.welcome-steps li { animation: obs-rise 560ms var(--obs-ease) both; }
+.welcome-steps li:nth-child(1) { animation-delay: 90ms; }
+.welcome-steps li:nth-child(2) { animation-delay: 150ms; }
+.welcome-steps li:nth-child(3) { animation-delay: 210ms; }
+.welcome-features article { animation: obs-rise 560ms var(--obs-ease) both; }
+.welcome-features article:nth-child(1) { animation-delay: 160ms; }
+.welcome-features article:nth-child(2) { animation-delay: 220ms; }
+.welcome-features article:nth-child(3) { animation-delay: 280ms; }
+.public-entry-source { animation: obs-rise 520ms 260ms var(--obs-ease) both; }
+
+/* the intake aperture keeps breathing even when the pointer is away */
+.intake-aperture .aperture-ring { animation: obs-spin 26s linear infinite; }
+.intake-aperture .aperture-core { animation: obs-pulse 5.6s ease-in-out infinite; }
+
+/* ---------- shared empty stage ---------- */
+.empty-stage-grid { animation: obs-grid-drift 52s linear infinite; }
+.empty-stage-glow { animation: obs-float 17s ease-in-out infinite, obs-headline-glow 10s ease-in-out infinite; }
+.empty-stage-signal i { animation: obs-blink 2.8s ease-in-out infinite; }
+.empty-stage-copy > * { animation: obs-rise 560ms var(--obs-ease) both; }
+.empty-stage-copy > *:nth-child(1) { animation-delay: 40ms; }
+.empty-stage-copy > *:nth-child(2) { animation-delay: 90ms; }
+.empty-stage-copy > *:nth-child(3) { animation-delay: 140ms; }
+.empty-stage-copy > *:nth-child(4) { animation-delay: 190ms; }
+.empty-stage-copy > *:nth-child(5) { animation-delay: 240ms; }
+.empty-stage-copy > *:nth-child(6) { animation-delay: 280ms; }
+.empty-stage-art { animation: obs-rise 720ms 120ms var(--obs-ease) both; }
+.empty-stage-steps li { transition: border-color 200ms, background 200ms, transform 220ms var(--obs-ease); }
+.empty-stage-steps li:hover { border-color: rgba(110, 168, 255, .26); background: rgba(110, 168, 255, .045); transform: translateX(2px); }
+
+.stage-orbit-a { animation: obs-spin 38s linear infinite; }
+.stage-orbit-b { animation: obs-orbit-rev 56s linear infinite; }
+.stage-orbit-c { animation: obs-spin 24s linear infinite; }
+.stage-sweep { animation: obs-spin 9.5s linear infinite; }
+.stage-core { animation: obs-pulse 5.4s ease-in-out infinite; }
+.stage-node-a { animation: obs-float 6.2s ease-in-out infinite; }
+.stage-node-b { animation: obs-float-soft 7.4s ease-in-out infinite reverse; }
+.stage-node-c { animation: obs-float 8.1s 1.2s ease-in-out infinite; }
+.stage-readout { animation: obs-float-soft 9s ease-in-out infinite; }
+.stage-readout-b { animation-delay: 1.4s; }
+.stage-readout-c { animation-delay: 2.6s; }
+
+/* ---------- SQL query deck ---------- */
+.sql-head { animation: obs-rise 520ms var(--obs-ease) both; }
+.sql-head-grid { animation: obs-grid-drift-sm 46s linear infinite; }
+.sql-head-orbit span { animation: obs-spin 44s linear infinite; }
+.sql-head-orbit span:nth-child(2) { animation: obs-orbit-rev 58s linear infinite; }
+.sql-head-orbit span:nth-child(3) { animation: obs-spin 30s linear infinite; }
+.sql-head::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  top: -12%;
+  right: 0;
+  left: 0;
+  height: 26%;
+  background: linear-gradient(180deg, transparent, rgba(110, 168, 255, .055), transparent);
+  pointer-events: none;
+  animation: obs-scanline 11s ease-in-out infinite;
+}
+.sql-dot { animation: obs-blink 2.6s ease-in-out infinite; }
+.sql-editor-chrome { position: relative; }
+.sql-template-row button,
+.sql-scope-switch button,
+.sql-field-list button { transition: background 150ms, border-color 150ms, color 150ms, transform 150ms var(--obs-ease); }
+.sql-template-row button:active { transform: scale(.975); }
+.sql-idle-ring { animation: obs-spin 34s linear infinite; }
+.sql-idle-ring.ring-b { animation: obs-orbit-rev 48s linear infinite; }
+.sql-idle-ring.ring-c { animation: obs-spin 22s linear infinite; }
+.sql-idle-scan { animation: obs-spin 8.5s linear infinite; }
+.sql-idle-core { animation: obs-pulse 5.2s ease-in-out infinite; }
+.sql-idle-label { animation: obs-blink 3.2s ease-in-out infinite; }
+.sql-result { animation: obs-rise 380ms var(--obs-ease) both; }
+.sql-no-rows { animation: obs-rise 420ms var(--obs-ease) both; }
+
+/* ---------- header and rail: quiet instrument life ---------- */
+.app-header::after { animation: obs-headline-glow 8s ease-in-out infinite; }
+.rail-ai-dot { animation: obs-pulse 4.8s ease-in-out infinite; }
+.rail-ai[data-state="off"] .rail-ai-dot { animation: none; }
+.app-rail .brand-mark { animation: obs-headline-glow 7s ease-in-out infinite; }
+
+/* CTA sheen for the new stage buttons; ::after is inert until hover */
+.empty-stage-actions .primary { position: relative; overflow: hidden; }
+.empty-stage-actions .primary::after {
+  content: "";
+  position: absolute;
+  inset: -40% auto -40% -40%;
+  width: 34%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .5), transparent);
+  opacity: 0;
+  transform: translateX(-130%) skewX(-18deg);
+  pointer-events: none;
+}
+.empty-stage-actions .primary:hover::after { opacity: .9; animation: obs-button-sheen 720ms var(--obs-ease); }
+
+/* ---------- scroll-driven reveal (progressive enhancement) ----------
+   Transform + a floored opacity only, so an element is never invisible while
+   off-screen and Playwright/AT can still find it. No sticky element is
+   animated: a transform on a sticky ancestor would break its pinning. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .content > .panel,
+    .content > .workbench,
+    .content > .empty-stage,
+    .content > .page-heading.is-ledger,
+    .workspace-section > .panel,
+    .sql-stage > section,
+    .result-stage-main > *,
+    .insight-sections > .insight-section,
+    .analysis-thread,
+    .source-summary {
+      animation: obs-scroll-rise linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 55%;
+    }
+  }
+}
+
+/* ---------- reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: .001ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .empty-stage-copy > *,
+  .empty-stage-art,
+  .sql-head,
+  .sql-result,
+  .sql-no-rows,
+  .welcome-copy,
+  .welcome-steps li,
+  .welcome-features article,
+  .public-entry-source {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

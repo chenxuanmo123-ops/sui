@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { AlertCircle, ArrowRight, ArrowUpRight, Clock3, Hash, LoaderCircle, ShieldCheck, Settings2, Sparkles, Table2 } from 'lucide-react'
 import { formatNumber } from './data'
 import type { Dataset } from './data'
@@ -14,6 +15,7 @@ type Props = {
   questionError: { id: string; message: string } | null
   onPrepare: () => void
   onExplore: () => void
+  onManual: () => void
   onData: () => void
   onField: (key: string) => void
   onRoles: () => void
@@ -31,7 +33,7 @@ const KIND_LABELS: Record<CheckupQuestion['kind'], string> = {
   correlation: '两列关系',
 }
 
-export default function AnalysisStart({ dataset, profiles, checkup, error, computing, runningQuestion, questionError, onPrepare, onExplore, onData, onField, onRoles, onRunQuestion, onRunExploreQuestion, onAsk }: Props) {
+export default function AnalysisStart({ dataset, profiles, checkup, error, computing, runningQuestion, questionError, onPrepare, onExplore, onManual, onData, onField, onRoles, onRunQuestion, onRunExploreQuestion, onAsk }: Props) {
   const headers = dataset.headers.slice(0, 6)
   const missing = profiles.reduce((total, profile) => total + profile.missing, 0)
 
@@ -39,51 +41,32 @@ export default function AnalysisStart({ dataset, profiles, checkup, error, compu
   const timeRange = checkup?.timeField?.time ? `${checkup.timeField.time.min}–${checkup.timeField.time.max}` : ''
   const questionCount = checkup?.questions.length ?? 0
 
+  const facts = <div className="review-facts">
+    <span><strong>{dataset.rows.length.toLocaleString()}</strong> 条原始记录</span>
+    <span><strong>{dataset.headers.length}</strong> 个字段</span>
+    <span className={missing ? 'has-issues' : ''}><strong>{missing.toLocaleString()}</strong> 个空值单元格</span>
+    {checkup && <span><strong>{formatNumber(checkup.completeness * 100, 0)}%</strong> 单元格完整度</span>}
+    {timeRange && <span className="time-range"><strong>{timeRange}</strong> 时间范围</span>}
+    <button className="text-button" onClick={onPrepare}><Settings2 size={15} />{missing ? '检查并处理空值' : '检查数据质量'}<ArrowRight size={14} /></button>
+  </div>
+
   return <div className="data-review">
     <header className="review-intro">
-      <div>
+      <div className="review-intro-copy">
         <span className="task-status"><ShieldCheck size={15} />文件已读取{checkup ? ' · 本地体检完成' : ''}</span>
-        <h1>{checkup ? '先看清数据，再问好问题。' : '正在读这份数据…'}</h1>
+        <h1>{checkup ? '这份数据，先从这些问题看起。' : '正在读这份数据…'}</h1>
         <p>{checkup?.summary ?? '正在检查字段、缺失、时间范围与可计算的问题；原文件不会上传。'}</p>
       </div>
       <div className="review-intro-actions">
         <button className="secondary" onClick={onExplore}>直接创建图表<ArrowUpRight size={16} /></button>
+        <button className="manual-start text-button" onClick={onManual}><Table2 size={15} />手动选择字段与计算<ArrowUpRight size={14} /></button>
         <button className="text-button" onClick={() => onAsk('请先帮我判断这份数据能回答什么问题，并指出需要补充的口径与限制。')}><Sparkles size={15} />让 AI 帮我判断<ArrowRight size={14} /></button>
       </div>
     </header>
 
-    <div className="review-facts">
-      <span><strong>{dataset.rows.length.toLocaleString()}</strong> 条原始记录</span>
-      <span><strong>{dataset.headers.length}</strong> 个字段</span>
-      <span className={missing ? 'has-issues' : ''}><strong>{missing.toLocaleString()}</strong> 个空值单元格</span>
-      {checkup && <span><strong>{formatNumber(checkup.completeness * 100, 0)}%</strong> 单元格完整度</span>}
-      {timeRange && <span><strong>{timeRange}</strong> 时间范围</span>}
-      <button className="text-button" onClick={onPrepare}><Settings2 size={15} />{missing ? '检查并处理空值' : '检查数据质量'}<ArrowRight size={14} /></button>
-    </div>
-
     {error && <p className="checkup-error" role="alert"><AlertCircle size={15} />数据体检未能完成：{error}。仍可手动选择字段分析。</p>}
 
-    {checkup && <section className={'checkup-verdict tone-' + (checkup.questions.length ? 'ready' : 'limited')} aria-label="数据体检结论">
-      <div className="checkup-score">
-        <strong>{formatNumber(checkup.completeness * 100, 0)}<small>%</small></strong>
-        <span>单元格完整度</span>
-      </div>
-      <div className="checkup-verdict-copy">
-        <span className="checkup-kicker">数据体检 · 未调用模型</span>
-        <h2>{questionCount ? `这份数据可以先从 ${questionCount} 个问题开始。` : '这份数据还需要先确认字段口径。'}</h2>
-        <p>{questionCount
-          ? '下面的问题都对应可执行的描述性计算：点一下就会生成真实 SQL、图表和来源记录。它们不代表已经知道业务原因。'
-          : '没有找到稳定的时间字段、数值指标或可分组维度。可以先做字段清理，或者让 AI 帮你判断这份表适合问什么。'}</p>
-      </div>
-      <div className="checkup-role-counts">
-        <span><strong>{checkup.measures.length}</strong> 数值指标</span>
-        <span><strong>{checkup.categories.length}</strong> 分类维度</span>
-        <span><strong>{checkup.binaries.length}</strong> 二值结果</span>
-        <span><strong>{checkup.timeField ? 1 : 0}</strong> 时间字段</span>
-      </div>
-    </section>}
-
-    <div className="review-workbench">
+    <div className="review-bento">
       <div className="review-main">
         {checkup ? <section className="answerable-questions" aria-label="可直接执行的问题">
           <header>
@@ -115,7 +98,7 @@ export default function AnalysisStart({ dataset, profiles, checkup, error, compu
               <div><button className="secondary" onClick={onPrepare}>检查数据质量</button><button className="text-button" onClick={() => onAsk('这份数据没有自动生成可执行问题，请帮我判断原因并给出下一步。')}>让 AI 帮我找问题<ArrowRight size={14} /></button></div>
             </div>}
           </div>
-        </section> : <section className="answerable-questions"><div className="question-empty"><LoaderCircle className="spin" size={22}/><h3>正在生成可执行问题</h3><p>体检完成后，这里会列出能直接落到 SQL 的问题。</p></div></section>}
+        </section> : <section className="answerable-questions"><div className="question-empty"><LoaderCircle className="spin" size={22} /><h3>正在生成可执行问题</h3><p>体检完成后，这里会列出能直接落到 SQL 的问题。</p></div></section>}
 
         <section className="checkup-warnings" aria-label="需要先确认的数据问题">
           <header><span className="section-kicker">体检提示</span><h2>先确认这些，不是“错误”</h2><p>系统只报告候选，不自动删改原始值。</p></header>
@@ -127,10 +110,28 @@ export default function AnalysisStart({ dataset, profiles, checkup, error, compu
       </div>
 
       <aside className="review-aside" aria-label="数据概况与字段">
-        <section className="canvas-data-preview" aria-label="原始数据快速预览">
-          <header><span><Table2 size={16} />原始记录</span><small>前 {Math.min(dataset.rows.length, 5)} 行 · 前 {headers.length} 列</small><button className="text-button" onClick={onData}>查看全部<ArrowUpRight size={13} /></button></header>
-          <div className="canvas-preview-scroll"><table><thead><tr><th>记录号</th>{headers.map(header => <th key={header} title={header}>{header}</th>)}</tr></thead><tbody>{dataset.rows.slice(0, 5).map((row, index) => <tr key={index}><td>{dataset.sourceRecords?.[index] ?? index + 2}</td>{headers.map(header => <td key={header} title={String(row[header] ?? '')}>{String(row[header] ?? '—')}</td>)}</tr>)}</tbody></table></div>
-        </section>
+        {checkup ? <section className={'checkup-verdict tone-' + (checkup.questions.length ? 'ready' : 'limited')} aria-label="数据体检结论">
+          <div className="verdict-head">
+            <div className="checkup-score" style={{ '--checkup-score': `${Math.max(0, Math.min(100, checkup.completeness * 100))}%` } as CSSProperties}>
+              <strong>{formatNumber(checkup.completeness * 100, 0)}<small>%</small></strong>
+              <span>完整度</span>
+            </div>
+            <div className="checkup-verdict-copy">
+              <span className="checkup-kicker">数据体检 · 未调用模型</span>
+              <h2>{questionCount ? `可以先从 ${questionCount} 个问题开始。` : '还需要先确认字段口径。'}</h2>
+              <p>{questionCount
+                ? '下面的问题都对应可执行的描述性计算：点一下就会生成真实 SQL、图表和来源记录。它们不代表已经知道业务原因。'
+                : '没有找到稳定的时间字段、数值指标或可分组维度。可以先做字段清理，或者让 AI 帮你判断这份表适合问什么。'}</p>
+            </div>
+          </div>
+          {facts}
+          <div className="checkup-role-counts">
+            <span><strong>{checkup.measures.length}</strong> 数值指标</span>
+            <span><strong>{checkup.categories.length}</strong> 分类维度</span>
+            <span><strong>{checkup.binaries.length}</strong> 二值结果</span>
+            <span><strong>{checkup.timeField ? 1 : 0}</strong> 时间字段</span>
+          </div>
+        </section> : facts}
 
         <div className="review-fields">
           <p>字段速览 <span>角色是候选；点击核对含义和质量</span>
@@ -142,6 +143,11 @@ export default function AnalysisStart({ dataset, profiles, checkup, error, compu
           {checkup && <p className="review-fields-note"><Clock3 size={13} />时间字段按真实取值验证，不只凭列名；单位仍需要你确认。</p>}
         </div>
       </aside>
+
+      <section className="canvas-data-preview" aria-label="原始数据快速预览">
+        <header><span><Table2 size={16} />原始记录</span><small>前 {Math.min(dataset.rows.length, 5)} 行 · 前 {headers.length} 列</small><button className="text-button" onClick={onData}>查看全部<ArrowUpRight size={13} /></button></header>
+        <div className="canvas-preview-scroll"><table><thead><tr><th>记录号</th>{headers.map(header => <th key={header} title={header}>{header}</th>)}</tr></thead><tbody>{dataset.rows.slice(0, 5).map((row, index) => <tr key={index}><td>{dataset.sourceRecords?.[index] ?? index + 2}</td>{headers.map(header => <td key={header} title={String(row[header] ?? '')}>{String(row[header] ?? '—')}</td>)}</tr>)}</tbody></table></div>
+      </section>
     </div>
   </div>
 }

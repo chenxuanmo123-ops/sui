@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
-import { AlertCircle, ArrowDownToLine, BarChart3, Code2, Link2, LoaderCircle, Play, ShieldCheck, Trash2, Upload } from 'lucide-react'
+import { AlertCircle, ArrowDownToLine, ArrowUpRight, BarChart3, Database, Link2, LoaderCircle, Play, Plus, Search, ShieldCheck, Trash2, Upload } from 'lucide-react'
 import type { Dataset } from './data'
 import { decodeTextBytes, download, parseCSV } from './data'
 import { clearConsoleTable, loadConsoleTable, queryDataset } from './engine'
@@ -10,6 +10,7 @@ const SqlResultChart = lazy(() => import('./SqlResultChart'))
 
 const EXAMPLE = 'SELECT "c0" AS 分组, COUNT(*) AS 记录数\nFROM data\nGROUP BY "c0"\nORDER BY 记录数 DESC\nLIMIT 20'
 const numericExample = (dataset: Dataset) => 'SELECT "c0" AS 分组, strict_number("c' + (dataset.headers.length > 1 ? 1 : 0) + '") AS 数值\nFROM data\nWHERE strict_number("c' + (dataset.headers.length > 1 ? 1 : 0) + '") IS NOT NULL\nORDER BY 数值 DESC\nLIMIT 20'
+const PREVIEW = 'SELECT * FROM readable LIMIT 20'
 const MAX_TABLE_BYTES = 30 * 1024 * 1024
 const noteText = (text: string) => text.replace(/\s+/g, ' ').slice(0, 40)
 
@@ -27,20 +28,29 @@ function joinExample(dataset: Dataset, table: ExtraTable) {
   return note + 'SELECT d."' + main + '" AS 主表键, e."c0" AS 关联表键, e."_row" AS 关联行号\nFROM data AS d\nLEFT JOIN extra AS e ON d."' + main + '" = e."c0"\nLIMIT 20'
 }
 
-type Props = { dataset: Dataset; table: ExtraTable | null; onTable: (table: ExtraTable | null) => void }
+type Props = {
+  dataset: Dataset
+  table: ExtraTable | null
+  onTable: (table: ExtraTable | null) => void
+  onImport?: () => void
+  onPublic?: () => void
+}
 
-export default function SqlConsole({ dataset, table, onTable }: Props) {
+export default function SqlConsole({ dataset, table, onTable, onImport, onPublic }: Props) {
   const names = useMemo(() => exportColumnNames(dataset, '_record'), [dataset])
   const extraNames = useMemo(() => table ? exportColumnNames(table, '_row') : [], [table])
-  const [sql, setSql] = useState('SELECT * FROM readable LIMIT 20')
+  const [sql, setSql] = useState(PREVIEW)
   const [result, setResult] = useState<ConsoleResult | null>(null)
   const [showChart, setShowChart] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [tableBusy, setTableBusy] = useState(false)
   const [tableError, setTableError] = useState('')
+  const [scope, setScope] = useState<'readable' | 'data'>('readable')
+  const [fieldFilter, setFieldFilter] = useState('')
   const running = useRef<AbortController | null>(null)
   const tableInput = useRef<HTMLInputElement>(null)
+  const editor = useRef<HTMLTextAreaElement>(null)
   const tableRef = useRef(table)
   tableRef.current = table
   useEffect(() => () => running.current?.abort(), [])
@@ -53,6 +63,16 @@ export default function SqlConsole({ dataset, table, onTable }: Props) {
     if (!initial) return
     loadConsoleTable(dataset, initial).catch(e => setTableError(e instanceof Error ? e.message : '关联表恢复失败，请重新上传。'))
   }, [dataset])
+
+  const fields = useMemo(() => dataset.headers
+    .map((header, index) => ({ key: 'c' + index, name: names[index], header }))
+    .filter(field => {
+      const query = fieldFilter.trim().toLowerCase()
+      return !query || field.key.toLowerCase().includes(query) || field.header.toLowerCase().includes(query) || field.name.toLowerCase().includes(query)
+    }), [dataset, names, fieldFilter])
+
+  const lineCount = Math.max(sql.split('\n').length, 8)
+  const lineNumbers = useMemo(() => Array.from({ length: lineCount }, (_, i) => i + 1), [lineCount])
 
   async function execute() {
     if (busy) return
@@ -101,53 +121,191 @@ export default function SqlConsole({ dataset, table, onTable }: Props) {
     }
   }
 
+  // Clicking a dictionary entry writes a quoted identifier at the caret instead
+  // of replacing the whole statement, so a query can be composed field by field.
+  function insertField(field: { key: string; header: string }) {
+    const identifier = '"' + (scope === 'readable' ? field.header.replaceAll('"', '""') : field.key) + '"'
+    const node = editor.current
+    if (!node) { setSql(value => value + ' ' + identifier); return }
+    const start = node.selectionStart ?? sql.length
+    const end = node.selectionEnd ?? sql.length
+    const before = sql.slice(0, start)
+    const after = sql.slice(end)
+    const lead = before && !/\s$/.test(before) ? ' ' : ''
+    const trail = after && !/^\s/.test(after) ? ' ' : ''
+    const next = before + lead + identifier + trail + after
+    setSql(next)
+    const caret = (before + lead + identifier).length
+    requestAnimationFrame(() => { node.focus(); node.setSelectionRange(caret, caret) })
+  }
+
   function csv() {
     if (!result) return
     const quote = (v: string | number | null) => '"' + String(v ?? '').replaceAll('"', '""') + '"'
     download('﻿' + [result.columns.map(quote).join(','), ...result.rows.map(row => row.map(quote).join(','))].join('\r\n'), 'text/csv;charset=utf-8', '数鉴-SQL查询结果.csv')
   }
 
-  return <div className="core-workspace">
-    <header className="core-heading"><div><span className="core-caption">只读 · 本地 SQLite · 真实结果</span><h2>SQL 查询</h2><p>在当前数据快照上直接运行一条 SELECT 或 WITH 查询，可 JOIN 本次会话中上传的第二个 CSV。写操作、多条语句和查询参数会被拒绝；结果不经过 AI。</p></div><span className="tag"><ShieldCheck size={14} />只读</span></header>
-    <div className="explore-layout">
-      <section className="panel core-panel explore-controls">
-        <h3><Code2 size={17} />可用对象</h3>
-        <p className="core-muted"><code>data</code> 使用 <code>c0…c{dataset.headers.length - 1}</code>；<code>readable</code> 使用原表头（重名时回退 cN），并保留 <code>_record</code> 来源记录号。</p>
-        <details className="sql-schema"><summary>字段映射（{dataset.headers.length} 列）</summary><div className="core-table-wrap"><table><thead><tr><th>列</th><th>原表头</th></tr></thead><tbody>{dataset.headers.map((_, i) => <tr key={i}><td>c{i}</td><td>{names[i]}</td></tr>)}</tbody></table></div></details>
-        <p className="core-muted">可用函数：<code>strict_number(列)</code> 严格解析数值，<code>compare_labels(a,b)</code> 比较数字/日期/文本，<code>time_bucket(列,'month'|'year')</code> 分桶。空值不会被当作 0。</p>
-        <button className="text-button" onClick={() => setSql(EXAMPLE)}>填入分组计数示例</button>
-        <button className="text-button" onClick={() => setSql(numericExample(dataset))}>填入严格数值示例</button>
+  const templates = [
+    { label: '原表预览', detail: '前 20 行', sql: PREVIEW },
+    { label: '分组计数', detail: 'COUNT(*)', sql: EXAMPLE },
+    { label: '严格数值', detail: 'strict_number', sql: numericExample(dataset) },
+    ...(table ? [{ label: '关联表 JOIN', detail: 'extra', sql: joinExample(dataset, table) }] : []),
+  ]
 
-        <h3><Link2 size={17} />关联表（可选）</h3>
-        <p className="core-muted">上传第二个 CSV 后，可在同一条查询里与主表 JOIN。它只在当前浏览器会话内有效，固定名为 <code>extra</code>（原表头视图为 <code>extra_readable</code>），<code>_row</code> 是关联表的数据行号；不写入数据快照，也不自动进入分析、图表或证据链。</p>
-        <input ref={tableInput} type="file" accept=".csv,text/csv" className="sr-only" aria-label="上传关联表 CSV" onChange={e => { void pickTable(e.target.files?.[0]); e.target.value = '' }} />
-        {table ? <>
-          <p className="console-table-state"><strong>{table.rows.length} 行 × {table.headers.length} 列</strong> 已装载为 <code>extra</code></p>
-          <details className="sql-schema"><summary>关联表字段映射</summary><div className="core-table-wrap"><table><thead><tr><th>列</th><th>原表头</th></tr></thead><tbody>{table.headers.map((_, i) => <tr key={i}><td>c{i}</td><td>{extraNames[i]}</td></tr>)}</tbody></table></div></details>
-          <div className="console-table-actions">
-            <button className="text-button" onClick={() => tableInput.current?.click()}>更换关联表</button>
-            <button className="text-button danger-text" onClick={() => void removeTable()} disabled={tableBusy}><Trash2 size={14} />移除关联表</button>
+  return <div className="core-workspace sql-studio">
+    <header className="sql-head">
+      <span className="sql-head-grid" aria-hidden="true" />
+      <div className="sql-head-copy">
+        <span className="sql-kicker"><i />QUERY DECK · LOCAL SQLITE</span>
+        <h2>SQL 查询</h2>
+        <p>直接查询当前数据快照。语句、参数和每一行结果都能回到来源，不经过 AI。</p>
+        <div className="sql-head-facts">
+          <span><strong>{dataset.rows.length.toLocaleString()}</strong>行</span>
+          <span><strong>{dataset.headers.length}</strong>列</span>
+          <span><strong>{table ? 4 : 3}</strong>个可用模板</span>
+          <span className="sql-badge"><ShieldCheck size={13} />只读事务</span>
+        </div>
+      </div>
+      <div className="sql-head-actions">
+        {onImport && <button className="secondary" onClick={onImport}><Upload size={15} />更换文件</button>}
+        {onPublic && <button className="text-button" onClick={onPublic}>公开数据<ArrowUpRight size={14} /></button>}
+      </div>
+      <div className="sql-head-orbit" aria-hidden="true"><span /><span /><span /></div>
+    </header>
+
+    <div className="sql-layout">
+      <aside className="sql-dictionary" aria-label="数据字典">
+        <div className="sql-dictionary-head">
+          <div><span className="sql-overline">SCHEMA</span><h3>数据字典</h3></div>
+          <span className="sql-count">{dataset.headers.length}</span>
+        </div>
+
+        <div className="sql-scope-switch" role="group" aria-label="对象视图">
+          <button aria-pressed={scope === 'readable'} className={scope === 'readable' ? 'is-on' : ''} onClick={() => setScope('readable')}>readable<small>原表头</small></button>
+          <button aria-pressed={scope === 'data'} className={scope === 'data' ? 'is-on' : ''} onClick={() => setScope('data')}>data<small>c0…cN</small></button>
+        </div>
+
+        <label className="sql-search">
+          <Search size={14} />
+          <input value={fieldFilter} onChange={e => setFieldFilter(e.target.value)} placeholder="搜索字段名或 cN" aria-label="搜索字段" />
+          {fieldFilter && <button type="button" onClick={() => setFieldFilter('')} aria-label="清空字段搜索">×</button>}
+        </label>
+
+        <ul className="sql-field-list">
+          {fields.map(field => <li key={field.key}>
+            <button onClick={() => insertField(field)} title={'插入 ' + (scope === 'readable' ? '"' + field.header + '"' : '"' + field.key + '"')}>
+              <span className="sql-field-key">{field.key}</span>
+              <span className="sql-field-name">{scope === 'readable' ? field.header : field.name}</span>
+              <Plus size={13} />
+            </button>
+          </li>)}
+          {!fields.length && <li className="sql-field-none">没有匹配的字段。</li>}
+        </ul>
+
+        <p className="sql-dictionary-note">点击字段插入到光标处。<code>readable</code> 保留 <code>_record</code> 来源记录号；<code>data</code> 固定使用列号。</p>
+
+        <details className="sql-reference">
+          <summary>函数与口径</summary>
+          <dl>
+            <div><dt><code>strict_number(col)</code></dt><dd>严格解析数值，空值不会当作 0。</dd></div>
+            <div><dt><code>compare_labels(a,b)</code></dt><dd>按数字 / 日期 / 文本顺序比较。</dd></div>
+            <div><dt><code>time_bucket(col,'month'|'year')</code></dt><dd>把时间列分桶。</dd></div>
+          </dl>
+        </details>
+
+        <section className="sql-join-card" aria-label="关联表">
+          <div className="sql-join-head">
+            <span><Link2 size={14} />关联表<small>可选</small></span>
+            <span className={'sql-join-state' + (table ? ' is-loaded' : '')}>{table ? '已装载' : '未装载'}</span>
           </div>
-          <button className="text-button" onClick={() => setSql(joinExample(dataset, table))}>填入 JOIN 示例</button>
-        </> : <button className="secondary" onClick={() => tableInput.current?.click()} disabled={tableBusy}>{tableBusy ? <LoaderCircle className="spin" size={15} /> : <Upload size={15} />}{tableBusy ? '装载中…' : '上传关联表 CSV'}</button>}
-        {tableBusy && table && <p className="core-muted">正在更新 Worker 中的关联表…</p>}
-        {tableError && <p className="ai-error" role="alert"><AlertCircle size={16} />{tableError}</p>}
-      </section>
-      <div className="explore-output">
-        <section className="panel core-panel">
-          <label htmlFor="console-sql" className="console-label">查询语句</label>
-          <textarea id="console-sql" className="sql-console-editor" value={sql} spellCheck={false} onChange={e => setSql(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); void execute() } }} />
-          <div className="core-actions console-actions"><button className="primary" onClick={() => void execute()} disabled={busy}>{busy ? <LoaderCircle className="spin" size={16} /> : <Play size={16} />}运行查询</button><span className="core-muted">Ctrl / Cmd + Enter 运行 · 最多返回 500 行</span></div>
-          {error && <p className="ai-error" role="alert"><AlertCircle size={16} />{error}</p>}
+          <input ref={tableInput} type="file" accept=".csv,text/csv" className="sr-only" aria-label="上传关联表 CSV" onChange={e => { void pickTable(e.target.files?.[0]); e.target.value = '' }} />
+          {table ? <>
+            <p><strong>{table.rows.length.toLocaleString()} 行 × {table.headers.length} 列</strong> 作为 <code>extra</code>，<code>_row</code> 为行号。仅在当前会话有效。</p>
+            <details className="sql-reference"><summary>关联表字段映射</summary><div className="sql-schema-wrap"><table><thead><tr><th>列</th><th>原表头</th></tr></thead><tbody>{table.headers.map((_, i) => <tr key={i}><td>c{i}</td><td>{extraNames[i]}</td></tr>)}</tbody></table></div></details>
+            <div className="sql-join-actions">
+              <button className="text-button" onClick={() => tableInput.current?.click()} disabled={tableBusy}>更换</button>
+              <button className="text-button danger-text" onClick={() => void removeTable()} disabled={tableBusy}><Trash2 size={13} />移除</button>
+            </div>
+          </> : <>
+            <p>上传第二个 CSV 后可与主表 JOIN。不写入快照，也不自动进入分析或证据链。</p>
+            <button className="secondary sql-join-upload" onClick={() => tableInput.current?.click()} disabled={tableBusy}>{tableBusy ? <LoaderCircle className="spin" size={14} /> : <Upload size={14} />}{tableBusy ? '装载中…' : '上传关联表 CSV'}</button>
+          </>}
+          {tableBusy && table && <p className="sql-muted">正在更新 Worker 中的关联表…</p>}
+          {tableError && <p className="ai-error" role="alert"><AlertCircle size={15} />{tableError}</p>}
         </section>
-        {result && <section className="panel core-panel">
-          <div className="section-heading"><div><h3>查询结果</h3><p className="core-muted">{result.rows.length} 行 · {result.elapsedMs} ms · {result.columns.length} 列{result.truncated ? ' · 已截断，仅显示前 500 行' : ''}</p></div><div className="core-actions"><button className="secondary" aria-expanded={showChart} onClick={() => setShowChart(value => !value)} disabled={!result.rows.length}><BarChart3 size={15} />{showChart ? '收起图表' : '结果图表'}</button><button className="secondary" onClick={csv} disabled={!result.rows.length}><ArrowDownToLine size={15} />结果 CSV</button></div></div>
-          {result.truncated && <p className="core-warning">结果超过 500 行，当前仅显示前 500 行；导出 CSV 也只包含这些行。请加 WHERE 或 LIMIT 缩小范围。</p>}
-          {showChart && result.rows.length > 0 && <Suspense fallback={<p className="core-muted">正在加载图表引擎…</p>}><SqlResultChart columns={result.columns} rows={result.rows} /></Suspense>}
-          {result.rows.length === 0 ? <p className="small-empty">查询执行成功，但没有返回行。</p> : <div className="core-table-wrap console-results"><table><thead><tr>{result.columns.map((column, i) => <th key={i}>{column}</th>)}</tr></thead><tbody>{result.rows.map((row, i) => <tr key={i}>{row.map((value, j) => <td key={j}>{value === null ? '∅' : String(value)}</td>)}</tr>)}</tbody></table></div>}
-          <p className="core-muted">以上是本次 SQL 的直接结果。控制台不自动建立图表或来源绑定；需要回查记录时，请选择 <code>_record</code> 并对照片段来源。JOIN 结果的两侧行号需自行核对，控制台不替你判断连接是否合理。</p>
+      </aside>
+
+      <div className="sql-stage">
+        <section className="sql-editor" aria-label="查询编辑器">
+          <div className="sql-editor-chrome">
+            <span className="sql-dot" aria-hidden="true" />
+            <span className="sql-file">query.sql</span>
+            <span className="sql-editor-mode">READ ONLY</span>
+            <span className="sql-editor-engine"><Database size={12} />sql.js worker</span>
+          </div>
+          <label htmlFor="console-sql" className="sr-only">查询语句</label>
+          <div className="sql-editor-wrap">
+            <pre className="sql-gutter" aria-hidden="true">{lineNumbers.join('\n')}</pre>
+            <textarea
+              ref={editor}
+              id="console-sql"
+              className="sql-console-editor"
+              value={sql}
+              spellCheck={false}
+              aria-label="查询语句"
+              onChange={e => setSql(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); void execute() } }}
+            />
+          </div>
+          <div className="sql-commandbar">
+            <button className="primary" onClick={() => void execute()} disabled={busy}>{busy ? <LoaderCircle className="spin" size={16} /> : <Play size={16} />}{busy ? '正在执行…' : '运行查询'}</button>
+            <span className="sql-shortcut"><kbd>Ctrl</kbd><kbd>Enter</kbd>运行 · 最多 500 行</span>
+            <div className="sql-template-row" role="group" aria-label="查询模板">
+              {templates.map(template => <button key={template.label} onClick={() => setSql(template.sql)} title={template.sql}>
+                <strong>{template.label}</strong><small>{template.detail}</small>
+              </button>)}
+            </div>
+          </div>
+        </section>
+
+        {error && <p className="ai-error sql-error" role="alert"><AlertCircle size={16} />{error}</p>}
+
+        {result ? <section className="sql-result" aria-live="polite">
+          <div className="sql-result-head">
+            <div>
+              <span className="sql-overline">RESULT SET</span>
+              <h3>查询结果</h3>
+              <p>{result.rows.length} 行 · {result.elapsedMs} ms · {result.columns.length} 列{result.truncated ? ' · 已截断，仅显示前 500 行' : ''}</p>
+            </div>
+            <div className="sql-result-actions">
+              <button className="secondary" aria-expanded={showChart} onClick={() => setShowChart(value => !value)} disabled={!result.rows.length}><BarChart3 size={15} />{showChart ? '收起图表' : '结果图表'}</button>
+              <button className="secondary" onClick={csv} disabled={!result.rows.length}><ArrowDownToLine size={15} />结果 CSV</button>
+            </div>
+          </div>
+          {result.truncated && <p className="sql-warning">结果超过 500 行，当前仅显示前 500 行；导出 CSV 也只包含这些行。请加 WHERE 或 LIMIT 缩小范围。</p>}
+          {showChart && result.rows.length > 0 && <Suspense fallback={<p className="sql-muted">正在加载图表引擎…</p>}><SqlResultChart columns={result.columns} rows={result.rows} /></Suspense>}
+          {result.rows.length === 0
+            ? <div className="sql-no-rows"><span>0 行</span><p>查询执行成功，但没有返回行。条件可能过窄，或该字段没有匹配值。</p></div>
+            : <div className="sql-table-wrap console-results"><table><thead><tr>{result.columns.map((column, i) => <th key={i}>{column}</th>)}</tr></thead><tbody>{result.rows.map((row, i) => <tr key={i}>{row.map((value, j) => <td key={j}>{value === null ? '∅' : String(value)}</td>)}</tr>)}</tbody></table></div>}
+          <p className="sql-muted">以上是本次 SQL 的直接结果。控制台不自动建立图表或来源绑定；回查记录请选择 <code>_record</code>。JOIN 两侧行号需自行核对。</p>
+        </section> : !error && <section className="sql-idle" aria-label="等待执行查询">
+          <div className="sql-idle-copy">
+            <span className="sql-overline">STANDBY</span>
+            <h3>从一条明确的查询开始</h3>
+            <p>编辑区默认加载 <code>SELECT * FROM readable LIMIT 20</code>。运行后，这里会显示真实行数、耗时与原始结果。</p>
+            <ol>
+              <li><span>01</span><div><strong>选对象</strong><small>readable 用原表头，data 用 c0…cN</small></div></li>
+              <li><span>02</span><div><strong>写条件</strong><small>只允许单条 SELECT 或 WITH</small></div></li>
+              <li><span>03</span><div><strong>核对</strong><small>结果、耗时和来源记录号一起保留</small></div></li>
+            </ol>
+          </div>
+          <div className="sql-idle-art" aria-hidden="true">
+            <span className="sql-idle-ring" /><span className="sql-idle-ring ring-b" /><span className="sql-idle-ring ring-c" />
+            <span className="sql-idle-scan" />
+            <span className="sql-idle-core"><Play size={30} /></span>
+            <span className="sql-idle-label">READY</span>
+          </div>
         </section>}
-        {!result && !error && <section className="panel core-panel exploration-empty"><h3>从一条明确的查询开始</h3><p>先用 <code>SELECT * FROM readable LIMIT 20</code> 看清真实数据，或选择左侧示例。查询在浏览器 Worker 内执行，不上传数据到服务端。</p><span>当前未执行查询，不生成示意结果。</span></section>}
       </div>
     </div>
   </div>

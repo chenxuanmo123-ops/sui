@@ -38,7 +38,7 @@
 .viz-legend{display:flex;align-items:center;flex-wrap:wrap;gap:8px 18px;margin:0 0 8px;font-size:11px;line-height:1.7}
 .viz-legend>span{display:inline-flex;align-items:center;gap:6px;min-width:0;overflow-wrap:anywhere}
 .viz-legend i{display:inline-block;width:8px;height:8px;border-radius:2px;background:#3971e8;flex-shrink:0}
-.viz-legend .viz-reference-key{color:#98631d}.viz-reference-key i{height:0;width:18px;background:transparent;border-top:2px dashed #b47823;border-radius:0}
+.viz-legend .viz-reference-key{color:#a15c00}.viz-reference-key i{height:0;width:18px;background:transparent;border-top:2px dashed #c0392b;border-radius:0}
 .viz-plot{position:relative;min-width:0}.analysis-viz .data-chart{width:100%;height:auto;display:block;min-width:360px;max-height:none;font-family:inherit;font-variant-numeric:tabular-nums}
 .analysis-viz .chart-hit{cursor:pointer;outline:none}.analysis-viz .chart-hit:focus-visible{stroke:#172d4e;stroke-width:1.5;stroke-dasharray:4 3;rx:4}
 .viz-tooltip{position:absolute;right:10px;top:22px;z-index:4;max-width:min(290px,calc(100% - 22px));padding:13px 15px;border:1px solid #d5dfec;background:rgba(255,255,255,.98);border-radius:8px;box-shadow:0 6px 24px #172d4e1a;color:#172d4e;font-size:12px;pointer-events:none;overflow-wrap:anywhere}

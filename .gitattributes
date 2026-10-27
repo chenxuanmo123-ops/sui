@@ -1,4 +1,10 @@
 * text=auto eol=lf
 # Preserve exact source bytes used by provenance/hash tests.
 tests/fixtures/** -text
+# Demo datasets advertise a SHA-256 over the downloaded bytes; CRLF is part of
+# that hash, so Git must not normalize these files on commit or checkout.
+demo-data/*.csv -text
+demo-data/*.txt -text
+demo-data/**/*.csv -text
+demo-data/**/*.txt -text
 *.png -text
