@@ -2093,16 +2093,16 @@ textarea.sr-only,
 .bundle-result .analysis-viz,
 .viz-dialog .analysis-viz {
   color: var(--obs-text);
-  --viz-grid: rgba(226,236,255, .085);
-  --viz-axis: #94a0b2;
-  --viz-tick: #a8bbaf;
-  --viz-tick-active: #f4f7ff;
-  --viz-value: #e4f1e8;
-  --viz-band: rgba(110,168,255, .10);
-  --viz-point-ring: #071120;
-  --viz-mark: #9cc0ff;
-  --viz-mark-active: #6ea8ff;
-  --viz-reference: #f5b740;
+  --viz-grid: rgba(255, 175, 120, .14);
+  --viz-axis: #d9c2ad;
+  --viz-tick: #e2ccb8;
+  --viz-tick-active: #ffe2c4;
+  --viz-value: #ffe2c4;
+  --viz-band: rgba(255, 138, 61, .15);
+  --viz-point-ring: #0a1018;
+  --viz-mark: #ff8a3d;
+  --viz-mark-active: #7cc4ff;
+  --viz-reference: #ff7b8a;
 }
 .chart-panel .viz-toolbar { border-bottom-color: var(--obs-line); color: var(--obs-muted); }
 .chart-panel .viz-controls > label,

@@ -48,6 +48,7 @@ import { UnitDeclaration } from './UnitDeclaration'
 import CommandPalette from './CommandPalette'
 import type { CommandAction } from './CommandPalette'
 import EmptyStage from './EmptyStage'
+import { prefetchMotion, riseIn } from './rise'
 
 type View = WorkspaceView
 
@@ -123,6 +124,10 @@ export default function App() {
   const computeLock = useRef(false)
   const [dataset, setDataset] = useState<Dataset | null>(null)
   const [loading, setLoading] = useState(false)
+  // A small CSV finishes before a full-screen frame could even paint. Wait a
+  // beat before showing the ingest overlay so fast reads do not flash, while
+  // slow ones (PDF, Excel, web download) get the real progress frame.
+  const [showIngest, setShowIngest] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [mapping, setMapping] = useState<Mapping>(blankMapping)
@@ -211,6 +216,33 @@ export default function App() {
   useEffect(()=>{if(pendingReplace)replaceRef.current?.showModal();else replaceRef.current?.close()},[pendingReplace])
   useEffect(()=>{if(branchDialog)branchDialogRef.current?.showModal();else branchDialogRef.current?.close()},[branchDialog])
   useEffect(()=>{setRolesOpen(false)},[dataset])
+  // Warm the lazily loaded motion chunk during idle time. The chunk is fetched
+  // asynchronously, so animating the very first paint would show the page once,
+  // hide it when the tween starts, then fade it back in. Only transitions that
+  // happen after mount are animated.
+  const firstView=useRef(true), firstSection=useRef(true)
+  useEffect(()=>{prefetchMotion()},[])
+  // Tab switches under the workbench only toggle `hidden`, so replay the
+  // entrance on the section that just became visible.
+  useEffect(()=>{
+    if(firstSection.current){firstSection.current=false;return}
+    const frame=requestAnimationFrame(()=>{
+      const section=document.getElementById('workspace-'+workspaceSection)
+      if(section&&!section.hidden)riseIn(section)
+    })
+    return()=>cancelAnimationFrame(frame)
+  },[workspaceSection])
+  // Navigating between work areas mounts a new view; stagger its top-level
+  // blocks so the area reads as a list falling into place, not a hard cut.
+  useEffect(()=>{
+    if(firstView.current){firstView.current=false;return}
+    const frame=requestAnimationFrame(()=>{
+      const content=document.querySelector('.content')
+      const shown=content?.querySelector('.workspace-welcome, .workbench, .sql-stage, .empty-stage, .core-workspace, .page-heading.is-ledger')
+      if(shown)riseIn(shown,{stagger:26})
+    })
+    return()=>cancelAnimationFrame(frame)
+  },[view])
   async function discardWorkspace(){
     if(clearInProgress.current||computing||loading)return
     clearInProgress.current=true;setClearing(true);cancelPendingSave.current();saveRevision.current++
@@ -252,6 +284,11 @@ export default function App() {
       if (version === request.current && !(e instanceof DOMException && e.name === 'AbortError')) setError(`公开数据加载失败：${e instanceof Error ? e.message : '网络异常'}。可重试，或导入自己的 CSV、Excel 或 PDF。`)
     } finally { if (version === request.current) setLoading(false) }
   }
+  useEffect(() => {
+    if (!loading) { setShowIngest(false); return }
+    const timer = window.setTimeout(() => setShowIngest(true), 160)
+    return () => window.clearTimeout(timer)
+  }, [loading])
   useEffect(() => () => { request.current++; abort.current?.abort() }, [])
   useEffect(() => { if (showHelp) helpRef.current?.showModal(); else helpRef.current?.close() }, [showHelp])
   function pickFile(accept = '.csv,.xlsx,.xls,.pdf') {
@@ -584,16 +621,17 @@ export default function App() {
     <div className="app-body">
     <header className="app-header">
       <div className="breadcrumb"><span>数鉴工作台</span><ChevronRight size={14}/><strong>{VIEW_META[view].title}</strong><small>{VIEW_META[view].hint}</small></div>
-      <div className="header-actions"><button className="secondary header-new" onClick={newAnalysis}><Plus size={15}/><span>新建分析</span></button><button className="command-trigger" onClick={()=>setCommandOpen(true)} aria-label="打开命令面板"><Search size={14}/><span>命令</span><kbd>Ctrl K</kbd></button><button className="icon-button" aria-label="使用说明" onClick={()=>setShowHelp(true)}><CircleHelp size={18}/></button><button className={'model-trigger'+(models.ready?' connected':'')} onClick={()=>setShowModels(true)}><span className="connection-dot"/><span>{models.selected?.name||'连接 AI'}</span><Settings2 size={14}/></button></div>
+      <div className="header-actions"><button className="secondary header-new" onClick={newAnalysis}><Plus size={15}/><span>新建分析</span></button><button className="command-trigger" onClick={()=>setCommandOpen(true)} aria-label="打开命令面板"><Search size={14}/><span>命令</span><kbd>Ctrl K</kbd></button><button className={'assistant-trigger'+(assistantOpen?' is-open':'')} aria-label={assistantOpen?'收起 AI 分析助手':'打开 AI 分析助手'} aria-expanded={assistantOpen} aria-controls="ai-assistant-window" onClick={()=>setAssistantOpen(!assistantOpen)}><MessageSquareText size={17}/><span>AI 助手</span></button><button className="icon-button" aria-label="使用说明" onClick={()=>setShowHelp(true)}><CircleHelp size={18}/></button><button className={'model-trigger'+(models.ready?' connected':'')} onClick={()=>setShowModels(true)}><span className="connection-dot"/><span>{models.selected?.name||'连接 AI'}</span><Settings2 size={14}/></button></div>
     </header>
     <main id="main" className="main" tabIndex={-1}>
       {dataset && <header className="topbar dataset-ribbon"><div className="dataset-ribbon-name"><FileSpreadsheet size={20}/><div className="dataset-name"><strong title={dataset.title}>{dataset.title}</strong><span>{dataset.rows.length.toLocaleString()} 行 · {dataset.headers.length} 个字段</span></div><span className="specimen-state">就绪</span><span className="specimen-fingerprint" title={`数据快照指纹（SHA-256 前 12 位）：${dataset.fingerprint}`}>指纹 {dataset.fingerprint.slice(0, 12)}</span></div><div className="top-actions"><button className="text-button" aria-expanded={fieldsOpen} aria-controls="dataset-field-drawer" onClick={()=>setFieldsOpen(!fieldsOpen)}><Table2 size={16}/>字段与质量</button><button className="text-button" onClick={()=>setView('source')}><ShieldCheck size={16}/>来源</button><button className="secondary top-import" onClick={()=>pickFile()} disabled={loading}><Upload size={16}/>更换文件</button><button className="text-button top-public" onClick={()=>void loadPublicDataset()} disabled={loading}>公开数据</button></div></header>}
-      <div className="content">
+      <div className={'content' + (view === 'workspace' && !dataset ? ' is-welcome' : '')}>
         {((view === 'source' && !!dataset) || (view === 'branches' && history.length > 0)) && <div className="page-heading is-ledger"><div><span className="page-eyebrow">{VIEW_META[view].group} / {VIEW_META[view].hint}</span><h1>{VIEW_META[view].title}</h1><p>{VIEW_META[view].description}</p></div><div className="heading-actions"><button className="secondary" onClick={() => pickFile()} disabled={loading}><Upload size={17} />导入文件</button><button className="text-button" onClick={() => void loadPublicDataset()} disabled={loading}><RefreshCcw size={16} className={loading ? 'spin' : ''} />{loading ? '加载数据中' : '从网页载入'}</button></div></div>}
 
         {error && <div className="banner error" role="alert"><AlertCircle size={19} /><span>{error}</span><button aria-label="关闭错误提示" className="icon-button" onClick={() => setError('')}><X size={17} /></button></div>}
         <div className="status-message" role="status" aria-live="polite">{notice && <><Check size={15} /><span>{notice}</span></>}</div>
 
+        {fieldsOpen && dataset && <div className="drawer-scrim" aria-hidden="true" onClick={()=>setFieldsOpen(false)} />}
         {fieldsOpen && dataset && <div className="field-drawer" id="dataset-field-drawer"><header><strong>核对字段与质量</strong><button className="icon-button" aria-label="关闭字段面板" onClick={()=>setFieldsOpen(false)}><X size={18}/></button></header><FieldShelf dataset={dataset} profiles={profiles} checkup={checkup} search={fieldSearch} onSearch={setFieldSearch} onData={field=>{setView('workspace');setWorkspaceSection('data');setDataTab('fields');if(field)setFieldSearch(field);setFieldsOpen(false)}} onPrepare={()=>setView('prepare')} onSource={()=>setView('source')} onRoles={()=>setRolesOpen(true)} onCheckup={active||bundle?()=>{setFieldsOpen(false);backToCheckup()}:undefined}/></div>}
 
         {dataset && view !== 'source' && view !== 'workspace' && <SourceSummary dataset={dataset} onOpen={() => setView('source')} />}
@@ -670,7 +708,6 @@ export default function App() {
       </div>
     </main>
     </div>
-    <button hidden={(studio && workspaceSection==='analysis') || assistantOpen} className={'assistant-launcher' + (assistantOpen ? ' is-open' : '')} title={assistantOpen ? '收起 AI 分析助手' : '打开 AI 分析助手'} aria-label={assistantOpen ? '收起 AI 分析助手' : '打开 AI 分析助手'} aria-expanded={assistantOpen} aria-controls="ai-assistant-window" onClick={() => setAssistantOpen(!assistantOpen)}><MessageSquareText size={21} /><span>AI 分析助手</span><span className="launcher-dot" /></button>
     <AssistantWindow docked open={assistantOpen} onClose={() => setAssistantOpen(false)}><AiWorkbench seed={assistantSeed} dataset={dataset} confirmedRoles={confirmedRoles} loading={loading || computing} onExecute={executeAi} onBundle={receiveBundle} onEvidence={(id, label) => { openAiEvidence(id, label); }} profiles={models.profiles} selected={models.selected} onSelect={models.setSelectedId} onConfigure={() => setShowModels(true)} status={models.status} ready={models.ready} /></AssistantWindow>
     {importFile && <ImportDialog key={importFile.name + importFile.lastModified} file={importFile} models={models.profiles} selected={models.selected} onSelect={models.setSelectedId} onConfigure={() => setShowModels(true)} onClose={() => setImportFile(null)} onImport={next => { setImportFile(null); if (dataset) setPendingReplace({ kind: 'dataset', dataset: next }); else installDataset(next) }} />}
     {dataset && checkup && rolesOpen && <FieldRoles dataset={dataset} fields={checkup.all} overrides={fieldRoles} onChange={setFieldRoles} onClose={() => setRolesOpen(false)} />}
@@ -700,6 +737,27 @@ export default function App() {
     {showPage && dataset?.origin?.pageImage && <PDFSourcePage image={dataset.origin.pageImage} onClose={() => setShowPage(false)} />}
     <ModelManager open={showModels} onClose={() => setShowModels(false)} profiles={models.profiles} selectedId={models.selectedId} onSelect={models.setSelectedId} onSave={models.save} onRemove={models.remove} defaultId={models.defaultId} canManage={models.canManage} onDefault={models.setDefault} />
     {loading && <div className="loading-indicator" role="status"><LoaderCircle size={18} className="spin" />正在读取真实数据</div>}
+    {showIngest && <div className="ingest-screen" role="status" aria-live="polite" aria-label="正在本地读取并体检数据">
+      <div className="ingest-card">
+        <div className="ingest-visual" aria-hidden="true">
+          <span className="ingest-ring ingest-ring-a" />
+          <span className="ingest-ring ingest-ring-b" />
+          <span className="ingest-sweep" />
+          <span className="ingest-core"><Database size={26} strokeWidth={1.6} /></span>
+        </div>
+        <div className="ingest-copy">
+          <span className="ingest-kicker"><i />本地解析 · 文件不上传</span>
+          <h2>正在读取并体检这份数据</h2>
+          <p>识别编码、分隔符与字段类型，完成后进入工作台。这一步只在本机完成。</p>
+          <ol className="ingest-steps" aria-hidden="true">
+            <li className="is-active"><span />读取文件</li>
+            <li><span />识别字段</li>
+            <li><span />检查质量</li>
+          </ol>
+          <div className="ingest-track" aria-hidden="true"><span /></div>
+        </div>
+      </div>
+    </div>}
     <dialog ref={helpRef} className="help-dialog" onCancel={() => setShowHelp(false)} onClose={() => setShowHelp(false)}><div className="section-heading"><h2>工作台使用指南</h2><button className="icon-button" aria-label="关闭使用说明" onClick={() => setShowHelp(false)}><X size={20} /></button></div><ol><li>导入 CSV、Excel（XLSX / XLS）、PDF；也可读取 OWID 真实公开数据。</li><li>检查字段质量，确认分组、指标、筛选和单位。</li><li>执行求和、均值、计数、去重数或极值；探索页支持折线、柱状、散点、热力与结果表。</li><li>点选图表或结果表中的分组，查看来源记录。</li><li>使用公开数据的有限中文规则追问，保存计算分支。</li><li>导出 SVG、结果 CSV 或单文件 HTML 证据报告。</li></ol><p>AI 辅助分析可在网页“模型连接”中填写接口地址、API Key 和模型 ID，先理解目标与背景，存在歧义时先澄清，确认计划后真实计算并生成带引用解读。计算已接入 SQLite / sql.js 独立线程；SQL 与参数可查看，MCP 暂未接入。Excel 选择工作表、表头与范围后确认；PDF 支持文字提取和需授权的视觉转录，当前每次导入一页中的一张表，必须核对。当前限制：30 MB、100,000 行、200 列、200 个结果分组；筛选值展示前 500 个不同值。CSV 自动识别 UTF-8 / UTF-16 / GBK(GB18030) 编码与逗号、分号、制表符分隔；原始值保留，类型候选不是准确性承诺。</p><button className="primary" onClick={() => setShowHelp(false)}>返回工作台</button></dialog>
     <CommandPalette open={commandOpen} onClose={() => setCommandOpen(false)} actions={commandActions} />
   </div>

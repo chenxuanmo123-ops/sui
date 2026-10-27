@@ -297,7 +297,7 @@ button, input, select, textarea { font-family: inherit; }
   white-space: nowrap;
 }
 .dataset-name span { color: var(--app-faint); font-family: var(--app-mono); font-size: 9.5px; }
-.top-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.top-actions { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; justify-content: flex-end; min-width: 0; }
 .top-actions .text-button { color: var(--app-muted); font-size: 11px; }
 .top-actions .text-button:hover { color: var(--app-ink); }
 .top-actions .top-import { min-height: 30px; padding: 4px 10px; font-size: 10.5px; }

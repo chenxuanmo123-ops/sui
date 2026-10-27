@@ -1132,7 +1132,10 @@ button:disabled:hover { transform: none; }
 .welcome-trust svg { color: var(--inst-verified); }
 .welcome-connection .text-button { min-height: 24px; padding: 2px 0; font-size: 9.5px; }
 
-/* ---------- probe column: docked AI ---------- */
+/* ---------- probe column: docked AI ----------
+   The paper-toned dock only exists at desktop widths. Below 1201px the assistant
+   is an overlay dialog, so these rules must not repaint it as a light sheet. */
+@media (min-width: 1201px) {
 .is-studio .assistant-window.is-docked:not(.expanded) {
   top: 52px;
   height: calc(100dvh - 52px);
@@ -1212,6 +1215,7 @@ button:disabled:hover { transform: none; }
   letter-spacing: .08em;
 }
 .is-studio .assistant-window.is-docked:not(.expanded) .ai-actions .primary { width: 100%; }
+}
 
 /* ---------- motion: state changes only ---------- */
 .main > .content,

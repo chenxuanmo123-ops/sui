@@ -1,6 +1,9 @@
+// Must run before any lazily loaded PDF chunk.
+import './polyfills'
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
+import BootIntro from './BootIntro'
 import ErrorBoundary from './ErrorBoundary'
 import './styles.css'
 import './workspace.css'
@@ -17,6 +20,7 @@ import './motion.css'
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ErrorBoundary>
+      <BootIntro />
       <App />
     </ErrorBoundary>
   </React.StrictMode>,

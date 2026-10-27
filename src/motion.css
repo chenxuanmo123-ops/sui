@@ -41,20 +41,163 @@
   to { stroke-dashoffset: -60; }
 }
 
+/* ---------- opening frame ----------
+   A 1.4s title card that dissolves into the welcome deck. It is decorative:
+   pointer-transparent, aria-hidden, and skipped under reduced motion. It never
+   stands in for real reading work — that stays in the ingest overlay. */
+@keyframes boot-cover { from { opacity: 0; } to { opacity: 1; } }
+@keyframes boot-leave { from { opacity: 1; transform: scale(1); filter: blur(0); } to { opacity: 0; transform: scale(1.025); filter: blur(7px); } }
+@keyframes boot-scan { 0% { top: -4%; opacity: 0; } 16% { opacity: .85; } 100% { top: 104%; opacity: 0; } }
+@keyframes boot-mark-in { from { opacity: 0; letter-spacing: .52em; filter: blur(9px); } to { opacity: 1; letter-spacing: .2em; filter: blur(0); } }
+@keyframes boot-caption-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes boot-progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes boot-foot-in { from { opacity: 0; } to { opacity: 1; } }
+
+.boot-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  pointer-events: none;
+  background: radial-gradient(120% 92% at 50% 44%, #0e1828 0%, #070b13 56%, #04060b 100%);
+  animation: boot-cover 160ms ease-out both;
+}
+.boot-intro.is-leaving { animation: boot-leave 420ms cubic-bezier(.4, 0, .2, 1) both; }
+.boot-grid {
+  position: absolute;
+  inset: -12%;
+  background-image:
+    linear-gradient(rgba(143, 184, 255, .055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(143, 184, 255, .055) 1px, transparent 1px);
+  background-size: 54px 54px;
+  -webkit-mask-image: radial-gradient(66% 58% at 50% 46%, #000 18%, transparent 78%);
+  mask-image: radial-gradient(66% 58% at 50% 46%, #000 18%, transparent 78%);
+  animation: obs-grid-drift 48s linear infinite;
+}
+.boot-veil {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(44% 38% at 50% 46%, rgba(110, 168, 255, .13), transparent 70%);
+}
+.boot-intro::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(143, 184, 255, .4), transparent);
+  animation: boot-scan 1.15s ease-in-out both;
+}
+.boot-stage { position: relative; display: grid; justify-items: center; align-content: center; width: min(340px, 78vw); min-height: 240px; }
+.boot-ring { position: absolute; top: 50%; left: 50%; border-radius: 50%; }
+.boot-ring-a { width: 210px; height: 210px; margin: -105px 0 0 -105px; border: 1px solid rgba(143, 184, 255, .16); }
+.boot-ring-b {
+  width: 164px; height: 164px; margin: -82px 0 0 -82px;
+  border: 1px dashed rgba(143, 184, 255, .3);
+  animation: obs-spin 22s linear infinite;
+}
+.boot-ring-c {
+  width: 120px; height: 120px; margin: -60px 0 0 -60px;
+  border: 1px solid rgba(183, 166, 255, .16);
+  animation: obs-orbit-rev 34s linear infinite;
+}
+.boot-sweep {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 210px; height: 210px; margin: -105px 0 0 -105px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0deg, rgba(143, 184, 255, .34) 44deg, transparent 92deg);
+  -webkit-mask-image: radial-gradient(circle, transparent 62%, #000 63%, #000 71%, transparent 72%);
+  mask-image: radial-gradient(circle, transparent 62%, #000 63%, #000 71%, transparent 72%);
+  animation: obs-spin 3.4s linear infinite;
+}
+.boot-mark {
+  position: relative;
+  color: #f4f7ff;
+  font-size: 44px;
+  font-weight: 700;
+  letter-spacing: .2em;
+  line-height: 1;
+  text-indent: .2em;
+  text-shadow: 0 0 34px rgba(110, 168, 255, .45);
+  animation: boot-mark-in 820ms cubic-bezier(.22, 1, .36, 1) both;
+}
+.boot-caption {
+  position: relative;
+  margin-top: 20px;
+  color: #94a8c1;
+  font-family: var(--obs-mono);
+  font-size: 9px;
+  letter-spacing: .26em;
+  text-indent: .28em;
+  animation: boot-caption-in 620ms 220ms cubic-bezier(.22, 1, .36, 1) both;
+}
+.boot-track {
+  position: relative;
+  width: 132px;
+  height: 1px;
+  margin-top: 40px;
+  background: rgba(143, 184, 255, .16);
+  overflow: hidden;
+}
+.boot-track > i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(143, 184, 255, .2), #8fbcff);
+  transform-origin: left center;
+  animation: boot-progress 950ms 60ms cubic-bezier(.4, 0, .2, 1) both;
+}
+.boot-foot {
+  position: absolute;
+  right: 0;
+  bottom: 34px;
+  left: 0;
+  display: flex;
+  justify-content: center;
+  gap: 26px;
+  color: #63758c;
+  font-family: var(--obs-mono);
+  font-size: 9px;
+  letter-spacing: .14em;
+  animation: boot-foot-in 700ms 320ms ease-out both;
+}
+.boot-foot > span { display: inline-flex; align-items: center; gap: 8px; }
+.boot-foot > span::before { content: ""; width: 4px; height: 4px; border-radius: 50%; background: #6ee7d8; }
+@media (max-width: 560px) {
+  .boot-mark { font-size: 36px; }
+  .boot-foot { display: none; }
+}
+
 /* ---------- welcome deck ambience ---------- */
 .workspace-welcome .welcome-field::before { animation: obs-grid-drift 48s linear infinite; }
 .welcome-glow-a { animation: obs-float 15s ease-in-out infinite, obs-headline-glow 9s ease-in-out infinite; }
 .welcome-glow-b { animation: obs-float-soft 18s ease-in-out infinite reverse; }
 .welcome-copy { animation: obs-rise 620ms var(--obs-ease) both; }
-.welcome-steps li { animation: obs-rise 560ms var(--obs-ease) both; }
-.welcome-steps li:nth-child(1) { animation-delay: 90ms; }
-.welcome-steps li:nth-child(2) { animation-delay: 150ms; }
-.welcome-steps li:nth-child(3) { animation-delay: 210ms; }
-.welcome-features article { animation: obs-rise 560ms var(--obs-ease) both; }
-.welcome-features article:nth-child(1) { animation-delay: 160ms; }
-.welcome-features article:nth-child(2) { animation-delay: 220ms; }
-.welcome-features article:nth-child(3) { animation-delay: 280ms; }
-.public-entry-source { animation: obs-rise 520ms 260ms var(--obs-ease) both; }
+
+/* Choreographed hand-off: the deck only performs its entrance once the opening
+   frame starts dissolving, so the two movements read as one sequence. */
+@keyframes welcome-copy-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes welcome-line-in { from { opacity: 0; transform: translateY(.2em); clip-path: inset(0 0 108% 0); } to { opacity: 1; transform: none; clip-path: inset(-14% -10% -14% -10%); } }
+@keyframes welcome-intake-in { from { opacity: 0; transform: translateY(26px) scale(.986); } to { opacity: 1; transform: none; } }
+@keyframes welcome-rule-in { from { opacity: 0; transform: scaleX(.86); transform-origin: left center; } to { opacity: 1; transform: none; } }
+html[data-intro="done"] .welcome-bar { animation: welcome-rule-in 640ms 40ms var(--obs-ease) both; }
+html[data-intro="done"] .welcome-copy { animation: welcome-copy-in 760ms 70ms var(--obs-ease) both; }
+html[data-intro="done"] .welcome-copy h1 { animation: welcome-line-in 880ms 120ms var(--obs-ease) both; }
+html[data-intro="done"] .welcome-copy > p { animation: welcome-copy-in 640ms 320ms var(--obs-ease) both; }
+html[data-intro="done"] .welcome-steps li { animation: obs-rise 620ms var(--obs-ease) both; }
+html[data-intro="done"] .welcome-steps li:nth-child(1) { animation-delay: 380ms; }
+html[data-intro="done"] .welcome-steps li:nth-child(2) { animation-delay: 460ms; }
+html[data-intro="done"] .welcome-steps li:nth-child(3) { animation-delay: 540ms; }
+html[data-intro="done"] .welcome-features article { animation: obs-rise 620ms var(--obs-ease) both; }
+html[data-intro="done"] .welcome-features article:nth-child(1) { animation-delay: 430ms; }
+html[data-intro="done"] .welcome-features article:nth-child(2) { animation-delay: 510ms; }
+html[data-intro="done"] .welcome-features article:nth-child(3) { animation-delay: 590ms; }
+html[data-intro="done"] .intake-area { animation: welcome-intake-in 820ms 240ms var(--obs-ease) both; }
+html[data-intro="done"] .welcome-bottom { animation: welcome-copy-in 700ms 640ms var(--obs-ease) both; }
+html[data-intro="done"] .public-entry-source { animation: welcome-copy-in 560ms 480ms var(--obs-ease) both; }
 
 /* the intake aperture keeps breathing even when the pointer is away */
 .intake-aperture .aperture-ring { animation: obs-spin 26s linear infinite; }
@@ -140,6 +283,21 @@
 }
 .empty-stage-actions .primary:hover::after { opacity: .9; animation: obs-button-sheen 720ms var(--obs-ease); }
 
+/* ---------- page transitions: a short slide, never a long wait ---------- */
+@keyframes page-slide-in {
+  from { opacity: 0; transform: translateY(16px) scale(.994); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes page-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.workspace-welcome { animation: page-slide-in 520ms var(--obs-ease) both; }
+.data-review,
+.workbench,
+.sql-stage,
+.empty-stage { animation: page-fade-in 380ms var(--obs-ease) both; }
+
 /* ---------- scroll-driven reveal (progressive enhancement) ----------
    Transform + a floored opacity only, so an element is never invisible while
    off-screen and Playwright/AT can still find it. No sticky element is
@@ -155,7 +313,9 @@
     .result-stage-main > *,
     .insight-sections > .insight-section,
     .analysis-thread,
-    .source-summary {
+    .source-summary,
+    .review-main > *,
+    .review-aside > * {
       animation: obs-scroll-rise linear both;
       animation-timeline: view();
       animation-range: entry 0% entry 55%;
@@ -174,16 +334,22 @@
     transition-duration: .001ms !important;
     scroll-behavior: auto !important;
   }
+  .boot-intro { display: none !important; }
   .empty-stage-copy > *,
   .empty-stage-art,
   .sql-head,
   .sql-result,
   .sql-no-rows,
   .welcome-copy,
+  .welcome-copy h1,
   .welcome-steps li,
   .welcome-features article,
+  .welcome-bar,
+  .welcome-bottom,
+  .intake-area,
   .public-entry-source {
     opacity: 1 !important;
     transform: none !important;
+    clip-path: none !important;
   }
 }

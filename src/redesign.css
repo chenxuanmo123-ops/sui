@@ -833,16 +833,16 @@
 .chart-panel .analysis-viz,
 .bundle-result .analysis-viz,
 .viz-dialog .analysis-viz {
-  --viz-grid: rgba(226, 236, 255, .09);
-  --viz-axis: #94a0b2;
-  --viz-tick: #8f9bad;
-  --viz-tick-active: #f4f7ff;
-  --viz-value: #e8eefa;
-  --viz-band: rgba(255, 181, 71, .13);
+  --viz-grid: rgba(255, 175, 120, .14);
+  --viz-axis: #d9c2ad;
+  --viz-tick: #e2ccb8;
+  --viz-tick-active: #ffe2c4;
+  --viz-value: #ffe2c4;
+  --viz-band: rgba(255, 138, 61, .15);
   --viz-point-ring: #0a0e14;
-  --viz-mark: #ffb547;
-  --viz-mark-active: #6ea8ff;
-  --viz-reference: #ff7185;
+  --viz-mark: #ff8a3d;
+  --viz-mark-active: #7cc4ff;
+  --viz-reference: #ff7b8a;
 }
 .chart-panel .viz-legend i,
 .chart-panel .legend i { background: var(--obs-data); }
