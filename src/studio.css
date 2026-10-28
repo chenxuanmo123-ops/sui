@@ -1573,3 +1573,76 @@
 @media (prefers-reduced-motion: reduce) {
   .drawer-scrim { animation: none; }
 }
+
+/* ---------- model connection dialog ----------
+   The dialog markup predates the observation theme and still carries the old
+   light-card colours from styles.css, which left a white sheet under dark
+   inputs and ghost-grey tabs. Re-point every part at the --obs-* surface so it
+   reads as the same panel as the rest of the deck. */
+.model-dialog {
+  color: var(--obs-text);
+  background: var(--obs-surface);
+  border: 1px solid var(--obs-line-strong);
+  box-shadow: 0 32px 110px rgba(2, 6, 12, .72);
+}
+.model-dialog::backdrop { background: rgba(3, 6, 11, .72); backdrop-filter: blur(6px); }
+.model-header { border-bottom-color: var(--obs-line); }
+.model-header h2 { color: var(--obs-text); }
+.model-header p { color: var(--obs-muted); }
+.model-header .icon-button { color: var(--obs-muted); }
+.model-header .icon-button:hover { color: var(--obs-text); background: rgba(226, 236, 255, .07); }
+.model-symbol {
+  background: var(--obs-lime-soft);
+  border: 1px solid rgba(110, 168, 255, .22);
+  color: var(--obs-cyan);
+}
+
+/* border-color, not just border-right-color: the mobile layout turns the
+   sidebar divider into a bottom border, which otherwise kept the light --line */
+.model-list { background: rgba(7, 11, 16, .5); border-color: var(--obs-line); }
+.model-list-label { color: var(--obs-muted); }
+.model-list-label span { color: var(--obs-faint); }
+.model-item { color: var(--obs-muted); }
+.model-item > svg { flex: none; }
+.model-item strong { color: var(--obs-text); }
+.model-item small { color: var(--obs-faint); }
+.model-item:hover { background: rgba(226, 236, 255, .05); color: var(--obs-text); }
+.model-item.active { background: var(--obs-lime-soft); color: var(--obs-text); box-shadow: inset 0 0 0 1px rgba(110, 168, 255, .28); }
+.model-item.active > svg { color: var(--obs-cyan); }
+.add-model { border-color: rgba(110, 168, 255, .32); color: var(--obs-cyan); }
+.add-model:hover:not(:disabled) { border-color: rgba(110, 168, 255, .5); background: var(--obs-lime-soft); }
+.model-list-note { color: var(--obs-faint); }
+
+.model-form-heading h3 { color: var(--obs-text); }
+.model-form-heading .tag { color: var(--obs-cyan); background: rgba(143, 184, 255, .08); border: 1px solid rgba(143, 184, 255, .2); }
+.provider-quickstart { color: var(--obs-muted); }
+.model-form > label:not(.ai-check) { color: var(--obs-muted); }
+.model-form input:not([type="checkbox"]) { color: var(--obs-text); background-color: rgba(7, 11, 16, .72); border-color: var(--obs-line-strong); }
+.model-form input:not([type="checkbox"]):focus { border-color: rgba(110, 168, 255, .55); box-shadow: 0 0 0 3px rgba(110, 168, 255, .12); outline: none; }
+.model-form > small { color: var(--obs-faint); }
+.available-model-buttons button { color: var(--obs-cyan); background: rgba(110, 168, 255, .08); border-color: rgba(110, 168, 255, .24); }
+.available-model-buttons button:hover:not(:disabled) { background: rgba(110, 168, 255, .16); }
+.available-model-buttons button[aria-pressed="true"] { color: #071120; background: var(--obs-lime); border-color: transparent; }
+.model-form .ai-check { color: var(--obs-muted); }
+.key-input .icon-button { color: var(--obs-muted); }
+.key-policy { background: rgba(110, 168, 255, .06); border-color: rgba(110, 168, 255, .18); color: var(--obs-muted); }
+.key-policy > svg { color: var(--obs-cyan); }
+.request-progress { background: rgba(110, 168, 255, .07); border-color: rgba(110, 168, 255, .22); color: var(--obs-text); }
+.request-progress small { color: var(--obs-muted); }
+.model-form .text-button { color: var(--obs-cyan); }
+.connection-feedback { color: var(--obs-verified); }
+.connection-feedback[role="alert"] { color: var(--obs-fail); }
+.probe-note { color: var(--obs-faint); }
+.delete-model { color: var(--obs-fail); }
+.delete-model:hover:not(:disabled) { background: rgba(255, 113, 133, .12); }
+/* disabled controls stay legible but read as unavailable, not as missing text */
+.model-form-actions .primary:disabled,
+.model-form-actions .secondary:disabled,
+.model-form .add-model:disabled,
+.available-model-buttons button:disabled {
+  color: var(--obs-faint);
+  background: rgba(226, 236, 255, .05);
+  border-color: var(--obs-line);
+  box-shadow: none;
+  opacity: 1;
+}
