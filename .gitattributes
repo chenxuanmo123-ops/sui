@@ -7,4 +7,6 @@ demo-data/*.csv -text
 demo-data/*.txt -text
 demo-data/**/*.csv -text
 demo-data/**/*.txt -text
+# Published copy of the bike demo; its SHA-256 must match the documented file.
+docs/real-demo/day.csv -text
 *.png -text

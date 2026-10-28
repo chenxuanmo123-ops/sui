@@ -1646,3 +1646,20 @@
   box-shadow: none;
   opacity: 1;
 }
+
+/* The Explore trend / Pearson cards still carried core.css's white note card.
+   Same surface treatment as the rest of the deck, with the accent kept:
+   blue for a fitted trend, green for a correlation. */
+.explore-trend {
+  color: var(--obs-muted);
+  background: rgba(110, 168, 255, .06);
+  border-color: rgba(110, 168, 255, .2);
+  border-left-color: var(--obs-lime);
+}
+.explore-trend strong { color: var(--obs-text); }
+.explore-trend p:last-child { color: var(--obs-faint); }
+.explore-correlation {
+  background: rgba(61, 220, 151, .06);
+  border-color: rgba(61, 220, 151, .18);
+  border-left-color: var(--obs-verified);
+}

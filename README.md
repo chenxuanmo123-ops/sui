@@ -16,11 +16,11 @@
 
 ## 真实公开数据试跑
 
-2026-10-24 用 UCI Bike Sharing 的 [day.csv](https://archive.ics.uci.edu/dataset/275/bike+sharing+dataset)（731 天、16 字段、2011-01-01–2012-12-31）在本地完整跑通：体检识别 7 个数值指标、5 个分类维度、2 个二值结果和 1 个时间字段；按月求和 24 组共 3,292,679 次，线性拟合 +5,452.9387/月、R² 0.544；Pearson(`cnt`,`temp`)=0.6275（731 对）。逐月合计与相关系数由独立 Python 复算一致。模型接口固定为未配置，页面数字与解读全部来自真实 SQLite 与确定性规则。
+2026-10-24 用 UCI Bike Sharing 的 [day.csv](https://archive.ics.uci.edu/dataset/275/bike+sharing+dataset)（731 天、16 字段、2011-01-01–2012-12-31）在本地完整跑通：体检识别 7 个数值指标、5 个分类维度、2 个二值结果和 1 个时间字段；按月求和 24 组共 3,292,679 次，线性拟合 +5,453/月（精确 5,452.9387）、R² 0.544；Pearson(`cnt`,`temp`)=0.6275（731 对）。逐月合计与相关系数由独立 Python 复算一致。模型接口固定为未配置，页面数字与解读全部来自真实 SQLite 与确定性规则。
 
-![UCI Bike Sharing 的 24 个月趋势与解读](artifacts/real-demo/screenshots/02-bike-trend-1440.png)
+![UCI Bike Sharing 的 24 个月趋势与解读](docs/real-demo/screenshots/02-bike-trend-1440.png)
 
-来源、SHA-256、字段口径、复算命令与“不能得出什么”见[真实数据演示说明](artifacts/real-demo/演示说明.md)。
+来源、SHA-256、字段口径、复算命令与“不能得出什么”见[真实数据演示说明](docs/real-demo/演示说明.md)。
 
 ## 核心能力
 
