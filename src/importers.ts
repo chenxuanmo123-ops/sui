@@ -22,7 +22,7 @@ export async function readWorkbook(file: File): Promise<ImportDocument> {
     const original = sheet['!fullref'] ? XLSX.utils.decode_range(sheet['!fullref']) : range;
     totalCells += (range.e.r + 1) * (range.e.c + 1);
     if (totalCells > 2000000) throw new Error('工作簿有效区域超过 200 万个单元格，请缩小范围后导入。');
-    if (range.e.c > 199 || original.e.r > 100000) throw new Error('工作表超过 100,000 行或 200 列，请先拆分。');
+    if (range.e.c > 499 || original.e.r > 100000) throw new Error('工作表超过 100,000 行或 500 列，请先拆分。');
     const warnings: string[] = [];
     if (sheet['!merges']?.length) warnings.push(`有 ${sheet['!merges'].length} 处合并单元格；只读取左上角值，不自动填充，请选择真正的表头和数据范围。`);
     if (sheet['!rows']?.some(r => r?.hidden)) warnings.push('包含隐藏行，导入仍包含选定范围中的隐藏行。');
@@ -195,7 +195,7 @@ export function prepareTable(table: ImportTable, headerIndex: number, lastIndex:
   const headers = headerLine.cells.map(c => c.trim());
   // Drop trailing empty worksheet columns only; interior empties remain errors.
   while (headers.length && !headers.at(-1)) headers.pop();
-  if (headers.length < 2 || headers.length > 200) throw new Error('表头需要 2—200 个字段。PDF 无法分列时，请使用视觉识别或调整表头。');
+  if (headers.length < 2 || headers.length > 500) throw new Error('表头需要 2—500 个字段。PDF 无法分列时，请使用视觉识别或调整表头。');
   if (headers.some(h => !h)) throw new Error('表头包含空字段，请修改表头行或补全列名。');
   if (new Set(headers).size !== headers.length) throw new Error('表头存在重复字段，请在预览中重命名。');
   const selected = table.lines.slice(headerIndex + 1, lastIndex + 1);

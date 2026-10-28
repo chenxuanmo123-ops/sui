@@ -1,5 +1,6 @@
 import type { SourceNotes } from './provenance'
 import { aggregateDataset } from './engine'
+import { isOwidHeaders } from './owid-labels'
 import type { TimeTrend } from './statistics'
 export type Row = Record<string, string | null>
 export type ImportOrigin = { format: string; fileHash: string; sheet?: string; page?: number; headerRow: number; method: string; warnings: string[]; locations: string[]; reviewed: boolean; pageImage?: string }
@@ -108,7 +109,7 @@ export function parseCSV(input: string, delimiter?: string) {
   const headers = records.shift()!.map(h => h.trim())
   if (headers.some(h => !h)) throw new Error('存在空列名，请补充列名后上传。')
   if (new Set(headers).size !== headers.length) throw new Error('存在重复列名，请先重命名，避免数据覆盖。')
-  if (headers.length > 200) throw new Error('当前 Demo 支持最多 200 列。')
+  if (headers.length > 500) throw new Error('当前 Demo 支持最多 500 列。')
   if (records.length > 100_000) throw new Error('当前 Demo 支持最多 100,000 行，请拆分文件。')
   const rows = records.map((values, i) => {
     if (values.length !== headers.length) throw new Error(`第 ${i + 2} 个非空记录的列数与标题不一致。`)
@@ -140,7 +141,7 @@ export function profileDataset(dataset: Dataset): Profile[] {
   })
 }
 export function defaultMapping(dataset: Dataset, profiles: Profile[]): Mapping {
-  if (dataset.isPublic) return { x: 'year', metric: 'renewables_electricity', filter: 'country', value: 'China', from: '2015', to: '2022', unit: 'TWh', aggregate: 'sum' }
+  if (dataset.isPublic || isOwidHeaders(dataset.headers)) return { x: 'year', metric: 'renewables_electricity', filter: 'country', value: 'China', from: '2015', to: '2022', unit: 'TWh', aggregate: 'sum' }
   return { x: profiles.find(p => p.kind === '时间候选')?.key ?? profiles.find(p => p.kind === '文本')?.key ?? dataset.headers[0], metric: profiles.find(p => p.kind === '数值')?.key ?? '', filter: '', value: '', from: '', to: '', unit: '', aggregate: 'sum' }
 }
 export function compareLabels(a: string, b: string): number {

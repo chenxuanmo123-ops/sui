@@ -81,18 +81,18 @@ describe('字段角色手动纠正：只在数据支持时生效', () => {
     expect(corrected.questions.some(question => question.id.startsWith('trend:period:'))).toBe(true)
   })
 
-  it('不能辨认成功值的两值列不能改成二值结果，超过 200 组的列不能改成分类', () => {
+  it('不能辨认成功值的两值列不能改成二值结果，超过 1000 组的列不能改成分类', () => {
     const flags = synthetic(['flag'], [['A'], ['B'], ['A'], ['B']])
     const flag = buildCheckup(flags).all[0]
     const binary = roleOptions(flags, flag).find(option => option.role === 'binary')!
     expect(binary.enabled).toBe(false)
     expect(binary.reason).toContain('无法辨认')
 
-    const wide = synthetic(['code'], Array.from({ length: 201 }, (_, index) => ['C' + index]))
+    const wide = synthetic(['code'], Array.from({ length: 1001 }, (_, index) => ['C' + index]))
     const code = buildCheckup(wide).all[0]
     const category = roleOptions(wide, code).find(option => option.role === 'category')!
     expect(category.enabled).toBe(false)
-    expect(category.reason).toContain('200')
+    expect(category.reason).toContain('1000')
     expect(buildCheckup(wide, { code: 'category' }).all[0].role).not.toBe('category')
   })
 

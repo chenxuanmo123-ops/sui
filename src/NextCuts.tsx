@@ -10,6 +10,7 @@ import { buildNextCuts } from './next-cuts'
 import type { NextCut } from './next-cuts'
 import type { Analysis, Dataset } from './data'
 import type { Checkup, CheckupOverrides } from './checkup'
+import { useLabels } from './labels'
 
 let temporaryId = 900000
 
@@ -21,7 +22,8 @@ let temporaryId = 900000
 export default function NextCuts({ dataset, result, overrides = {} }: { dataset: Dataset; result: Analysis; overrides?: CheckupOverrides }) {
   const [checkup, setCheckup] = useState<Checkup | null>(null)
   const [cut, setCut] = useState<NextCut | null>(null)
-  const cuts = checkup ? buildNextCuts(result, checkup) : []
+  const labels = useLabels()
+  const cuts = checkup ? buildNextCuts(result, checkup, undefined, labels.field) : []
 
   return <>
     <details className="next-cuts" onToggle={event => {
@@ -62,6 +64,7 @@ function CutDialog({ dataset, result, cut, onClose }: { dataset: Dataset; result
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
+  const labels = useLabels()
   const analysis = state.analysis
   const point = analysis?.points.find(item => item.label === selected)
   const rows = (point?.scopeRowIds ?? point?.rowIds ?? []).slice(0, 6)
@@ -84,10 +87,10 @@ function CutDialog({ dataset, result, cut, onClose }: { dataset: Dataset; result
           </div>
           <span>点击图形或表格查看来源记录</span>
         </div>
-        <DataChart points={analysis.points} metric={analysis.ai?.taskTitle || analysis.mapping.metric} unit={analysis.mapping.unit} kind={kind} selected={selected} onSelect={setSelected} interaction="select" />
+        <DataChart points={analysis.points} metric={analysis.ai?.taskTitle || analysis.mapping.metric} unit={analysis.mapping.unit} kind={kind} selected={selected} onSelect={setSelected} interaction="select" facetField={analysis.mapping.x} />
         <ResultTable result={analysis} onSelect={setSelected} selected={selected} onEvidence={(_id, label) => setSelected(label ?? '')} />
         {point && <section className="cut-sources" aria-label="所选分组的来源记录">
-          <h3>{point.label} · {formatNumber(point.value, 2)}{analysis.mapping.unit}</h3>
+          <h3>{labels.value(analysis.mapping.x, point.label)} · {formatNumber(point.value, 2)}{analysis.mapping.unit}</h3>
           <p>共 {(point.scopeRowIds ?? point.rowIds).length.toLocaleString()} 条匹配记录，预览前 {rows.length} 条。</p>
           <ul>{rows.map(id => {
             const row = dataset.rows[id - 2]

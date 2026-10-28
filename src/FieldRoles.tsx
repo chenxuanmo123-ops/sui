@@ -4,6 +4,7 @@ import { RotateCcw, Search, X } from 'lucide-react'
 import { roleOptions } from './checkup'
 import type { CheckupField, CheckupOverrides, CheckupRole } from './checkup'
 import type { Dataset } from './data'
+import { useLabels } from './labels'
 
 /**
  * Local correction of detected field roles.
@@ -21,10 +22,11 @@ export default function FieldRoles({ dataset, fields, overrides, onChange, onClo
 }) {
   const [query, setQuery] = useState('')
   const dialogRef = useRef<HTMLDivElement>(null)
+  const labels = useLabels()
   const options = useMemo(() => new Map(fields.map(field => [field.key, roleOptions(dataset, field)])), [dataset, fields])
   const corrected = fields.filter(field => field.overridden)
   const visible = query.trim()
-    ? fields.filter(field => field.key.toLowerCase().includes(query.trim().toLowerCase()))
+    ? fields.filter(field => field.key.toLowerCase().includes(query.trim().toLowerCase()) || labels.field(field.key).includes(query.trim()))
     : fields
 
   useEffect(() => {
@@ -63,7 +65,7 @@ export default function FieldRoles({ dataset, fields, overrides, onChange, onClo
             const current = choices.find(option => option.role === (selected || field.role))
             return <div className={'field-role-row' + (field.overridden ? ' corrected' : '')} key={field.key}>
               <div className="field-role-name">
-                <strong title={field.key}>{field.key}</strong>
+                <strong title={field.key+' · '+field.roleLabel}>{labels.field(field.key)}</strong>
                 <small>{field.overridden ? `已纠正 · 自动判断：${field.autoRoleLabel}` : field.roleLabel}</small>
                 <span className="field-role-detail">{field.detail}</span>
               </div>

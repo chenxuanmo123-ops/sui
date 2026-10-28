@@ -93,7 +93,7 @@ const quote = (name: string) => '"' + name.replaceAll('"', '""') + '"'
 // The optional second table is session-only. Its name is fixed so a query can
 // never create a table; its columns are cN and _row is the imported data row.
 export function installExtraTable(db: Database, table: ExtraTable) {
-  if (!table.headers.length || table.headers.length > 200) throw new Error('关联表需要 1—200 列。')
+  if (!table.headers.length || table.headers.length > 500) throw new Error('关联表需要 1—500 列。')
   if (table.headers.some(header => !header.trim())) throw new Error('关联表存在空列名，请补充列名后上传。')
   if (table.rows.length > 100000) throw new Error('关联表最多 100,000 行。')
   const names = exportColumnNames(table, '_row')

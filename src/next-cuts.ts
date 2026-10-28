@@ -32,13 +32,14 @@ function timeBucketFor(field: CheckupField): Mapping['timeBucket'] {
   return Number.isFinite(years) && years > 0 && years <= 3 ? 'month' : 'year'
 }
 
-function timeLabel(field: CheckupField, bucket: Mapping['timeBucket']) {
+function timeLabel(field: CheckupField, bucket: Mapping['timeBucket'], name: (key: string) => string) {
   if (bucket === 'month') return '按月看同一指标的变化'
   if (bucket === 'year') return '按年看同一指标的变化'
-  return `改用「${field.key}」看同一指标的变化`
+  return `改用「${name(field.key)}」看同一指标的变化`
 }
 
-export function buildNextCuts(result: Analysis, checkup: Checkup, limit = DEFAULT_LIMIT): NextCut[] {
+/** `fieldLabel` is display only — it renames suggestions, never the computation. */
+export function buildNextCuts(result: Analysis, checkup: Checkup, limit = DEFAULT_LIMIT, fieldLabel: (key: string) => string = key => key): NextCut[] {
   const mapping = result.mapping
   const cuts: NextCut[] = []
 
@@ -48,8 +49,8 @@ export function buildNextCuts(result: Analysis, checkup: Checkup, limit = DEFAUL
     cuts.push({
       id: 'time:' + time.key,
       kind: 'time',
-      label: timeLabel(time, timeBucket),
-      why: `${time.key} 覆盖 ${time.time?.min ?? '未知'}–${time.time?.max ?? '未知'}。换到时间维度只是改变分组方式，指标、筛选和汇总方式都不变，仍然不能据此判断原因。`,
+      label: timeLabel(time, timeBucket, fieldLabel),
+      why: `${fieldLabel(time.key)} 覆盖 ${time.time?.min ?? '未知'}–${time.time?.max ?? '未知'}。换到时间维度只是改变分组方式，指标、筛选和汇总方式都不变，仍然不能据此判断原因。`,
       mapping: { ...mapping, x: time.key, timeBucket },
     })
   }
@@ -65,8 +66,8 @@ export function buildNextCuts(result: Analysis, checkup: Checkup, limit = DEFAUL
     cuts.push({
       id: 'category:' + field.key,
       kind: 'category',
-      label: `按「${field.key}」看`,
-      why: `${field.key} 有 ${field.unique} 个取值。用同一指标、同一筛选条件和同一汇总方式重新分组，结果由本地 SQLite 重新计算。`,
+      label: `按「${fieldLabel(field.key)}」看`,
+      why: `${fieldLabel(field.key)} 有 ${field.unique} 个取值。用同一指标、同一筛选条件和同一汇总方式重新分组，结果由本地 SQLite 重新计算。`,
       mapping: { ...mapping, x: field.key, timeBucket: 'none' },
     })
   }

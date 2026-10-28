@@ -29,6 +29,10 @@ function agg(metric: string, aggregate: Mapping['aggregate']) {
  if (!expression) throw new Error('不支持的聚合方式'); return expression
 }
 const percentileP = { median: 0.5, p25: 0.25, p75: 0.75 } as const
+/** Largest number of groups a single result may contain. A full OWID snapshot
+ * has ~314 countries/regions, so the old 200 cap rejected ordinary questions
+ * such as "every country in 2022"; 1000 still bounds the table and chart. */
+export const MAX_GROUPS = 1000
 type PercentileAggregate = keyof typeof percentileP
 const isPercentile = (aggregate: Mapping['aggregate']): aggregate is PercentileAggregate => Object.hasOwn(percentileP, aggregate)
 // Linear interpolation, the same definition as numpy.quantile / DuckDB quantile_cont.
@@ -56,9 +60,9 @@ export function runAggregate(db: Database, d: Dataset, m: Mapping, question: str
   if(m.filter===m.metric||m.conditions?.some(c=>c.field===m.metric)) throw new Error('比例不能预先筛选结果列，避免分母失真。')
   const scored=scope+', scored AS (SELECT *, CASE WHEN raw_value = ? THEN 1 ELSE 0 END AS success, CASE WHEN raw_value IN ('+eligibleValues.map(()=>'?').join(',')+') THEN 1 ELSE 0 END AS eligible FROM selected)'
   const rateParams=[...params,successValue,...eligibleValues]
-  const sql=scored+' SELECT label, SUM(success) AS numerator, SUM(eligible) AS denominator, COUNT(*) - SUM(eligible) AS excluded, 100.0 * SUM(success) / NULLIF(SUM(eligible),0) AS value, GROUP_CONCAT(CASE WHEN eligible=1 THEN _record END) AS source_records, GROUP_CONCAT(_record) AS all_records FROM scored GROUP BY label LIMIT 201'
+  const sql=scored+' SELECT label, SUM(success) AS numerator, SUM(eligible) AS denominator, COUNT(*) - SUM(eligible) AS excluded, 100.0 * SUM(success) / NULLIF(SUM(eligible),0) AS value, GROUP_CONCAT(CASE WHEN eligible=1 THEN _record END) AS source_records, GROUP_CONCAT(_record) AS all_records FROM scored GROUP BY label LIMIT '+(MAX_GROUPS+1)
   const result=rows(db,sql,rateParams)
-  if(result.length>200) throw new Error('分组超过 200 个，请缩小范围。')
+  if(result.length>MAX_GROUPS) throw new Error(`分组超过 ${MAX_GROUPS} 个，请缩小范围。`)
   const ids=(v:SqlValue)=>v===null?[]:String(v).split(',').map(Number)
   const points=result.filter(r=>r[4]!==null).map(r=>({label:String(r[0]),value:Number(r[4]),rowIds:ids(r[5]),scopeRowIds:ids(r[6]),excludedRowIds:ids(r[6]).filter(id=>d.rows[id-2][m.metric]===null||!eligibleValues.includes(d.rows[id-2][m.metric]!)),rate:{numerator:Number(r[1]),denominator:Number(r[2]),excluded:Number(r[3])}})).sort((a,b)=>compareLabels(a.label,b.label))
   if(!points.length) throw new Error('比例分母为零：没有符合分母口径的记录，无法计算，不会显示为 0%。')
@@ -71,11 +75,11 @@ export function runAggregate(db: Database, d: Dataset, m: Mapping, question: str
  const numeric=!['count','distinct'].includes(m.aggregate)
  const valid=numeric?'strict_number(raw_value) IS NOT NULL':m.aggregate==='distinct'?"NULLIF(TRIM(raw_value), '') IS NOT NULL":'1=1'
  let sql=''
- if(isPercentile(m.aggregate)) sql=scope+', '+percentileCTE('label','b.label = r.label',percentileP[m.aggregate],valid,'selected')+', records AS (SELECT label, GROUP_CONCAT(_record) AS all_records FROM ranked GROUP BY label) SELECT picked.label, '+percentileExpression()+' AS value, rec.all_records AS source_records FROM picked JOIN records rec ON rec.label = picked.label GROUP BY picked.label LIMIT 201'
- else sql=scope+' SELECT label, '+agg('raw_value',m.aggregate)+' AS value, GROUP_CONCAT(_record) AS source_records FROM selected WHERE '+valid+' GROUP BY label LIMIT 201'
+ if(isPercentile(m.aggregate)) sql=scope+', '+percentileCTE('label','b.label = r.label',percentileP[m.aggregate],valid,'selected')+', records AS (SELECT label, GROUP_CONCAT(_record) AS all_records FROM ranked GROUP BY label) SELECT picked.label, '+percentileExpression()+' AS value, rec.all_records AS source_records FROM picked JOIN records rec ON rec.label = picked.label GROUP BY picked.label LIMIT '+(MAX_GROUPS+1)
+ else sql=scope+' SELECT label, '+agg('raw_value',m.aggregate)+' AS value, GROUP_CONCAT(_record) AS source_records FROM selected WHERE '+valid+' GROUP BY label LIMIT '+(MAX_GROUPS+1)
  const result=rows(db,sql,params)
  if(!result.length) throw new Error('当前口径没有有效数值。请检查字段、筛选值和范围；缺失值不会按 0 处理。')
- if(result.length>200) throw new Error('分组超过 200 个，请缩小范围或选择更粗的分组。')
+ if(result.length>MAX_GROUPS) throw new Error(`分组超过 ${MAX_GROUPS} 个，请缩小范围或选择更粗的分组。`)
  const allGroupRows=new Map(rows(db,scope+' SELECT label, GROUP_CONCAT(_record) FROM selected GROUP BY label',params).map(r=>[String(r[0]),String(r[1]).split(',').map(Number)]))
  const points=result.map(r=>({label:String(r[0]),value:Number(r[1]),rowIds:String(r[2]).split(',').map(Number),scopeRowIds:allGroupRows.get(String(r[0]))})).sort((a,b)=>compareLabels(a.label,b.label))
  if(points.some(p=>!Number.isFinite(p.value))) throw new Error('计算结果超出有效数值范围。')
@@ -89,7 +93,7 @@ export function runAggregate(db: Database, d: Dataset, m: Mapping, question: str
  return {scope:rowScope ? structuredClone(rowScope) : undefined,id,question,mapping:structuredClone(m),points,usedRows:points.reduce((n,p)=>n+p.rowIds.length,0),matched:Number(stats[0]),skipped:Number(stats[1]),createdAt:new Date().toISOString(),datasetHash:d.fingerprint,finding:summarize(points,m.unit,Boolean(trend)),sql:preamble(d)+sql,parameters:params as (string|number|null)[],operations:['SQLite / sql.js 真实执行参数化只读查询', '数据快照：'+d.fingerprint, aggregateNames[m.aggregate]+'；空值不替换为零', 'SQL 列映射及参数见下方，来源记录号对应当前快照'],...(trend?{trend}:{})}
 }
 export function runExplore(db: Database,d: Dataset,s: ExploreSpec): ExploreResult {
- if(!['line','bar','scatter','heatmap','table'].includes(s.kind) || !['label','desc'].includes(s.sort) || !Number.isInteger(s.limit) || s.limit<1 || s.limit>200) throw new Error('图表配置无效')
+ if(!['line','bar','scatter','heatmap','table'].includes(s.kind) || !['label','desc'].includes(s.sort) || !Number.isInteger(s.limit) || s.limit<1 || s.limit>MAX_GROUPS) throw new Error('图表配置无效')
  const x=col(d,s.x),params:SqlValue[]=[],filters:string[]=[]
  if(s.filter){filters.push(col(d,s.filter)+' = ?');params.push(s.value)}
  let baseSql='', columns:string[]=[], valid=''
@@ -153,10 +157,10 @@ export function runCompare(db:Database,d:Dataset,s:ComparisonSpec):ComparisonRes
  const cte=`WITH scoped AS (SELECT _record, ${dimension} AS label, ${metric} AS raw_value, CASE WHEN ${time} IS NOT NULL AND compare_labels(${time}, ?) >= 0 AND compare_labels(${time}, ?) <= 0 THEN 'baseline' WHEN ${time} IS NOT NULL AND compare_labels(${time}, ?) >= 0 AND compare_labels(${time}, ?) <= 0 THEN 'current' ELSE NULL END AS period FROM data), selected AS (SELECT * FROM scoped WHERE period IS NOT NULL)`
  const valid=`NULLIF(TRIM(label), '') IS NOT NULL`+(s.aggregate==='sum'?' AND strict_number(raw_value) IS NOT NULL':'')
  const measure=(period:string)=>s.aggregate==='sum'?`SUM(CASE WHEN period='${period}' THEN strict_number(raw_value) ELSE NULL END)`:`COUNT(CASE WHEN period='${period}' THEN 1 ELSE NULL END)`
- const sql=cte+` SELECT label, ${measure('baseline')} AS baseline, ${measure('current')} AS current, GROUP_CONCAT(CASE WHEN period='baseline' THEN _record END), GROUP_CONCAT(CASE WHEN period='current' THEN _record END) FROM selected WHERE ${valid} GROUP BY label LIMIT 201`
+ const sql=cte+` SELECT label, ${measure('baseline')} AS baseline, ${measure('current')} AS current, GROUP_CONCAT(CASE WHEN period='baseline' THEN _record END), GROUP_CONCAT(CASE WHEN period='current' THEN _record END) FROM selected WHERE ${valid} GROUP BY label LIMIT ${MAX_GROUPS + 1}`
  const output=rows(db,sql,params)
  if(!output.length)throw new Error('两个期间内没有可用数据，请核对期间字段、范围和指标')
- if(output.length>200)throw new Error('对比维度超过 200 个分组，请选择更粗粒度的维度')
+ if(output.length>MAX_GROUPS)throw new Error(`对比维度超过 ${MAX_GROUPS} 个分组，请选择更粗粒度的维度`)
  const total=rows(db,cte+` SELECT ${measure('baseline')}, ${measure('current')}, (SELECT COUNT(*) FROM selected WHERE NOT (${valid})), COUNT(CASE WHEN period='baseline' THEN 1 END), COUNT(CASE WHEN period='current' THEN 1 END) FROM selected WHERE ${valid}`,params)[0]
  const baselineTotal=Number(total[3])===0?null:Number(total[0]),currentTotal=Number(total[4])===0?null:Number(total[1]),delta=baselineTotal===null||currentTotal===null?null:currentTotal-baselineTotal
  const comparable=output.every(r=>r[3]!==null&&r[4]!==null)

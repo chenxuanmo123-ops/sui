@@ -62,7 +62,7 @@ function invalid(): never { throw new Error('保存的工作区版本或数据�
 function validDataset(value: unknown): value is Dataset {
  if (!value || typeof value !== 'object') return false
  const d = value as Dataset
- return typeof d.title === 'string' && typeof d.fingerprint === 'string' && /^[a-f0-9]{64}$/i.test(d.fingerprint) && typeof d.loadedAt === 'string' && Number.isFinite(Date.parse(d.loadedAt)) && typeof d.isPublic === 'boolean' && Array.isArray(d.headers) && d.headers.length > 0 && d.headers.length <= 200 && d.headers.every(h => typeof h === 'string' && h.length > 0) && new Set(d.headers).size === d.headers.length && Array.isArray(d.rows) && d.rows.length > 0 && d.rows.length <= 100000 && d.rows.every(row => row && typeof row === 'object' && d.headers.every(h => row[h] === null || typeof row[h] === 'string'))
+ return typeof d.title === 'string' && typeof d.fingerprint === 'string' && /^[a-f0-9]{64}$/i.test(d.fingerprint) && typeof d.loadedAt === 'string' && Number.isFinite(Date.parse(d.loadedAt)) && typeof d.isPublic === 'boolean' && Array.isArray(d.headers) && d.headers.length > 0 && d.headers.length <= 500 && d.headers.every(h => typeof h === 'string' && h.length > 0) && new Set(d.headers).size === d.headers.length && Array.isArray(d.rows) && d.rows.length > 0 && d.rows.length <= 100000 && d.rows.every(row => row && typeof row === 'object' && d.headers.every(h => row[h] === null || typeof row[h] === 'string'))
 }
 export function decodeWorkspace(value: unknown): WorkspaceSnapshot {
  try {

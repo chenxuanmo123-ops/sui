@@ -213,7 +213,7 @@ function roleSupport(role: CheckupRole, facts: RoleFacts): { enabled: boolean; r
   }
   if (role === 'category') {
     if (facts.unique < 2) return { enabled: false, reason: '只有一个取值，分组后不会产生差异' }
-    if (facts.unique > 200) return { enabled: false, reason: `${formatNumber(facts.unique, 0)} 个不同取值，超过 200 组上限，请先聚合或筛选` }
+    if (facts.unique > 1000) return { enabled: false, reason: `${formatNumber(facts.unique, 0)} 个不同取值，超过 1000 组上限，请先聚合或筛选` }
     return { enabled: true, reason: `${formatNumber(facts.unique, 0)} 个不同取值，可直接分组` }
   }
   if (role === 'binary') {
@@ -371,7 +371,7 @@ export function buildCheckup(dataset: Dataset, overrides: CheckupOverrides = {})
   if (missingCells) warnings.push({ tone: 'info', title: '存在空值', detail: `${formatNumber(missingCells, 0)} 个空值单元格。计算时会排除缺失值，不会自动当作 0。` })
   if (quality.duplicateRows) warnings.push({ tone: 'warn', title: '存在完全重复行', detail: `${formatNumber(quality.duplicateRows, 0)} 行与前面记录完全相同。可能是重复记录，也可能业务上允许重复；系统不会自动删除。` })
   if (identifiers.length) warnings.push({ tone: 'info', title: '可能有编号字段', detail: `${identifiers.slice(0, 3).map(field => field.key).join('、')} 几乎每行都不同，求和或平均通常没有业务意义。` })
-  if (highCardinality.length) warnings.push({ tone: 'info', title: '高基数字段', detail: `${highCardinality.slice(0, 3).map(field => field.key).join('、')} 取值很多；直接全量分组容易超过 200 组上限，建议先排序看前几项或加筛选。` })
+  if (highCardinality.length) warnings.push({ tone: 'info', title: '高基数字段', detail: `${highCardinality.slice(0, 3).map(field => field.key).join('、')} 取值很多；直接全量分组容易超过 1000 组上限，建议先排序看前几项或加筛选。` })
   const constant = all.filter(field => field.nonempty > 0 && field.unique === 1)
   if (constant.length) warnings.push({ tone: 'info', title: '常量字段', detail: `${constant.slice(0, 3).map(field => field.key).join('、')} 只有一个取值，分组后不会产生差异。` })
   if (!timeField) warnings.push({ tone: 'info', title: '没有可验证的时间字段', detail: '无法自动生成时间趋势；仍可做分类比较和记录数分布。' })

@@ -75,7 +75,7 @@ describe('只读 SQL 控制台', () => {
   it('关联表拒绝空列名和超限列数', () => {
     use(db => {
       expect(() => installExtraTable(db, { headers: [''], rows: [{ '': '1' }] })).toThrow('空列名')
-      expect(() => installExtraTable(db, { headers: Array.from({ length: 201 }, (_, i) => 'f' + i), rows: [] })).toThrow('200')
+      expect(() => installExtraTable(db, { headers: Array.from({ length: 501 }, (_, i) => 'f' + i), rows: [] })).toThrow('500')
       // Duplicate headers cannot become view names; the fallback is cN.
       expect(installExtraTable(db, { headers: ['组', '组'], rows: [{ 组: '1' }] }).names).toEqual(['c0', 'c1'])
       expect(runConsoleQuery(db, 'SELECT "c1" FROM extra_readable').columns).toEqual(['c1'])
