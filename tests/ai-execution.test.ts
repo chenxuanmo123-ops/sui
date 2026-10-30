@@ -6,9 +6,9 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { parseCSV } from '../src/data'
 import type { Dataset } from '../src/data'
-import type { HistoryTurn, PlanResponse, Task } from '../src/ai'
+import type { HeatmapTask, HistoryTurn, PlanResponse, Task } from '../src/ai'
 import { installSQL, runAggregate, runExplore } from '../src/analytics'
-import { appendHistory, buildHistoryTurn, executePlan, evidenceFacts, inspectPlanFilters, datasetContext, mergeRepairPlan, mergeExecution, HISTORY_LIMITS } from '../src/ai'
+import { appendHistory, buildHistoryTurn, executePlan, evidenceFacts, inspectPlanFilters, datasetContext, mergeRepairPlan, mergeExecution, planForReview, HISTORY_LIMITS } from '../src/ai'
 
 // Only replace the browser Worker boundary. Every task runs real SQLite over the SEC fixture.
 const worker = vi.hoisted(() => ({ aggregateDataset: vi.fn(), exploreDataset: vi.fn() }))
@@ -272,6 +272,45 @@ describe('散点任务（真实 CSV 与 SQLite，非模型评测）', () => {
     const execution = await executePlan(bike, planFor(bike, [same]), '', 31)
     expect(execution.explores).toEqual([])
     expect(execution.failures[0].error).toContain('两个不同的数值字段')
+  })
+})
+
+// Expected cells and sums come from the published CSV itself, computed here
+// rather than produced by a model, so the assertions check real SQL output.
+describe('热力图任务（真实 CSV 与 SQLite，非模型评测）', () => {
+  const heatmap: HeatmapTask = { id: 'cross', title: '按月与工作日交叉看租车次数', rationale: '每个维度组合独立汇总真实租车次数', chart: 'heatmap', heatmap: { x: 'mnth', y: 'workingday', metric: 'cnt', aggregate: 'sum', filter: 'yr', value: '1' } }
+  it('每个分组组合独立聚合，不进入聚合结果或证据事实', async () => {
+    const execution = await executePlan(bike, planFor(bike, [heatmap]), '', 32)
+    expect(execution.results).toEqual([])
+    expect(execution.failures).toEqual([])
+    expect(execution.explores).toHaveLength(1)
+    const result = execution.explores[0].result
+    expect(result.spec.kind).toBe('heatmap')
+    expect(result.spec.y).toBe('workingday')
+    expect(result.columns).toEqual(['mnth', 'workingday', '求和 · cnt'])
+    expect(result.rows).toHaveLength(24)
+    expect(result.rows.find(row => row[0] === '1' && row[1] === '1')?.[2]).toBe(66907)
+    expect(result.truncated).toBe(false)
+    expect(result.sql).toContain('GROUP BY 1,2')
+    expect(result.correlation).toBeUndefined()
+  })
+  it('数据中不存在的组合不补零，也不进入结果', async () => {
+    const sparse: Task = { id: 'holiday', title: '节假日与工作日交叉的记录数', rationale: '只数真实存在的组合', chart: 'heatmap', heatmap: { x: 'holiday', y: 'workingday', metric: 'cnt', aggregate: 'count', filter: '', value: '' } }
+    const result = (await executePlan(bike, planFor(bike, [sparse]), '', 33)).explores[0].result
+    expect(result.rows.map(row => [row[0], row[1], row[2]])).toEqual([['0', '0', 210], ['0', '1', 500], ['1', '0', 21]])
+    // holiday=1 with workingday=1 never occurs; there is no zero cell for it.
+    expect(result.rows.some(row => row[0] === '1' && row[1] === '1')).toBe(false)
+  })
+  it('本地预检精确检查热力图筛选值，不改写计划', () => {
+    const wrong: HeatmapTask = { ...heatmap, heatmap: { ...heatmap.heatmap, filter: 'yr', value: '2011' } }
+    expect(inspectPlanFilters(bike, planFor(bike, [wrong]).plan)).toEqual([{ taskId: 'cross', title: wrong.title, message: 'yr = "2011"：当前数据没有精确匹配记录。请核对原始值后重新规划。' }])
+  })
+  it('复核计划会移除热力图与散点任务，避免引用不存在的证据', () => {
+    const scatter: Task = { id: 'relation', title: '温度与租车量', rationale: '只描述线性同步', chart: 'scatter', scatter: { x: 'temp', y: 'cnt', filter: '', value: '' } }
+    const aggregate: Task = { id: 'monthly', title: '按月租车次数', rationale: '描述月度差异', chart: 'bar', mapping: { x: 'mnth', metric: 'cnt', aggregate: 'sum', filter: '', value: '', from: '', to: '', unit: '', timeBucket: 'none', conditions: [] } }
+    const reviewed = planForReview({ ...planFor(bike, [scatter, heatmap, aggregate]).plan, hypotheses: [{ id: 'h1', statement: '候选解释', testTaskIds: ['cross', 'monthly'] }] })
+    expect(reviewed.tasks.map(task => task.id)).toEqual(['monthly'])
+    expect(reviewed.hypotheses).toEqual([])
   })
 })
 

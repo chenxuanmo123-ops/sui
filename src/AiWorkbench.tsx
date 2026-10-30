@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { BookOpen, BrainCircuit, ChevronRight, FileText, LoaderCircle, Settings2, X } from 'lucide-react';
-import { aiRequest, appendHistory, buildHistoryTurn, datasetContext, evidenceFacts, inspectPlanFilters, isScatterTask, mergeRepairPlan, mergeExecution, planForReview } from './ai';
+import { aiRequest, appendHistory, buildHistoryTurn, datasetContext, evidenceFacts, inspectPlanFilters, isHeatmapTask, isScatterTask, mergeRepairPlan, mergeExecution, planForReview } from './ai';
 import type { ConfirmedRoles, ExecutionOptions, HistoryTurn, Task, TaskProgress, Fact, PlanExecution, PlanResponse, Review, ReviewResponse } from './ai';
 import { REFERENCE_LIMITS, readReferenceFile, referenceKey, referenceQuery, retrieveReferences } from './references';
 import type { ReferenceDoc, ReferenceExcerpt } from './references';
@@ -16,9 +16,9 @@ import type { AssistantSeed } from './follow-up';
 
 type Props = { onBundle?: (bundle: AnalysisBundle) => void; seed?: AssistantSeed; profiles: ModelProfile[]; selected?: ModelProfile; onSelect: (id: string) => void; onConfigure: () => void; status: string; ready: boolean; dataset: Dataset | null; confirmedRoles?: ConfirmedRoles; loading: boolean; onExecute: (plan: PlanResponse, question: string, options?: ExecutionOptions) => Promise<PlanExecution>; onEvidence: (id: number, label?: string) => void };
 function describeTask(task: Task) {
-  return isScatterTask(task)
-    ? ['散点：横轴 ' + task.scatter.x + ' × 纵轴 ' + task.scatter.y, '筛选：' + (task.scatter.filter ? task.scatter.filter + ' = “' + task.scatter.value + '”' : '不筛选'), '计算：当前筛选下全部有效配对的 Pearson r，仅描述线性同步'].join('；')
-    : describeMapping(task.mapping);
+  if (isScatterTask(task)) return ['散点：横轴 ' + task.scatter.x + ' × 纵轴 ' + task.scatter.y, '筛选：' + (task.scatter.filter ? task.scatter.filter + ' = “' + task.scatter.value + '”' : '不筛选'), '计算：当前筛选下全部有效配对的 Pearson r，仅描述线性同步'].join('；');
+  if (isHeatmapTask(task)) return ['热力图：横轴 ' + task.heatmap.x + ' × 纵轴 ' + task.heatmap.y, '指标：' + task.heatmap.metric, '汇总：' + aggregateNames[task.heatmap.aggregate], '筛选：' + (task.heatmap.filter ? task.heatmap.filter + ' = “' + task.heatmap.value + '”' : '不筛选'), '计算：每个维度组合的真实聚合值；数据中不存在的组合留空，按 0 处理'].join('；');
+  return describeMapping(task.mapping);
 }
 function describeMapping(mapping: Mapping) {
   const bucket = mapping.timeBucket === 'month' ? '（按月）' : mapping.timeBucket === 'year' ? '（按年）' : '';
@@ -156,19 +156,21 @@ export default function AiWorkbench({ seed, dataset, confirmedRoles, loading, on
         historyRun.current = runKey.current;
         const previousFacts = [
           ...calculated.map(fact => ({ label: fact.label || fact.taskId, text: fact.text })),
-          ...execution.explores.flatMap(item => item.result.correlation ? [{ label: item.title + ' · Pearson r', text: 'r=' + item.result.correlation.r.toFixed(4) + '，n=' + item.result.correlation.n }] : []),
+          ...execution.explores.flatMap(item => item.result.correlation
+            ? [{ label: item.title + ' · Pearson r', text: 'r=' + item.result.correlation.r.toFixed(4) + '，n=' + item.result.correlation.n }]
+            : [{ label: item.title + ' · 热力图', text: item.result.spec.x + ' × ' + item.result.spec.y + '，' + item.result.rows.length + ' 个真实聚合单元格' }]),
         ];
         setHistory(items => appendHistory(items, buildHistoryTurn(question, planned.plan.goal, planned.plan.tasks.map(task => task.title), previousFacts, planned.scope?.label)));
       }
-      setEvents(events => [...events, '本轮完成 ' + execution.results.length + ' 个本地计算任务' + (execution.explores.length ? '、' + execution.explores.length + ' 个散点任务' : '') + '；当前保留 ' + combined.length + ' 个成功任务的来源证据。', ...(execution.failures.length ? [execution.failures.length + ' 个任务计算失败，真实错误已单独标注。'] : [])]);
+      setEvents(events => [...events, '本轮完成 ' + execution.results.length + ' 个本地计算任务' + (execution.explores.length ? '、' + execution.explores.length + ' 个可视化探索任务' : '') + '；当前保留 ' + combined.length + ' 个成功任务的来源证据。', ...(execution.failures.length ? [execution.failures.length + ' 个任务计算失败，真实错误已单独标注。'] : [])]);
       if (execution.cancelled) {
         setEvents(events => [...events, pending ? '计算已停止，已完成结果保留。确认后可仅继续未完成任务；本次未请求 AI 解读。' : '已停止后续 AI 解读，已完成计算结果保留。']);
         setBusy(''); return;
       }
-      // Scatter tasks produce no group facts, so there is nothing to cite. Say
+      // Explore tasks produce no group facts, so there is nothing to cite. Say
       // that plainly instead of implying the calculation failed.
       if (!calculated.length && execution.explores.length) {
-        setEvents(events => [...events, '散点结果已在探索分析中完成，包含全部有效配对的 Pearson r；本轮没有可引用的聚合证据，因此未请求模型解读。']);
+        setEvents(events => [...events, '探索结果（散点图的全部有效配对 Pearson r、热力图每个组合的真实聚合值）已在探索分析中完成；本轮没有可引用的聚合证据，因此未请求模型解读。']);
         setBusy(''); return;
       }
       if (!calculated.length) { setError('本轮全部任务计算失败，未生成分析结论。可让 AI 根据错误修正计划。'); setBusy(''); return; }
@@ -259,7 +261,7 @@ export default function AiWorkbench({ seed, dataset, confirmedRoles, loading, on
       {(p.hypotheses ?? []).length > 0 && <div className="ai-hypotheses"><h4>候选解释（待真实结果验证）</h4><ol>{(p.hypotheses ?? []).map(h => <li key={h.id}><strong>{h.statement}</strong><span>验证任务：{h.testTaskIds.map(id => p.tasks.find(task => task.id === id)?.title || id).join('、')}</span></li>)}</ol><p>候选解释不是结论。系统只比较绑定任务的真实计算结果，不能仅凭相关变化证明原因。</p></div>}
       {p.questions.length > 0 && <div className="ai-questions"><ul>{p.questions.map((q, i) => <li key={i}>{q}</li>)}</ul><p>{p.tasks.length ? '这些问题不会阻止当前安全的描述性计算；补充后重新规划可获得更精确的口径。' : '请在上方展开的“业务背景与字段口径”补充这些问题，再点分析按钮。当前没有可安全执行的任务。'}</p></div>}
       {filterWarnings.length > 0 && <div className="ai-execution-warnings ai-preflight-warnings" role="status"><strong>计算前发现筛选问题</strong><ul>{filterWarnings.map(warning => <li key={warning.taskId}><b>{warning.title}</b>：{warning.message}</li>)}</ul><p>仅在本地检查等值筛选，不额外发送原始值，也不自动改写计划。其他任务仍可计算；范围、分桶和有效数值以真实 SQL 结果为准。</p></div>}
-      {p.tasks.length > 0 && <><ol className="ai-tasks">{p.tasks.map(t => <li key={t.id}><strong>{t.title}</strong><p>{t.rationale}</p><div className="ai-task-mapping">{isScatterTask(t) ? <><span>散点：横轴 {t.scatter.x} × 纵轴 {t.scatter.y}</span>{t.scatter.filter && <span>筛选：{t.scatter.filter} = {t.scatter.value}</span>}<span>计算：当前筛选下全部有效配对的 Pearson r，仅描述线性同步，不是因果或预测</span></> : <><span>分组：{t.mapping.x}{t.mapping.timeBucket && t.mapping.timeBucket !== 'none' ? '（按'+(t.mapping.timeBucket === 'month' ? '月' : '年')+'）' : ''}</span><span>指标：{t.mapping.metric} · {t.mapping.rate ? '比例（%）' : aggregateNames[t.mapping.aggregate]}</span>{t.mapping.rate && <span>分子：{t.mapping.metric} = {JSON.stringify(t.mapping.rate.successValue)}；分母：{JSON.stringify(t.mapping.rate.eligibleValues)}；未知结果排除</span>}<span>单位：{t.mapping.unit || '未确认'}</span><span>分组范围：{t.mapping.from || '不限'} → {t.mapping.to || '不限'}</span>{t.mapping.filter && <span>筛选：{t.mapping.filter} = {t.mapping.value}</span>}{t.mapping.conditions?.map((c, i) => <span key={i}>{c.field} {c.operator === 'eq' ? '=' : c.operator === 'gte' ? '≥' : '≤'} {c.value}</span>)}</>}</div></li>)}</ol><label className="ai-check"><input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} disabled={stale || !!busy} />我已核对行粒度、指标含义、单位、筛选与汇总方式，允许按此计划计算</label><button className="primary" type="button" onClick={() => void execute()} disabled={!confirmed || stale || !!busy || loading || (hasExecuted && !pendingTaskIds)}>{pendingTaskIds ? (resumePending ? '确认并继续未完成任务' : '确认修正并重算失败任务') : '确认计划并计算'}<ChevronRight size={16} /></button></>}
+      {p.tasks.length > 0 && <><ol className="ai-tasks">{p.tasks.map(t => <li key={t.id}><strong>{t.title}</strong><p>{t.rationale}</p><div className="ai-task-mapping">{t.chart === 'scatter' ? <><span>散点：横轴 {t.scatter.x} × 纵轴 {t.scatter.y}</span>{t.scatter.filter && <span>筛选：{t.scatter.filter} = {t.scatter.value}</span>}<span>计算：当前筛选下全部有效配对的 Pearson r，仅描述线性同步，不是因果或预测</span></> : t.chart === 'heatmap' ? <><span>热力图：横轴 {t.heatmap.x} × 纵轴 {t.heatmap.y}</span><span>指标：{t.heatmap.metric} · {aggregateNames[t.heatmap.aggregate]}</span>{t.heatmap.filter && <span>筛选：{t.heatmap.filter} = {t.heatmap.value}</span>}<span>计算：每个维度组合的真实聚合值；数据中不存在的组合留空，不按 0 处理，也不能推断未出现的组合</span></> : <><span>分组：{t.mapping.x}{t.mapping.timeBucket && t.mapping.timeBucket !== 'none' ? '（按'+(t.mapping.timeBucket === 'month' ? '月' : '年')+'）' : ''}</span><span>指标：{t.mapping.metric} · {t.mapping.rate ? '比例（%）' : aggregateNames[t.mapping.aggregate]}</span>{t.mapping.rate && <span>分子：{t.mapping.metric} = {JSON.stringify(t.mapping.rate.successValue)}；分母：{JSON.stringify(t.mapping.rate.eligibleValues)}；未知结果排除</span>}<span>单位：{t.mapping.unit || '未确认'}</span><span>分组范围：{t.mapping.from || '不限'} → {t.mapping.to || '不限'}</span>{t.mapping.filter && <span>筛选：{t.mapping.filter} = {t.mapping.value}</span>}{t.mapping.conditions?.map((c, i) => <span key={i}>{c.field} {c.operator === 'eq' ? '=' : c.operator === 'gte' ? '≥' : '≤'} {c.value}</span>)}</>}</div></li>)}</ol><label className="ai-check"><input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} disabled={stale || !!busy} />我已核对行粒度、指标含义、单位、筛选与汇总方式，允许按此计划计算</label><button className="primary" type="button" onClick={() => void execute()} disabled={!confirmed || stale || !!busy || loading || (hasExecuted && !pendingTaskIds)}>{pendingTaskIds ? (resumePending ? '确认并继续未完成任务' : '确认修正并重算失败任务') : '确认计划并计算'}<ChevronRight size={16} /></button></>}
       {p.limitations.length > 0 && <div className="ai-limits"><strong>本次分析的边界</strong><ul>{p.limitations.map((v, i) => <li key={i}>{v}</li>)}</ul></div>}
       {(planned.references?.length ?? 0) > 0 && <details className="ai-reference-sent"><summary>本次计划已发送的参考资料</summary><ul>{planned.references!.map(ref => <li key={ref.id}><b>{ref.title}</b>{ref.page ? ' · 第 ' + ref.page + ' 页' : ''}{ref.source === 'method' ? ' · 内置方法' : ' · 上传资料'}<code>{ref.id}</code></li>)}</ul><p>资料只用于口径与限制提示，未作为计算证据。</p></details>}
     </div>}

@@ -36,6 +36,22 @@ test('散点任务只接受两个真实数值字段，不能混用聚合 mapping
   const mixed = clone(scatter); mixed.tasks[0].mapping = clone(mapping); assert.throws(() => checkPlan(mixed, dataset), /scatter/);
   const unpaired = clone(scatter); unpaired.tasks[0].scatter.filter = 'country'; assert.throws(() => checkPlan(unpaired, dataset), /配对/);
 });
+test('热力图任务要求两个不同的真实分组列与可用指标，不混用其他口径', () => {
+  const heatmap = clone(plan);
+  heatmap.tasks = [{ id: 'cross', title: '年度与地区交叉汇总', rationale: '每个组合独立聚合', chart: 'heatmap', heatmap: { x: 'country', y: 'year', metric: 'value', aggregate: 'sum', filter: '', value: '' } }];
+  assert.equal(checkPlan(heatmap, dataset).tasks.length, 1);
+  const same = clone(heatmap); same.tasks[0].heatmap.y = 'country'; assert.throws(() => checkPlan(same, dataset), /不同/);
+  const unknown = clone(heatmap); unknown.tasks[0].heatmap.metric = 'imaginary'; assert.throws(() => checkPlan(unknown, dataset), /字段/);
+  const metricIsGroup = clone(heatmap); metricIsGroup.tasks[0].heatmap.metric = 'country'; assert.throws(() => checkPlan(metricIsGroup, dataset), /指标列/);
+  const countReusesGroup = clone(heatmap); countReusesGroup.tasks[0].heatmap.aggregate = 'count'; countReusesGroup.tasks[0].heatmap.metric = 'country'; assert.equal(checkPlan(countReusesGroup, dataset).tasks.length, 1);
+  const withText = { ...dataset, columns: [...dataset.columns, { field: 'label', numeric: 0 }] };
+  const nonNumeric = clone(heatmap); nonNumeric.tasks[0].heatmap.metric = 'label'; nonNumeric.tasks[0].heatmap.aggregate = 'average'; assert.throws(() => checkPlan(nonNumeric, withText), /数值/);
+  const countText = clone(heatmap); countText.tasks[0].heatmap.metric = 'label'; countText.tasks[0].heatmap.aggregate = 'count'; assert.equal(checkPlan(countText, withText).tasks.length, 1);
+  const mixedMapping = clone(heatmap); mixedMapping.tasks[0].mapping = clone(mapping); assert.throws(() => checkPlan(mixedMapping, dataset), /mapping/);
+  const mixedScatter = clone(heatmap); mixedScatter.tasks[0].scatter = { x: 'year', y: 'value', filter: '', value: '' }; assert.throws(() => checkPlan(mixedScatter, dataset), /heatmap/);
+  const unpaired = clone(heatmap); unpaired.tasks[0].heatmap.filter = 'country'; assert.throws(() => checkPlan(unpaired, dataset), /配对/);
+  const absentFilter = clone(heatmap); absentFilter.tasks[0].heatmap.filter = 'imaginary'; absentFilter.tasks[0].heatmap.value = 'x'; assert.throws(() => checkPlan(absentFilter, dataset), /配对/);
+});
 test('澄清问题与安全任务可以并存，只有没有任务时等待补充', () => {
   const partial=clone(plan); partial.questions=['请确认是否仅分析上传子集'];
   const checked=checkPlan(partial,dataset);

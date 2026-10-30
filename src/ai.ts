@@ -8,10 +8,18 @@ export type Provider = { id: string; name: string; model: string };
 /** A two-field scatter task. It carries no aggregate: the pair values are
  * plotted as recorded and Pearson r is computed over every valid pair. */
 export type ScatterSpec = { x: string; y: string; filter: string; value: string };
+/** A two-dimension heatmap task: each cell is a real aggregate over the rows
+ * that share that pair of dimension values. Missing pairs stay blank. */
+export type HeatmapSpec = { x: string; y: string; metric: string; aggregate: Mapping['aggregate']; filter: string; value: string };
 export type AggregateTask = { id: string; title: string; rationale: string; chart: 'line' | 'bar'; mapping: Mapping };
 export type ScatterTask = { id: string; title: string; rationale: string; chart: 'scatter'; scatter: ScatterSpec };
-export type Task = AggregateTask | ScatterTask;
+export type HeatmapTask = { id: string; title: string; rationale: string; chart: 'heatmap'; heatmap: HeatmapSpec };
+export type Task = AggregateTask | ScatterTask | HeatmapTask;
 export const isScatterTask = (task: Task): task is ScatterTask => task.chart === 'scatter';
+export const isHeatmapTask = (task: Task): task is HeatmapTask => task.chart === 'heatmap';
+/** Explore tasks render in the Explore view instead of producing aggregate
+ * facts, so review must not cite them. */
+export const isExploreTask = (task: Task): task is ScatterTask | HeatmapTask => task.chart === 'scatter' || task.chart === 'heatmap';
 export type Hypothesis = { id: string; statement: string; testTaskIds: string[] };
 export type Plan = { goal: string; scene: string; grain: string; fieldRoles: { field: string; meaning: string; role: string }[]; assumptions: string[]; questions: string[]; hypotheses?: Hypothesis[]; tasks: Task[]; limitations: string[] };
 export type TaskProgress = { taskId: string; title: string; index: number; total: number; status: 'running' | 'completed' | 'failed' | 'cancelled'; error?: string };
@@ -109,6 +117,12 @@ export async function executePlan(dataset: Dataset, response: PlanResponse, ques
         if (response.scope) throw new Error('散点任务不支持分组追问范围，请回到全表重新规划。');
         const spec: ExploreSpec = { kind: 'scatter', x: task.scatter.x, y: task.scatter.y, metric: task.scatter.x, aggregate: 'sum', filter: task.scatter.filter, value: task.scatter.value, bucket: 'none', sort: 'label', limit: 1000 };
         explores.push({ taskId: task.id, title: task.title, result: await exploreDataset(dataset, spec, options.signal) });
+      } else if (isHeatmapTask(task)) {
+        // Every cell is a real aggregate over its row group; the cap bounds how
+        // many cells are displayed and the result marks any truncation.
+        if (response.scope) throw new Error('热力图任务不支持分组追问范围，请回到全表重新规划。');
+        const spec: ExploreSpec = { kind: 'heatmap', x: task.heatmap.x, y: task.heatmap.y, metric: task.heatmap.metric, aggregate: task.heatmap.aggregate, filter: task.heatmap.filter, value: task.heatmap.value, bucket: 'none', sort: 'label', limit: 200 };
+        explores.push({ taskId: task.id, title: task.title, result: await exploreDataset(dataset, spec, options.signal) });
       } else {
         const result = await analyze(dataset, task.mapping, question, startId + i, response.scope, options.signal);
         results.push({ ...result, ai: { goal: p.goal, taskId: task.id, taskTitle: task.title, model: response.model, plannedAt: response.generatedAt } });
@@ -127,12 +141,14 @@ export async function executePlan(dataset: Dataset, response: PlanResponse, ques
 export type PlanWarning = { taskId: string; title: string; message: string };
 export function inspectPlanFilters(dataset: Dataset, plan: Plan): PlanWarning[] {
   return plan.tasks.flatMap(task => {
-    const conditions = (isScatterTask(task)
-      ? (task.scatter.filter ? [{ field: task.scatter.filter, value: task.scatter.value }] : [])
-      : [
-        ...(task.mapping.filter ? [{ field: task.mapping.filter, value: task.mapping.value }] : []),
-        ...(task.mapping.conditions ?? []).filter(condition => condition.operator === 'eq'),
-      ]).filter(condition => dataset.headers.includes(condition.field));
+    let conditions: { field: string; value: string }[];
+    if (isScatterTask(task)) conditions = task.scatter.filter ? [{ field: task.scatter.filter, value: task.scatter.value }] : [];
+    else if (isHeatmapTask(task)) conditions = task.heatmap.filter ? [{ field: task.heatmap.filter, value: task.heatmap.value }] : [];
+    else conditions = [
+      ...(task.mapping.filter ? [{ field: task.mapping.filter, value: task.mapping.value }] : []),
+      ...(task.mapping.conditions ?? []).filter(condition => condition.operator === 'eq'),
+    ];
+    conditions = conditions.filter(condition => dataset.headers.includes(condition.field));
     if (!conditions.length) return [];
     const absent = conditions.filter(condition => !dataset.rows.some(row => row[condition.field] === condition.value));
     if (absent.length) return [{ taskId: task.id, title: task.title, message: absent.map(condition => condition.field + ' = ' + JSON.stringify(condition.value)).join('、') + '：当前数据没有精确匹配记录。请核对原始值后重新规划。' }];
@@ -142,13 +158,13 @@ export function inspectPlanFilters(dataset: Dataset, plan: Plan): PlanWarning[] 
     return [];
   });
 }
-/** Review may only cite computed aggregate facts, so scatter tasks are removed
- * from the plan sent for review; otherwise the model could cite evidence ids
- * that do not exist and the server would reject the whole review. */
+/** Review may only cite computed aggregate facts, so explore tasks (scatter and
+ * heatmap) are removed from the plan sent for review; otherwise the model could
+ * cite evidence ids that do not exist and the server would reject the whole review. */
 export function planForReview(plan: Plan): Plan {
-  if (!plan.tasks.some(isScatterTask)) return plan;
-  const scatterIds = new Set(plan.tasks.filter(isScatterTask).map(task => task.id));
-  return { ...plan, tasks: plan.tasks.filter(task => !isScatterTask(task)), hypotheses: (plan.hypotheses ?? []).filter(hypothesis => hypothesis.testTaskIds.every(id => !scatterIds.has(id))) };
+  if (!plan.tasks.some(isExploreTask)) return plan;
+  const exploreIds = new Set(plan.tasks.filter(isExploreTask).map(task => task.id));
+  return { ...plan, tasks: plan.tasks.filter(task => !isExploreTask(task)), hypotheses: (plan.hypotheses ?? []).filter(hypothesis => hypothesis.testTaskIds.every(id => !exploreIds.has(id))) };
 }
 export function evidenceFacts(plan: Plan, results: Analysis[]): Fact[] {
   const taskIds = new Set(plan.tasks.map(task => task.id));
@@ -181,7 +197,7 @@ export function mergeExecution(previous: Analysis[], current: PlanExecution, pla
   for (const result of combined) {
     const id = result.ai?.taskId;
     const task = id ? allowed.get(id) : undefined;
-    if (!id || !task || isScatterTask(task) || seen.has(id) || result.datasetHash !== plan.datasetHash || JSON.stringify(result.scope) !== JSON.stringify(plan.scope) || JSON.stringify(result.mapping) !== JSON.stringify(task.mapping)) throw new Error('修正结果与计划、数据快照或已有任务绑定不符。');
+    if (!id || !task || isExploreTask(task) || seen.has(id) || result.datasetHash !== plan.datasetHash || JSON.stringify(result.scope) !== JSON.stringify(plan.scope) || JSON.stringify(result.mapping) !== JSON.stringify(task.mapping)) throw new Error('修正结果与计划、数据快照或已有任务绑定不符。');
     seen.add(id);
   }
   return combined;
