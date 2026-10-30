@@ -5,6 +5,7 @@ import { decodeTextBytes, download, parseCSV } from './data'
 import { clearConsoleTable, loadConsoleTable, queryDataset } from './engine'
 import type { ConsoleResult, ExtraTable } from './sql-console'
 import { exportColumnNames } from './sql-names'
+import ChartBoundary from './ChartBoundary'
 
 const SqlResultChart = lazy(() => import('./SqlResultChart'))
 
@@ -283,7 +284,7 @@ export default function SqlConsole({ dataset, table, onTable, onImport, onPublic
             </div>
           </div>
           {result.truncated && <p className="sql-warning">结果超过 500 行，当前仅显示前 500 行；导出 CSV 也只包含这些行。请加 WHERE 或 LIMIT 缩小范围。</p>}
-          {showChart && result.rows.length > 0 && <Suspense fallback={<p className="sql-muted">正在加载图表引擎…</p>}><SqlResultChart columns={result.columns} rows={result.rows} /></Suspense>}
+          {showChart && result.rows.length > 0 && <ChartBoundary><Suspense fallback={<p className="sql-muted">正在加载图表引擎…</p>}><SqlResultChart columns={result.columns} rows={result.rows} /></Suspense></ChartBoundary>}
           {result.rows.length === 0
             ? <div className="sql-no-rows"><span>0 行</span><p>查询执行成功，但没有返回行。条件可能过窄，或该字段没有匹配值。</p></div>
             : <div className="sql-table-wrap console-results"><table><thead><tr>{result.columns.map((column, i) => <th key={i}>{column}</th>)}</tr></thead><tbody>{result.rows.map((row, i) => <tr key={i}>{row.map((value, j) => <td key={j}>{value === null ? '∅' : String(value)}</td>)}</tr>)}</tbody></table></div>}
