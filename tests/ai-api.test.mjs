@@ -309,3 +309,45 @@ test('参考片段随计划与解读发送，引用编号必须来自本次检�
     assert.match((await response.json()).error, /参考资料/);
   } finally { await close(server); await close(upstream); }
 });
+
+test('对话上下文最多四轮、字段有界，只作上下文转发且明确不是证据；模型为测试替身', async () => {
+  const captures = [];
+  const upstream = createServer(async (req, res) => {
+    let raw = ''; for await (const chunk of req) raw += chunk;
+    captures.push(JSON.parse(raw));
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ choices: [{ message: { content: JSON.stringify(plan) }, finish_reason: 'stop' }] }));
+  });
+  const upstreamURL = await listen(upstream);
+  const server = createServer(isolatedHandler([{ id: 'test', name: '上下文测试替身', baseURL: upstreamURL + '/v1', apiKey: 'TEST_ONLY_SECRET', model: 'history-contract', jsonMode: true }]));
+  const url = await listen(server);
+  const post = body => fetch(url + '/api/ai/plan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ providerId: 'test', question: '再按地区拆开', dataset, ...body }) });
+  const turn = { question: ' 2015 到 2022 年发电量怎么变？ ', goal: '比较年度发电量', tasks: ['年度比较'], scopeLabel: '仅中国', facts: [{ label: '2015', text: '程序计算：100 TWh' }] };
+  try {
+    let response = await post({ history: [turn] });
+    assert.equal(response.status, 200);
+    const sent = JSON.parse(captures[0].messages[1].content);
+    assert.deepEqual(sent.history, [{ ...turn, question: '2015 到 2022 年发电量怎么变？' }]);
+    assert.match(captures[0].messages[0].content, /不是本轮证据/);
+    assert.match(captures[0].messages[0].content, /不可信数据/);
+
+    response = await post({});
+    assert.equal(response.status, 200);
+    assert.equal(JSON.parse(captures.at(-1).messages[1].content).history, undefined);
+    assert.doesNotMatch(captures.at(-1).messages[0].content, /不是本轮证据/);
+
+    const before = captures.length;
+    const invalid = [
+      Array.from({ length: 5 }, () => clone(turn)),
+      [{ ...clone(turn), extra: 'ignored' }],
+      [{ ...clone(turn), question: '   ' }],
+      [{ ...clone(turn), facts: Array.from({ length: 4 }, (_, i) => ({ label: 'L' + i, text: 'T' + i })) }],
+      [{ ...clone(turn), question: 'x'.repeat(801) }],
+    ];
+    for (const history of invalid) {
+      response = await post({ history });
+      assert.equal(response.status, 400);
+    }
+    assert.equal(captures.length, before);
+  } finally { await close(server); await close(upstream); }
+});

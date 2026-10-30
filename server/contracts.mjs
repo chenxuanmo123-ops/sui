@@ -18,6 +18,14 @@ export const planSchema = object({
   tasks: list(object({ id: text(40), title: text(200), rationale: text(600), chart: choice(['line', 'bar', 'scatter']), mapping: optional(mappingSchema), scatter: optional(object({ x: text(200), y: text(200), filter: text(200), value: text(300) })) }), 6),
   limitations: list(text(600)),
 });
+// Prior completed turns sent by the client for conversational continuity. They
+// are context, never evidence: the server only forwards bounded text, and the
+// planner prompt forbids citing their numbers as new results.
+export const historySchema = list(object({
+  question: text(800), goal: text(400), tasks: list(text(160), 6),
+  scopeLabel: optional(text(200)),
+  facts: list(object({ label: text(120), text: text(240) }), 3),
+}), 4);
 const insightItem = object({
   statement: text(500),
   evidenceIds: { ...list(text(60), 4), minItems: 1 },

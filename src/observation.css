@@ -1810,6 +1810,21 @@ textarea.sr-only,
 .assistant-window .ai-workbench details > summary { color: var(--obs-muted); }
 .assistant-window .ai-workbench .ai-references { border-top-color: var(--obs-line); }
 .assistant-window .ai-workbench .ai-references > summary { color: var(--obs-cyan); }
+.assistant-window .ai-workbench .ai-history {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  background: rgba(143, 184, 255, .04);
+  border: 1px solid var(--obs-line);
+  border-left: 2px solid rgba(143, 184, 255, .45);
+  border-radius: 8px;
+}
+.assistant-window .ai-workbench .ai-history > summary { color: var(--obs-cyan); cursor: pointer; }
+.assistant-window .ai-workbench .ai-history ol { display: grid; gap: 6px; margin: 8px 0; padding-left: 18px; }
+.assistant-window .ai-workbench .ai-history li { color: var(--obs-muted); font-size: 12px; }
+.assistant-window .ai-workbench .ai-history li span { margin-right: 6px; color: var(--obs-faint); }
+.assistant-window .ai-workbench .ai-history li strong { display: block; color: var(--obs-text); font-weight: 600; }
+.assistant-window .ai-workbench .ai-history li small { color: var(--obs-faint); }
+.assistant-window .ai-workbench .ai-history p { margin: 6px 0; color: var(--obs-faint); font-size: 12px; }
 .assistant-window .ai-workbench .ai-reference-intro p,
 .assistant-window .ai-workbench .ai-reference-note,
 .assistant-window .ai-workbench .ai-hint,

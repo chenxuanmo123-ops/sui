@@ -20,6 +20,22 @@ export type ExploreExecution = { taskId: string; title: string; result: ExploreR
 export type PlanExecution = { results: Analysis[]; explores: ExploreExecution[]; failures: { taskId: string; title: string; error: string }[]; cancelled?: boolean; pendingTaskIds?: string[] };
 export type PlanResponse = { scope?: AnalysisScope; plan: Plan; datasetHash: string; model: string; providerName: string; generatedAt: string; references?: ReferenceExcerpt[] };
 export type Fact = { id: string; text: string; taskId: string; analysisId: number; label?: string };
+/** A completed turn sent back for continuity. It carries no raw rows and is
+ * explicitly not evidence for later plans; every new number is recomputed. */
+export type HistoryTurn = { question: string; goal: string; tasks: string[]; scopeLabel?: string; facts: { label: string; text: string }[] };
+export const HISTORY_LIMITS = { turns: 4, tasks: 6, facts: 3, question: 800, goal: 400, task: 160, factLabel: 120, factText: 240, scope: 200 } as const;
+export function buildHistoryTurn(question: string, goal: string, tasks: string[], facts: { label: string; text: string }[], scopeLabel?: string): HistoryTurn {
+  return {
+    question: question.trim().slice(0, HISTORY_LIMITS.question),
+    goal: goal.trim().slice(0, HISTORY_LIMITS.goal),
+    tasks: tasks.filter(title => title.trim()).slice(0, HISTORY_LIMITS.tasks).map(title => title.trim().slice(0, HISTORY_LIMITS.task)),
+    ...(scopeLabel?.trim() ? { scopeLabel: scopeLabel.trim().slice(0, HISTORY_LIMITS.scope) } : {}),
+    facts: facts.filter(fact => fact.label.trim() && fact.text.trim()).slice(0, HISTORY_LIMITS.facts).map(fact => ({ label: fact.label.trim().slice(0, HISTORY_LIMITS.factLabel), text: fact.text.trim().slice(0, HISTORY_LIMITS.factText) })),
+  };
+}
+export function appendHistory(history: HistoryTurn[], turn: HistoryTurn): HistoryTurn[] {
+  return [...history, turn].slice(-HISTORY_LIMITS.turns);
+}
 export type ReviewInsightItem = { statement: string; evidenceIds: string[]; referenceIds?: string[] };
 export type Review = { answerability: 'partial' | 'descriptive_only' | 'insufficient'; findings: { statement: string; evidenceIds: string[]; interpretation: 'observation' | 'hypothesis'; referenceIds?: string[] }[]; insight?: { possibleMeanings: ReviewInsightItem[]; possibleUses: ReviewInsightItem[] }; limitations: string[]; nextQuestions: string[] };
 export type ReviewResponse = { review: Review; references?: ReferenceExcerpt[] };

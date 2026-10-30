@@ -6,9 +6,9 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { parseCSV } from '../src/data'
 import type { Dataset } from '../src/data'
-import type { PlanResponse, Task } from '../src/ai'
+import type { HistoryTurn, PlanResponse, Task } from '../src/ai'
 import { installSQL, runAggregate, runExplore } from '../src/analytics'
-import { executePlan, evidenceFacts, inspectPlanFilters, datasetContext, mergeRepairPlan, mergeExecution } from '../src/ai'
+import { appendHistory, buildHistoryTurn, executePlan, evidenceFacts, inspectPlanFilters, datasetContext, mergeRepairPlan, mergeExecution, HISTORY_LIMITS } from '../src/ai'
 
 // Only replace the browser Worker boundary. Every task runs real SQLite over the SEC fixture.
 const worker = vi.hoisted(() => ({ aggregateDataset: vi.fn(), exploreDataset: vi.fn() }))
@@ -272,5 +272,34 @@ describe('散点任务（真实 CSV 与 SQLite，非模型评测）', () => {
     const execution = await executePlan(bike, planFor(bike, [same]), '', 31)
     expect(execution.explores).toEqual([])
     expect(execution.failures[0].error).toContain('两个不同的数值字段')
+  })
+})
+
+describe('对话上下文（有界、截断、最多四轮）', () => {
+  it('截断超长字段并只保留最近四轮', () => {
+    const turn = buildHistoryTurn(
+      ' 问题 '.repeat(400), '目标'.repeat(300),
+      Array.from({ length: 8 }, (_, i) => '任务' + i),
+      Array.from({ length: 5 }, (_, i) => ({ label: '标签' + i, text: '值'.repeat(300) })),
+      '范围'.repeat(200),
+    )
+    expect(turn.question.length).toBe(HISTORY_LIMITS.question)
+    expect(turn.goal.length).toBe(HISTORY_LIMITS.goal)
+    expect(turn.tasks).toHaveLength(HISTORY_LIMITS.tasks)
+    expect(turn.tasks[0].length).toBeLessThanOrEqual(HISTORY_LIMITS.task)
+    expect(turn.facts).toHaveLength(HISTORY_LIMITS.facts)
+    expect(turn.facts[0].text.length).toBe(HISTORY_LIMITS.factText)
+    expect(turn.scopeLabel?.length).toBe(HISTORY_LIMITS.scope)
+    let history: HistoryTurn[] = []
+    for (let i = 0; i < 6; i++) history = appendHistory(history, buildHistoryTurn('问题' + i, '目标', ['任务'], []))
+    expect(history).toHaveLength(HISTORY_LIMITS.turns)
+    expect(history[0].question).toBe('问题2')
+    expect(history[3].question).toBe('问题5')
+  })
+  it('过滤空任务标题与空计算摘要，不把空轮次伪装成上下文', () => {
+    const turn = buildHistoryTurn('q', 'g', ['', '  ', 'ok'], [{ label: ' ', text: 'x' }, { label: 'a', text: ' ' }, { label: 'b', text: 'c' }])
+    expect(turn.tasks).toEqual(['ok'])
+    expect(turn.facts).toEqual([{ label: 'b', text: 'c' }])
+    expect(turn.scopeLabel).toBeUndefined()
   })
 })

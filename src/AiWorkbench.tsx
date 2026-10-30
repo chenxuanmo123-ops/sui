@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { BookOpen, BrainCircuit, ChevronRight, FileText, LoaderCircle, Settings2, X } from 'lucide-react';
-import { aiRequest, datasetContext, evidenceFacts, inspectPlanFilters, isScatterTask, mergeRepairPlan, mergeExecution, planForReview } from './ai';
-import type { ConfirmedRoles, ExecutionOptions, Task, TaskProgress, Fact, PlanExecution, PlanResponse, Review, ReviewResponse } from './ai';
+import { aiRequest, appendHistory, buildHistoryTurn, datasetContext, evidenceFacts, inspectPlanFilters, isScatterTask, mergeRepairPlan, mergeExecution, planForReview } from './ai';
+import type { ConfirmedRoles, ExecutionOptions, HistoryTurn, Task, TaskProgress, Fact, PlanExecution, PlanResponse, Review, ReviewResponse } from './ai';
 import { REFERENCE_LIMITS, readReferenceFile, referenceKey, referenceQuery, retrieveReferences } from './references';
 import type { ReferenceDoc, ReferenceExcerpt } from './references';
 import { aggregateNames } from './data';
@@ -45,6 +45,8 @@ export default function AiWorkbench({ seed, dataset, confirmedRoles, loading, on
   const [stopping, setStopping] = useState(false);
   const [repairChanges, setRepairChanges] = useState<{ title: string; before: string; after: string }[]>([]);
   const [planned, setPlanned] = useState<PlanResponse | null>(null);
+  const [history, setHistory] = useState<HistoryTurn[]>([]);
+  const historyRun = useRef('');
   const [facts, setFacts] = useState<Fact[]>([]);
   const [review, setReview] = useState<Review | null>(null);
   const [reviewReferences, setReviewReferences] = useState<ReferenceExcerpt[]>([]);
@@ -72,7 +74,7 @@ export default function AiWorkbench({ seed, dataset, confirmedRoles, loading, on
   useEffect(() => () => { controller.current?.abort(); version.current++; }, []);
   useEffect(() => {
     setTaskProgress({}); setResumePending(false); setStopping(false);
-    version.current++; controller.current?.abort(); setBusy(''); setPlanned(null); setReview(null); setReviewReferences([]); setReferenceDocs([]); setReferenceError(''); setFacts([]); setRunIds([]); setRunTaskIds([]); setExecutionFailures([]); setRunResults([]); setHasExecuted(false); setRepairRounds(0); setPendingTaskIds(null); setRepairChanges([]); setEvents([]); setError(''); setConfirmed(false); setGoal(''); setContext(''); setScope(undefined);
+    version.current++; controller.current?.abort(); setBusy(''); setPlanned(null); setReview(null); setReviewReferences([]); setReferenceDocs([]); setReferenceError(''); setFacts([]); setRunIds([]); setRunTaskIds([]); setExecutionFailures([]); setRunResults([]); setHasExecuted(false); setRepairRounds(0); setPendingTaskIds(null); setRepairChanges([]); setEvents([]); setError(''); setConfirmed(false); setGoal(''); setContext(''); setScope(undefined); setHistory([]); historyRun.current = '';
   }, [dataset?.fingerprint, dataset?.loadedAt]);
   useEffect(() => {
     setConfirmed(false);
@@ -99,7 +101,7 @@ export default function AiWorkbench({ seed, dataset, confirmedRoles, loading, on
     try {
       if (scope) validateScope(dataset, scope);
       if(requestContext.length>5000) throw new Error('背景与追问范围合计超过 5000 字，请缩短业务背景后重新规划。');
-      const response = await aiRequest<PlanResponse>('plan', { ...providerBody, question, context: requestContext, includeSamples: samples, includeCategories: categories, dataset: datasetContext(dataset, samples, categories, confirmedRoles), ...(references.length ? { references } : {}) }, c.signal);
+      const response = await aiRequest<PlanResponse>('plan', { ...providerBody, question, context: requestContext, includeSamples: samples, includeCategories: categories, dataset: datasetContext(dataset, samples, categories, confirmedRoles), ...(references.length ? { references } : {}), ...(history.length ? { history } : {}) }, c.signal);
       if (current !== version.current || key !== inputRef.current) return;
       setPlanned({ ...response, scope }); setPlannedInput(key);
       setEvents(events => [...events, response.plan.questions.length && response.plan.tasks.length ? '模型标记了待确认口径，但已给出可安全执行的描述性任务。' : response.plan.questions.length ? '当前没有可安全执行的任务，请补充澄清信息后重新规划。' : '模型计划通过结构与字段校验，等待确认口径。']);
@@ -150,6 +152,14 @@ export default function AiWorkbench({ seed, dataset, confirmedRoles, loading, on
       setRunResults(combined); setHasExecuted(true); setPendingTaskIds(pending); setResumePending(Boolean(pending)); setStopping(false);
       setFacts(calculated); setRunIds(combined.map(r => r.id)); setRunTaskIds(combined.map(r => r.ai?.taskId || ''));
       setExecutionFailures(executionFailuresForReview);
+      if (!execution.cancelled && historyRun.current !== runKey.current && (combined.length || execution.explores.length)) {
+        historyRun.current = runKey.current;
+        const previousFacts = [
+          ...calculated.map(fact => ({ label: fact.label || fact.taskId, text: fact.text })),
+          ...execution.explores.flatMap(item => item.result.correlation ? [{ label: item.title + ' · Pearson r', text: 'r=' + item.result.correlation.r.toFixed(4) + '，n=' + item.result.correlation.n }] : []),
+        ];
+        setHistory(items => appendHistory(items, buildHistoryTurn(question, planned.plan.goal, planned.plan.tasks.map(task => task.title), previousFacts, planned.scope?.label)));
+      }
       setEvents(events => [...events, '本轮完成 ' + execution.results.length + ' 个本地计算任务' + (execution.explores.length ? '、' + execution.explores.length + ' 个散点任务' : '') + '；当前保留 ' + combined.length + ' 个成功任务的来源证据。', ...(execution.failures.length ? [execution.failures.length + ' 个任务计算失败，真实错误已单独标注。'] : [])]);
       if (execution.cancelled) {
         setEvents(events => [...events, pending ? '计算已停止，已完成结果保留。确认后可仅继续未完成任务；本次未请求 AI 解读。' : '已停止后续 AI 解读，已完成计算结果保留。']);
@@ -209,6 +219,12 @@ export default function AiWorkbench({ seed, dataset, confirmedRoles, loading, on
     <div className="section-heading"><div><h2 id="ai-heading"><BrainCircuit size={19} />AI 分析助手</h2><p>理解数据 → 确认口径 → 真实计算 → 失败修正 → 证据解读</p></div><button className="icon-button" type="button" onClick={onConfigure} aria-label="配置分析模型"><Settings2 size={18} /></button></div>
     <form onSubmit={e => void plan(e)} className="ai-intake">
       <div className="ai-connection"><span className="service-state">{status}</span>{profiles.length > 0 ? <label>当前模型<select aria-label="分析模型" value={providerId} onChange={e => onSelect(e.target.value)} disabled={!!busy}>{profiles.map(p => <option key={p.id} value={p.id}>{p.name} · {p.model}</option>)}</select></label> : <button className="connect-prompt" type="button" onClick={onConfigure}><Settings2 size={16} /><span>连接你的 AI 模型<small>填写 API 地址、密钥和模型 ID</small></span><ChevronRight size={17} /></button>}{selected?.source === 'browser' && !ready && <button type="button" className="text-button" onClick={onConfigure}>补填 API Key 后开始分析</button>}</div>
+      {history.length > 0 && <details className="ai-history" open>
+        <summary>对话上下文 · {history.length} 轮已完成分析</summary>
+        <ol>{history.map((turn, i) => <li key={i}><span>第 {i + 1} 轮</span><strong>{turn.question}</strong><small>{turn.goal}</small></li>)}</ol>
+        <p>新一轮规划会带上这些问题与该轮计算摘要，用于理解“再按…拆开”等追问；不发送原始行，历史数字不作为新证据。</p>
+        <button type="button" className="text-button" onClick={() => setHistory([])} disabled={!!busy}>清空对话上下文</button>
+      </details>}
       <label htmlFor="analysis-goal">分析目标</label><textarea id="analysis-goal" disabled={!!busy} rows={2} maxLength={3000} value={goal} onChange={e => { setGoal(e.target.value); setConfirmed(false); }} placeholder="直接说你想了解什么，例如：哪些渠道变化最大？也可以留空，先让 AI 检查数据并提出探索方向。" />
       <details className="ai-optional" open={planned?.plan.questions.length ? true : undefined}><summary>补充背景与样本设置（可选）</summary>
       <label htmlFor="business-context">业务背景与字段口径</label><textarea id="business-context" disabled={!!busy} rows={3} maxLength={Math.max(0,5000-(scope?scopeContext(scope).length+2:0))} value={context} onChange={e => { setContext(e.target.value); setConfirmed(false); }} placeholder="知道的话再补充：每行代表什么、指标单位、统计范围。不确定可以留空，AI 仅在影响计算时询问。" />
