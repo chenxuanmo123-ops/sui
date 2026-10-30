@@ -15,7 +15,7 @@ export const planSchema = object({
   fieldRoles: list(object({ field: text(200), meaning: text(400), role: choice(['time', 'metric', 'dimension', 'id', 'unknown']) }), 30),
   assumptions: list(text(500)), questions: list(text(500), 6),
   hypotheses: optional(list(object({ id: text(40), statement: text(500), testTaskIds: { ...list(text(40), 6), minItems: 1 } }), 4)),
-  tasks: list(object({ id: text(40), title: text(200), rationale: text(600), chart: choice(['line', 'bar']), mapping: mappingSchema }), 6),
+  tasks: list(object({ id: text(40), title: text(200), rationale: text(600), chart: choice(['line', 'bar', 'scatter']), mapping: optional(mappingSchema), scatter: optional(object({ x: text(200), y: text(200), filter: text(200), value: text(300) })) }), 6),
   limitations: list(text(600)),
 });
 const insightItem = object({

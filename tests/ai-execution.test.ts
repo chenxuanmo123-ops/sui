@@ -7,11 +7,11 @@ import { resolve } from 'node:path'
 import { parseCSV } from '../src/data'
 import type { Dataset } from '../src/data'
 import type { PlanResponse, Task } from '../src/ai'
-import { installSQL, runAggregate } from '../src/analytics'
+import { installSQL, runAggregate, runExplore } from '../src/analytics'
 import { executePlan, evidenceFacts, inspectPlanFilters, datasetContext, mergeRepairPlan, mergeExecution } from '../src/ai'
 
 // Only replace the browser Worker boundary. Every task runs real SQLite over the SEC fixture.
-const worker = vi.hoisted(() => ({ aggregateDataset: vi.fn() }))
+const worker = vi.hoisted(() => ({ aggregateDataset: vi.fn(), exploreDataset: vi.fn() }))
 vi.mock('../src/engine', () => worker)
 const raw = readFileSync(resolve('tests/fixtures/evaluation/financial/apple-sec-company-facts-fy2021-2023.csv'), 'utf8')
 const provenance = JSON.parse(readFileSync(resolve('tests/fixtures/evaluation/financial/provenance.json'), 'utf8'))
@@ -41,6 +41,13 @@ beforeEach(() => {
   worker.aggregateDataset.mockImplementation(async (data, mapping, question, id) => {
     const database = new SQL.Database()
     try { installSQL(database, data); return runAggregate(database, data, mapping, question, id) }
+    finally { database.close() }
+  })
+  // The scatter path runs the same read-only SQLite engine through runExplore.
+  worker.exploreDataset.mockReset()
+  worker.exploreDataset.mockImplementation(async (data, spec) => {
+    const database = new SQL.Database()
+    try { installSQL(database, data); return runExplore(database, data, spec) }
     finally { database.close() }
   })
 })
@@ -150,7 +157,7 @@ describe('任务进度与中止恢复（真实 SEC 数据）', () => {
  it('开始前中止不启动计算、不生成空结果或失败结论', async () => {
   const controller = new AbortController(); controller.abort()
   const execution = await executePlan(dataset, response(), '', 10, { signal: controller.signal })
-  expect(execution).toEqual({ results: [], failures: [], cancelled: true, pendingTaskIds: ['revenue', 'cash'] })
+  expect(execution).toEqual({ results: [], explores: [], failures: [], cancelled: true, pendingTaskIds: ['revenue', 'cash'] })
   expect(worker.aggregateDataset).not.toHaveBeenCalled()
  })
  it('完成现金后停止仅保留真实现金证据，继续时不重算成功任务', async () => {
@@ -236,5 +243,34 @@ describe('类别字典授权与失败修正（真实 SEC 数据）', () => {
     expect(() => mergeExecution(first.results, { results: first.results, failures: [] }, mergedPlan)).toThrow('绑定不符')
     expect(() => mergeExecution([], { results: [{ ...second.results[0], datasetHash: 'b'.repeat(64) }], failures: [] }, mergedPlan)).toThrow('绑定不符')
     expect(() => mergeExecution([], second, original)).toThrow('绑定不符')
+  })
+})
+
+// The scatter path is exercised against the published copy of the UCI day.csv,
+// so the expected Pearson r matches the documented real-data demo.
+const bikeRaw = readFileSync(resolve('docs/real-demo/day.csv'), 'utf8')
+const bike: Dataset = { ...parseCSV(bikeRaw), title: 'UCI Bike Sharing day.csv', sourceUrl: 'https://archive.ics.uci.edu/dataset/275/bike+sharing+dataset', loadedAt: '2026-10-30', fingerprint: createHash('sha256').update(bikeRaw).digest('hex'), isPublic: true }
+function planFor(target: Dataset, tasks: Task[]): PlanResponse {
+  return { datasetHash: target.fingerprint, model: 'explicit-test-plan', providerName: '测试计划（非模型评测）', generatedAt: '2026-10-30T00:00:00.000Z', plan: { goal: '查看两个数值字段的线性同步程度', scene: '公开日数据', grain: '每行一天', fieldRoles: [], assumptions: [], questions: [], limitations: ['只描述线性同步，不是因果'], tasks } }
+}
+describe('散点任务（真实 CSV 与 SQLite，非模型评测）', () => {
+  const scatter: Task = { id: 'relation', title: '温度与租车量的线性同步', rationale: '按全部有效配对计算，不写成因果', chart: 'scatter', scatter: { x: 'temp', y: 'cnt', filter: '', value: '' } }
+  it('返回全部有效配对的 Pearson 与散点列，不进入聚合结果或证据事实', async () => {
+    const execution = await executePlan(bike, planFor(bike, [scatter]), '温度和租车量是否一起变化', 30)
+    expect(execution.results).toEqual([])
+    expect(execution.failures).toEqual([])
+    expect(execution.explores).toHaveLength(1)
+    const result = execution.explores[0].result
+    expect(result.spec.kind).toBe('scatter')
+    expect(result.columns).toEqual(['temp', 'cnt'])
+    expect(result.correlation?.n).toBe(731)
+    expect(result.correlation?.r).toBeCloseTo(0.627494, 6)
+    expect(result.sql).toContain('strict_number')
+  })
+  it('同一字段的散点任务失败并如实报告，不产生结果', async () => {
+    const same: Task = { ...scatter, scatter: { x: 'temp', y: 'temp', filter: '', value: '' } }
+    const execution = await executePlan(bike, planFor(bike, [same]), '', 31)
+    expect(execution.explores).toEqual([])
+    expect(execution.failures[0].error).toContain('两个不同的数值字段')
   })
 })

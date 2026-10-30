@@ -30,7 +30,7 @@ import ImportDialog from './ImportDialog'
 import WorkspaceWelcome from './WorkspaceWelcome'
 import ModelManager from './ModelManager'
 import { useModelProfiles } from './models'
-import { executePlan } from './ai'
+import { executePlan, isScatterTask } from './ai'
 import type { ExecutionOptions, PlanExecution } from './ai'
 import type { PlanResponse } from './ai'
 import { aggregateNames, analyze, decodeTextBytes, defaultMapping, detectDelimiter, download, escapeHTML, fingerprint, formatNumber, initialQuestion, normalizeUnit, parseCSV, parsePublicQuestion, profileDataset, PUBLIC_DATA_BYTES, PUBLIC_DATA_COMMIT, PUBLIC_DATA_MIRRORS, PUBLIC_SOURCE_URL, withDeclaredUnit } from './data'
@@ -394,10 +394,21 @@ export default function App() {
     if (datasetRef.current !== snapshot) throw new Error('数据已变化，旧计划计算结果已丢弃。')
     const results = execution.results
     const first = results[0]
-    if (!first) { setNotice(execution.cancelled ? '计算已停止，未完成的任务没有生成结果。可在 AI 助手中继续。' : '本轮任务未得到可计算结果，请在 AI 助手中查看错误并修正计划。'); return execution }
+    const scatter = execution.explores.at(-1)
+    if (scatter) setExploreSession({ datasetHash: dataset.fingerprint, spec: scatter.result.spec, result: scatter.result, selected: null })
+    if (!first) {
+      if (scatter) {
+        setView('explore'); setError('')
+        const r = scatter.result.correlation
+        setNotice('已完成 ' + execution.explores.length + ' 个散点任务：' + scatter.result.spec.x + ' × ' + scatter.result.spec.y + (r ? '，全部有效配对 Pearson r = ' + r.r.toFixed(4) + '（n=' + r.n + '）' : '') + '。图表、SQL 与来源记录在探索分析中。' + (execution.failures.length ? ' ' + execution.failures.length + ' 个任务失败，详情见 AI 助手。' : ''))
+        return execution
+      }
+      setNotice(execution.cancelled ? '计算已停止，未完成的任务没有生成结果。可在 AI 助手中继续。' : '本轮任务未得到可计算结果，请在 AI 助手中查看错误并修正计划。'); return execution
+    }
     setHistory(h => [...h, ...results]); setActiveId(first.id); setMapping(first.mapping); setQuestion(goal)
-    setChartKind(response.plan.tasks.find(task => task.id === first.ai?.taskId)?.chart ?? 'bar'); setSelectedPoint(''); setDataTab('result'); setError('')
-    setNotice((execution.cancelled ? '计算已停止，保留 ' : '已完成 ') + results.length + ' 个 AI 计划任务的真实计算。' + (execution.failures.length ? execution.failures.length + ' 个任务失败，详情见 AI 助手。' : '') + '点击任务查看相应图表与来源。')
+    const planTask = response.plan.tasks.find(task => task.id === first.ai?.taskId)
+    setChartKind(planTask && !isScatterTask(planTask) ? planTask.chart : 'bar'); setSelectedPoint(''); setDataTab('result'); setError('')
+    setNotice((execution.cancelled ? '计算已停止，保留 ' : '已完成 ') + results.length + ' 个 AI 计划任务的真实计算。' + (scatter ? '另有 ' + execution.explores.length + ' 个散点任务已计算，结果在“探索分析”中。' : '') + (execution.failures.length ? execution.failures.length + ' 个任务失败，详情见 AI 助手。' : '') + '点击任务查看相应图表与来源。')
     return execution
   }
   async function runCheckupQuestion(question: CheckupQuestion) {

@@ -31,7 +31,7 @@ export function AnalysisResults({ bundle, dataset, overrides, onEvidence, onFoll
   <div className={'bundle-grid'+(bundle.results.length===1?' single-result':'')}>{bundle.results.map(result=>{
    const label=selection?.id===result.id?selection.label:''
    const point=result.points.find(p=>p.label===label)
-   const planChart=bundle.response.plan.tasks.find(t=>t.id===result.ai?.taskId)?.chart||'bar'
+   const planChart=bundle.response.plan.tasks.find(t=>t.id===result.ai?.taskId)?.chart==='line'?'line':'bar'
    const chartKind=chartKinds[result.id]??planChart
    return <article className={'bundle-result'+(point?' has-selection':'')} key={result.id} hidden={focused!==result.id}>
     <header className="result-sheet-head">

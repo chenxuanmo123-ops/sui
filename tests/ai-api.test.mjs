@@ -7,7 +7,7 @@ import { createServer } from 'node:http';
 import { createAiHandler, checkPlan, providersFromEnv, userProvider, sanitizeDataset, sanitizeReferences, checkRepair } from '../server/ai.mjs';
 import { planSchema, validate } from '../server/contracts.mjs';
 const isolatedHandler = (providers, options = {}) => createAiHandler(providers, { store: createProfileStore(resolve('artifacts', 'test-config-' + randomUUID(), 'models.json')), ...options });
-const dataset = { hash: 'a'.repeat(64), columns: [{field:'year'}, {field:'value'}, {field:'country'}] };
+const dataset = { hash: 'a'.repeat(64), columns: [{field:'year',numeric:3}, {field:'value',numeric:3}, {field:'country',numeric:0}] };
 const mapping = {x:'year', metric:'value', filter:'country',value:'China',from:'2015',to:'2022',unit:'TWh',aggregate:'sum',timeBucket:'year',conditions:[]};
 const plan = {goal:'比较所选地区的年度发电量',scene:'年度能源统计',grain:'每行是一个地区一年',fieldRoles:[{field:'year',meaning:'统计年',role:'time'}],assumptions:[],questions:[],tasks:[{id:'annual',title:'年度比较',rationale:'回答年度变化问题',chart:'line',mapping}],limitations:['仅描述统计，不判断原因']};
 const clone = v => structuredClone(v);
@@ -26,6 +26,15 @@ test('计划约束：字段真实、任务唯一、拒绝额外属性', () => {
   const duplicateHypothesis = clone(plan); duplicateHypothesis.hypotheses = [{ id: 'h1', statement: '第一种解释', testTaskIds: ['annual'] }, { id: 'h1', statement: '第二种解释', testTaskIds: ['annual'] }]; assert.throws(() => checkPlan(duplicateHypothesis,dataset), /候选假设/);
   const duplicateBinding = clone(plan); duplicateBinding.hypotheses = [{ id: 'h1', statement: '重复绑定不应产生两个结果', testTaskIds: ['annual', 'annual'] }]; assert.throws(() => checkPlan(duplicateBinding,dataset), /候选假设/);
   const blankHypothesis = clone(plan); blankHypothesis.hypotheses = [{ id: 'annual', statement: ' ', testTaskIds: ['annual'] }]; assert.throws(() => checkPlan(blankHypothesis,dataset), /候选假设/);
+});
+test('散点任务只接受两个真实数值字段，不能混用聚合 mapping', () => {
+  const scatter = clone(plan);
+  scatter.tasks = [{ id: 'relation', title: '两个数值字段是否线性同步', rationale: '只描述线性同步程度，不是因果', chart: 'scatter', scatter: { x: 'year', y: 'value', filter: '', value: '' } }];
+  assert.equal(checkPlan(scatter, dataset).tasks.length, 1);
+  const text = clone(scatter); text.tasks[0].scatter.x = 'country'; assert.throws(() => checkPlan(text, dataset), /数值/);
+  const same = clone(scatter); same.tasks[0].scatter.y = 'year'; assert.throws(() => checkPlan(same, dataset), /不同/);
+  const mixed = clone(scatter); mixed.tasks[0].mapping = clone(mapping); assert.throws(() => checkPlan(mixed, dataset), /scatter/);
+  const unpaired = clone(scatter); unpaired.tasks[0].scatter.filter = 'country'; assert.throws(() => checkPlan(unpaired, dataset), /配对/);
 });
 test('澄清问题与安全任务可以并存，只有没有任务时等待补充', () => {
   const partial=clone(plan); partial.questions=['请确认是否仅分析上传子集'];
