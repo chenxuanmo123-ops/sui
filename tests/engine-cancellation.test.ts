@@ -10,6 +10,7 @@ class TestWorker extends EventTarget {
  postMessage(request: { id: number }) { this.requests.push(request) }
  terminate() { this.terminated = true }
  complete(id = this.requests.at(-1)!.id) { this.dispatchEvent(new MessageEvent('message', { data: { id, result: { protocolAcknowledged: true } } })) }
+ fail(id = this.requests.at(-1)!.id, error = '引擎错误') { this.dispatchEvent(new MessageEvent('message', { data: { id, error } })) }
 }
 const dataset = {} as Dataset, mapping = {} as Mapping
 beforeEach(() => { vi.resetModules(); TestWorker.instances = []; vi.stubGlobal('Worker', TestWorker) })
@@ -39,10 +40,46 @@ describe('SQL Worker 取消与队列恢复', () => {
   const { aggregateDataset } = await import('../src/engine')
   const current = aggregateDataset(dataset, mapping, '', 1); await flush()
   TestWorker.instances[0].complete(-1)
-  const rejection = expect(current).rejects.toThrow('超过 30 秒')
+  // The first 30 s only proves the worker never came up, so it is replaced
+  // once; the replacement gets its own timeout before the request fails.
+  await vi.advanceTimersByTimeAsync(30000); await flush()
+  expect(TestWorker.instances).toHaveLength(2)
+  expect(TestWorker.instances[0].terminated).toBe(true)
+  const rejection = expect(current).rejects.toThrow('计算引擎加载超过 30 秒')
   await vi.advanceTimersByTimeAsync(30000); await rejection
+  expect(TestWorker.instances).toHaveLength(2)
   const next = aggregateDataset(dataset, mapping, '', 2); await flush()
-  expect(TestWorker.instances).toHaveLength(2); TestWorker.instances[1].complete(); await next
+  expect(TestWorker.instances).toHaveLength(3); TestWorker.instances[2].complete(); await next
+ })
+ it('首次失败视为引擎加载问题，换新线程重试一次后正常返回', async () => {
+  const { aggregateDataset } = await import('../src/engine')
+  const current = aggregateDataset(dataset, mapping, '', 1); await flush()
+  const first = TestWorker.instances[0], id = first.requests[0].id
+  first.fail(id, 'WebAssembly compile is disallowed')
+  await flush()
+  expect(first.terminated).toBe(true)
+  expect(TestWorker.instances).toHaveLength(2)
+  TestWorker.instances[1].complete(id)
+  await expect(current).resolves.toEqual({ protocolAcknowledged: true })
+ })
+ it('重试后仍失败才把错误交给用户，不再继续换线程', async () => {
+  const { aggregateDataset } = await import('../src/engine')
+  const current = aggregateDataset(dataset, mapping, '', 1); await flush()
+  const id = TestWorker.instances[0].requests[0].id
+  TestWorker.instances[0].fail(id, '首次失败')
+  await flush()
+  TestWorker.instances[1].fail(id, '仍然失败')
+  await expect(current).rejects.toThrow('仍然失败')
+  expect(TestWorker.instances).toHaveLength(2)
+ })
+ it('已成功计算过的线程报错时直接返回错误，不重复执行', async () => {
+  const { aggregateDataset } = await import('../src/engine')
+  const first = aggregateDataset(dataset, mapping, '', 1); await flush()
+  TestWorker.instances[0].complete(); await first
+  const second = aggregateDataset(dataset, mapping, '', 2); await flush()
+  TestWorker.instances[0].fail(TestWorker.instances[0].requests[1].id, '真实口径错误')
+  await expect(second).rejects.toThrow('真实口径错误')
+  expect(TestWorker.instances).toHaveLength(1)
  })
  it('消息发送异常也能释放队列并重建计算线程', async () => {
   const { aggregateDataset } = await import('../src/engine')
