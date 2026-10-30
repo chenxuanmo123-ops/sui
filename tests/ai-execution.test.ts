@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { parseCSV } from '../src/data'
 import type { Dataset } from '../src/data'
-import type { HeatmapTask, HistoryTurn, PlanResponse, Task } from '../src/ai'
+import type { HeatmapTask, HistoryTurn, PieTask, PlanResponse, Task } from '../src/ai'
 import { installSQL, runAggregate, runExplore } from '../src/analytics'
 import { appendHistory, buildHistoryTurn, executePlan, evidenceFacts, inspectPlanFilters, datasetContext, mergeRepairPlan, mergeExecution, planForReview, HISTORY_LIMITS } from '../src/ai'
 
@@ -309,6 +309,45 @@ describe('热力图任务（真实 CSV 与 SQLite，非模型评测）', () => {
     const scatter: Task = { id: 'relation', title: '温度与租车量', rationale: '只描述线性同步', chart: 'scatter', scatter: { x: 'temp', y: 'cnt', filter: '', value: '' } }
     const aggregate: Task = { id: 'monthly', title: '按月租车次数', rationale: '描述月度差异', chart: 'bar', mapping: { x: 'mnth', metric: 'cnt', aggregate: 'sum', filter: '', value: '', from: '', to: '', unit: '', timeBucket: 'none', conditions: [] } }
     const reviewed = planForReview({ ...planFor(bike, [scatter, heatmap, aggregate]).plan, hypotheses: [{ id: 'h1', statement: '候选解释', testTaskIds: ['cross', 'monthly'] }] })
+    expect(reviewed.tasks.map(task => task.id)).toEqual(['monthly'])
+    expect(reviewed.hypotheses).toEqual([])
+  })
+})
+
+describe('饼图任务（真实 CSV 与 SQLite，非模型评测）', () => {
+  const share: PieTask = { id: 'share', title: '各天气类型租车次数占比', rationale: '占比只按当前范围内记录计算，不是总体份额', chart: 'pie', pie: { x: 'weathersit', metric: 'weathersit', aggregate: 'count', filter: '', value: '' } }
+  it('按分组真实计数并降序排列，不进入聚合结果或证据事实', async () => {
+    const execution = await executePlan(bike, planFor(bike, [share]), '', 34)
+    expect(execution.results).toEqual([])
+    expect(execution.failures).toEqual([])
+    const result = execution.explores[0].result
+    expect(result.spec.kind).toBe('pie')
+    expect(result.columns).toEqual(['weathersit', '记录数 · weathersit'])
+    expect(result.rows.map(row => [row[0], row[1]])).toEqual([['1', 463], ['2', 247], ['3', 21]])
+    expect(result.rowIds.reduce((sum, ids) => sum + ids.length, 0)).toBe(731)
+    expect(result.truncated).toBe(false)
+  })
+  it('求和口径按真实数值列聚合，分组顺序与数值一致', async () => {
+    const bySeason: PieTask = { ...share, id: 'season', pie: { x: 'season', metric: 'cnt', aggregate: 'sum', filter: '', value: '' } }
+    const result = (await executePlan(bike, planFor(bike, [bySeason]), '', 35)).explores[0].result
+    expect(result.columns).toEqual(['season', '求和 · cnt'])
+    expect(result.rows.map(row => [row[0], row[1]])).toEqual([['3', 1061129], ['2', 918589], ['4', 841613], ['1', 471348]])
+  })
+  it('饼图只接受可加总口径，运行时拒绝均值等不可相加的聚合', () => {
+    const database = new SQL.Database()
+    try {
+      installSQL(database, bike)
+      const spec = { kind: 'pie' as const, x: 'weathersit', y: 'weathersit', metric: 'cnt', aggregate: 'average' as const, filter: '', value: '', bucket: 'none' as const, sort: 'desc' as const, limit: 200 }
+      expect(() => runExplore(database, bike, spec)).toThrow('饼图只能表示可加总的求和或记录数')
+    } finally { database.close() }
+  })
+  it('本地预检精确检查饼图筛选值，不改写计划', () => {
+    const wrong: PieTask = { ...share, pie: { ...share.pie, filter: 'weathersit', value: '4' } }
+    expect(inspectPlanFilters(bike, planFor(bike, [wrong]).plan)).toEqual([{ taskId: 'share', title: wrong.title, message: 'weathersit = "4"：当前数据没有精确匹配记录。请核对原始值后重新规划。' }])
+  })
+  it('复核计划会移除饼图任务，避免引用不存在的证据', () => {
+    const aggregate: Task = { id: 'monthly', title: '按月租车次数', rationale: '描述月度差异', chart: 'bar', mapping: { x: 'mnth', metric: 'cnt', aggregate: 'sum', filter: '', value: '', from: '', to: '', unit: '', timeBucket: 'none', conditions: [] } }
+    const reviewed = planForReview({ ...planFor(bike, [share, aggregate]).plan, hypotheses: [{ id: 'h1', statement: '候选解释', testTaskIds: ['share', 'monthly'] }] })
     expect(reviewed.tasks.map(task => task.id)).toEqual(['monthly'])
     expect(reviewed.hypotheses).toEqual([])
   })

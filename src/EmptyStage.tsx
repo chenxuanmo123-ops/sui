@@ -33,7 +33,7 @@ const COPY: Record<EmptyStageView, Copy> = {
   explore: {
     eyebrow: 'EXPLORATION DECK · STANDBY',
     title: '把数据放进来，先看分布，再找关系。',
-    lead: '选择维度、指标和图表类型，系统在浏览器内执行真实 SQL。折线、柱状、散点与热力图都绑定同一份快照。',
+    lead: '选择维度、指标和图表类型，系统在浏览器内执行真实 SQL。折线、柱状、散点、热力图与饼图都绑定同一份快照。',
     Icon: BarChart3,
     steps: [
       { title: '确认维度与指标', detail: '不把编号或编码当数值' },

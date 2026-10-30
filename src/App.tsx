@@ -433,7 +433,9 @@ export default function App() {
         const { spec, correlation, rows, truncated } = explore.result
         const description = spec.kind === 'scatter'
           ? spec.x + ' × ' + spec.y + (correlation ? '，全部有效配对 Pearson r = ' + correlation.r.toFixed(4) + '（n=' + correlation.n + '）' : '')
-          : spec.x + ' × ' + spec.y + '，' + rows.length + ' 个真实聚合单元格' + (truncated ? '（已达展示上限，图下已标注）' : '')
+          : spec.kind === 'pie'
+            ? spec.x + '，' + rows.length + ' 个分组占比' + (truncated ? '（已达展示上限，占比只针对已展示分组）' : '')
+            : spec.x + ' × ' + spec.y + '，' + rows.length + ' 个真实聚合单元格' + (truncated ? '（已达展示上限，图下已标注）' : '')
         setNotice('已完成 ' + execution.explores.length + ' 个可视化探索任务：' + description + '。图表、SQL 与来源记录在探索分析中。' + (execution.failures.length ? ' ' + execution.failures.length + ' 个任务失败，详情见 AI 助手。' : ''))
         return execution
       }

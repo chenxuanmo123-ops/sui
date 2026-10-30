@@ -11,15 +11,20 @@ export type ScatterSpec = { x: string; y: string; filter: string; value: string 
 /** A two-dimension heatmap task: each cell is a real aggregate over the rows
  * that share that pair of dimension values. Missing pairs stay blank. */
 export type HeatmapSpec = { x: string; y: string; metric: string; aggregate: Mapping['aggregate']; filter: string; value: string };
+/** A share-of-total pie over one dimension. Only additive aggregates are
+ * allowed, because averages or percentiles cannot be summed into a total. */
+export type PieSpec = { x: string; metric: string; aggregate: 'sum' | 'count'; filter: string; value: string };
 export type AggregateTask = { id: string; title: string; rationale: string; chart: 'line' | 'bar'; mapping: Mapping };
 export type ScatterTask = { id: string; title: string; rationale: string; chart: 'scatter'; scatter: ScatterSpec };
 export type HeatmapTask = { id: string; title: string; rationale: string; chart: 'heatmap'; heatmap: HeatmapSpec };
-export type Task = AggregateTask | ScatterTask | HeatmapTask;
+export type PieTask = { id: string; title: string; rationale: string; chart: 'pie'; pie: PieSpec };
+export type Task = AggregateTask | ScatterTask | HeatmapTask | PieTask;
 export const isScatterTask = (task: Task): task is ScatterTask => task.chart === 'scatter';
 export const isHeatmapTask = (task: Task): task is HeatmapTask => task.chart === 'heatmap';
+export const isPieTask = (task: Task): task is PieTask => task.chart === 'pie';
 /** Explore tasks render in the Explore view instead of producing aggregate
  * facts, so review must not cite them. */
-export const isExploreTask = (task: Task): task is ScatterTask | HeatmapTask => task.chart === 'scatter' || task.chart === 'heatmap';
+export const isExploreTask = (task: Task): task is ScatterTask | HeatmapTask | PieTask => task.chart === 'scatter' || task.chart === 'heatmap' || task.chart === 'pie';
 export type Hypothesis = { id: string; statement: string; testTaskIds: string[] };
 export type Plan = { goal: string; scene: string; grain: string; fieldRoles: { field: string; meaning: string; role: string }[]; assumptions: string[]; questions: string[]; hypotheses?: Hypothesis[]; tasks: Task[]; limitations: string[] };
 export type TaskProgress = { taskId: string; title: string; index: number; total: number; status: 'running' | 'completed' | 'failed' | 'cancelled'; error?: string };
@@ -123,6 +128,12 @@ export async function executePlan(dataset: Dataset, response: PlanResponse, ques
         if (response.scope) throw new Error('热力图任务不支持分组追问范围，请回到全表重新规划。');
         const spec: ExploreSpec = { kind: 'heatmap', x: task.heatmap.x, y: task.heatmap.y, metric: task.heatmap.metric, aggregate: task.heatmap.aggregate, filter: task.heatmap.filter, value: task.heatmap.value, bucket: 'none', sort: 'label', limit: 200 };
         explores.push({ taskId: task.id, title: task.title, result: await exploreDataset(dataset, spec, options.signal) });
+      } else if (isPieTask(task)) {
+        // Only additive aggregates reach this branch; the rendered shares are
+        // computed from the group values actually returned.
+        if (response.scope) throw new Error('饼图任务不支持分组追问范围，请回到全表重新规划。');
+        const spec: ExploreSpec = { kind: 'pie', x: task.pie.x, y: task.pie.x, metric: task.pie.metric, aggregate: task.pie.aggregate, filter: task.pie.filter, value: task.pie.value, bucket: 'none', sort: 'desc', limit: 200 };
+        explores.push({ taskId: task.id, title: task.title, result: await exploreDataset(dataset, spec, options.signal) });
       } else {
         const result = await analyze(dataset, task.mapping, question, startId + i, response.scope, options.signal);
         results.push({ ...result, ai: { goal: p.goal, taskId: task.id, taskTitle: task.title, model: response.model, plannedAt: response.generatedAt } });
@@ -144,6 +155,7 @@ export function inspectPlanFilters(dataset: Dataset, plan: Plan): PlanWarning[] 
     let conditions: { field: string; value: string }[];
     if (isScatterTask(task)) conditions = task.scatter.filter ? [{ field: task.scatter.filter, value: task.scatter.value }] : [];
     else if (isHeatmapTask(task)) conditions = task.heatmap.filter ? [{ field: task.heatmap.filter, value: task.heatmap.value }] : [];
+    else if (isPieTask(task)) conditions = task.pie.filter ? [{ field: task.pie.filter, value: task.pie.value }] : [];
     else conditions = [
       ...(task.mapping.filter ? [{ field: task.mapping.filter, value: task.mapping.value }] : []),
       ...(task.mapping.conditions ?? []).filter(condition => condition.operator === 'eq'),

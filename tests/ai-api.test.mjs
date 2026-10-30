@@ -52,6 +52,20 @@ test('热力图任务要求两个不同的真实分组列与可用指标，不�
   const unpaired = clone(heatmap); unpaired.tasks[0].heatmap.filter = 'country'; assert.throws(() => checkPlan(unpaired, dataset), /配对/);
   const absentFilter = clone(heatmap); absentFilter.tasks[0].heatmap.filter = 'imaginary'; absentFilter.tasks[0].heatmap.value = 'x'; assert.throws(() => checkPlan(absentFilter, dataset), /配对/);
 });
+test('饼图任务只接受可加总的单维汇总，拒绝无法构成整体的口径', () => {
+  const pie = clone(plan);
+  pie.tasks = [{ id: 'share', title: '各地区发电量占比', rationale: '占比只在当前筛选范围内计算，不是总体份额', chart: 'pie', pie: { x: 'country', metric: 'value', aggregate: 'sum', filter: '', value: '' } }];
+  assert.equal(checkPlan(pie, dataset).tasks.length, 1);
+  const countReusesGroup = clone(pie); countReusesGroup.tasks[0].pie.aggregate = 'count'; countReusesGroup.tasks[0].pie.metric = 'country'; assert.equal(checkPlan(countReusesGroup, dataset).tasks.length, 1);
+  const sameField = clone(pie); sameField.tasks[0].pie.metric = 'country'; assert.throws(() => checkPlan(sameField, dataset), /求和时两者不能相同/);
+  const withText = { ...dataset, columns: [...dataset.columns, { field: 'label', numeric: 0 }] };
+  const textSum = clone(pie); textSum.tasks[0].pie.metric = 'label'; assert.throws(() => checkPlan(textSum, withText), /数值/);
+  const average = clone(pie); average.tasks[0].pie.aggregate = 'average'; assert.throws(() => validate(average, planSchema), /值无效/);
+  const mixedMapping = clone(pie); mixedMapping.tasks[0].mapping = clone(mapping); assert.throws(() => checkPlan(mixedMapping, dataset), /饼图/);
+  const mixedHeatmap = clone(pie); mixedHeatmap.tasks[0].heatmap = { x: 'country', y: 'year', metric: 'value', aggregate: 'sum', filter: '', value: '' }; assert.throws(() => checkPlan(mixedHeatmap, dataset), /饼图/);
+  const unpaired = clone(pie); unpaired.tasks[0].pie.filter = 'country'; assert.throws(() => checkPlan(unpaired, dataset), /配对/);
+  const absentFilter = clone(pie); absentFilter.tasks[0].pie.filter = 'imaginary'; absentFilter.tasks[0].pie.value = 'x'; assert.throws(() => checkPlan(absentFilter, dataset), /配对/);
+});
 test('澄清问题与安全任务可以并存，只有没有任务时等待补充', () => {
   const partial=clone(plan); partial.questions=['请确认是否仅分析上传子集'];
   const checked=checkPlan(partial,dataset);

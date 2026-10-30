@@ -5,7 +5,7 @@ import { validateScope, validateScopedMapping } from './follow-up'
 import { exportColumnNames } from './sql-names'
 import { linearTrend, pearsonFromCentered, timeIndex } from './statistics'
 import type { Correlation, TimeTrend } from './statistics'
-export type ChartKind = 'line' | 'bar' | 'scatter' | 'heatmap' | 'table'
+export type ChartKind = 'line' | 'bar' | 'scatter' | 'heatmap' | 'pie' | 'table'
 export type ExploreSpec = { kind: ChartKind; x: string; y: string; metric: string; aggregate: Mapping['aggregate']; filter: string; value: string; bucket: Mapping['timeBucket']; sort: 'label' | 'desc'; limit: number }
 export type ExploreResult = { columns: string[]; rows: (string | number | null)[][]; rowIds: number[][]; sql: string; parameters: SqlValue[]; total: number; excluded: number; truncated: boolean; datasetHash: string; spec: ExploreSpec; trend?: TimeTrend; correlation?: Correlation }
 export const col = (d: Dataset, key: string) => { const i = d.headers.indexOf(key); if (i < 0) throw new Error('字段不存在：' + key); return '"c' + i + '"' }
@@ -93,7 +93,8 @@ export function runAggregate(db: Database, d: Dataset, m: Mapping, question: str
  return {scope:rowScope ? structuredClone(rowScope) : undefined,id,question,mapping:structuredClone(m),points,usedRows:points.reduce((n,p)=>n+p.rowIds.length,0),matched:Number(stats[0]),skipped:Number(stats[1]),createdAt:new Date().toISOString(),datasetHash:d.fingerprint,finding:summarize(points,m.unit,Boolean(trend)),sql:preamble(d)+sql,parameters:params as (string|number|null)[],operations:['SQLite / sql.js 真实执行参数化只读查询', '数据快照：'+d.fingerprint, aggregateNames[m.aggregate]+'；空值不替换为零', 'SQL 列映射及参数见下方，来源记录号对应当前快照'],...(trend?{trend}:{})}
 }
 export function runExplore(db: Database,d: Dataset,s: ExploreSpec): ExploreResult {
- if(!['line','bar','scatter','heatmap','table'].includes(s.kind) || !['label','desc'].includes(s.sort) || !Number.isInteger(s.limit) || s.limit<1 || s.limit>MAX_GROUPS) throw new Error('图表配置无效')
+ if(!['line','bar','scatter','heatmap','pie','table'].includes(s.kind) || !['label','desc'].includes(s.sort) || !Number.isInteger(s.limit) || s.limit<1 || s.limit>MAX_GROUPS) throw new Error('图表配置无效')
+ if(s.kind==='pie' && !['sum','count'].includes(s.aggregate)) throw new Error('饼图只能表示可加总的求和或记录数，不能表示均值、中位数或分位数')
  const x=col(d,s.x),params:SqlValue[]=[],filters:string[]=[]
  if(s.filter){filters.push(col(d,s.filter)+' = ?');params.push(s.value)}
  let baseSql='', columns:string[]=[], valid=''

@@ -15,7 +15,7 @@ export const planSchema = object({
   fieldRoles: list(object({ field: text(200), meaning: text(400), role: choice(['time', 'metric', 'dimension', 'id', 'unknown']) }), 30),
   assumptions: list(text(500)), questions: list(text(500), 6),
   hypotheses: optional(list(object({ id: text(40), statement: text(500), testTaskIds: { ...list(text(40), 6), minItems: 1 } }), 4)),
-  tasks: list(object({ id: text(40), title: text(200), rationale: text(600), chart: choice(['line', 'bar', 'scatter', 'heatmap']), mapping: optional(mappingSchema), scatter: optional(object({ x: text(200), y: text(200), filter: text(200), value: text(300) })), heatmap: optional(object({ x: text(200), y: text(200), metric: text(200), aggregate: choice(['sum', 'average', 'count', 'distinct', 'min', 'max', 'median', 'p25', 'p75']), filter: text(200), value: text(300) })) }), 6),
+  tasks: list(object({ id: text(40), title: text(200), rationale: text(600), chart: choice(['line', 'bar', 'scatter', 'heatmap', 'pie']), mapping: optional(mappingSchema), scatter: optional(object({ x: text(200), y: text(200), filter: text(200), value: text(300) })), heatmap: optional(object({ x: text(200), y: text(200), metric: text(200), aggregate: choice(['sum', 'average', 'count', 'distinct', 'min', 'max', 'median', 'p25', 'p75']), filter: text(200), value: text(300) })), pie: optional(object({ x: text(200), metric: text(200), aggregate: choice(['sum', 'count']), filter: text(200), value: text(300) })) }), 6),
   limitations: list(text(600)),
 });
 // Prior completed turns sent by the client for conversational continuity. They
