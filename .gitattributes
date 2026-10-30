@@ -9,4 +9,6 @@ demo-data/**/*.csv -text
 demo-data/**/*.txt -text
 # Published copy of the bike demo; its SHA-256 must match the documented file.
 docs/real-demo/day.csv -text
+# Bundled copy shipped with the app; same rule, the digest is checked at load.
+public/demo/*.csv -text
 *.png -text
