@@ -1,5 +1,6 @@
 import type { Dataset } from './data'
 import { escapeHTML, PUBLIC_DATA_COMMIT, PUBLIC_DATA_URL, PUBLIC_SOURCE_LEGACY, PUBLIC_SOURCE_URL } from './data'
+import { SAMPLE_DATA_SHA256, SAMPLE_SOURCE_URL } from './sampleData'
 
 export type SourceNotes = {
   title: string; publisher: string; url: string; downloadUrl: string;
@@ -15,12 +16,24 @@ export const UCI_SOURCE: SourceNotes = {
   accessedAt: '2026-10-19', coverage: '历史电商访问样本；一行一次访问。具体采集年份和总体代表性未核实，不代表当前市场或全网用户。',
   notes: 'Revenue 为是否购买 TRUE/FALSE，不是营收金额。TrafficType 为未解释的类型代码，不能补造广告、搜索等名称。Month 没有年份，不能补造日期。原始 CSV 未修改，12,330 条记录、18 列。获取日期是本项目核验日期，不是采集日期。'
 }
+// A bundled copy, not a live download: the digest proves it is the same file,
+// and the status says so instead of implying the upstream service was reached.
+export const SAMPLE_SOURCE: SourceNotes = {
+  title: 'Bike Sharing Dataset · day.csv', publisher: 'UCI Machine Learning Repository',
+  url: SAMPLE_SOURCE_URL,
+  downloadUrl: 'https://archive.ics.uci.edu/static/public/275/bike+sharing+dataset.zip',
+  citation: 'Fanaee-T, H. & Gama, J. (2014). Bike Sharing Dataset. UCI Machine Learning Repository. 原始页面：' + SAMPLE_SOURCE_URL,
+  license: '以 UCI 数据集页面标注为准；再分发或改编前请核对原始提供方许可。',
+  accessedAt: '2026-10-24', coverage: '2011-01-01 至 2012-12-31，731 天，一行一天；共享单车系统按日汇总的租车记录，站点与用户的总体代表性未核实。',
+  notes: '随应用附带的逐字节副本（与 docs/real-demo/day.csv 相同），载入前核对 SHA-256；不是实时下载，也不联网更新。原始字段未修改；cnt 为租车次数，不是金额。'
+}
 export function safeSourceURL(value: string): string | undefined {
   try { const u = new URL(value); return ['https:', 'http:'].includes(u.protocol) && !u.username && !u.password ? u.href : undefined } catch { return undefined }
 }
 export function originalHash(d: Dataset) { return d.originalFileHash || d.origin?.fileHash || (!d.preparation ? d.fingerprint : '') }
 export function sourceInfo(d: Dataset): SourceNotes & { status: string } {
   if (d.sourceNotes) return { ...d.sourceNotes, status: '上传者备注 · 未独立核验' }
+  if (originalHash(d) === SAMPLE_DATA_SHA256) return { ...SAMPLE_SOURCE, status: '随应用附带的公开数据副本 · 原文件 SHA-256 与固定值一致' }
   if (originalHash(d) === UCI_CSV_HASH) return { ...UCI_SOURCE, status: '原文件 SHA-256 与已核验公开 CSV 一致' }
   if (d.isPublic && (d.sourceUrl === PUBLIC_SOURCE_URL || d.sourceUrl === PUBLIC_SOURCE_LEGACY)) return {
     title: 'OWID Energy Data', publisher: 'Our World in Data', url: PUBLIC_SOURCE_URL, downloadUrl: PUBLIC_DATA_URL,

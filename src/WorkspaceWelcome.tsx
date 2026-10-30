@@ -8,6 +8,7 @@ type Props = {
   configured: boolean
   onConfigure: () => void
   onPublic: () => void
+  onSample: () => void
 }
 
 const FORMATS = [
@@ -22,7 +23,7 @@ const STEPS = [
   { title: '核对来源再导出', detail: '图表能回到原始记录' },
 ]
 
-export default function WorkspaceWelcome({ onPick, onFile, busy, configured, onConfigure, onPublic }: Props) {
+export default function WorkspaceWelcome({ onPick, onFile, busy, configured, onConfigure, onPublic, onSample }: Props) {
   const [dragging, setDragging] = useState(false)
 
   return <section className="workspace-welcome" aria-label="开始数据分析">
@@ -109,6 +110,11 @@ export default function WorkspaceWelcome({ onPick, onFile, busy, configured, onC
         手边没有文件？从网页直接下载公开数据<ArrowUpRight size={15} />
       </button>
       <small className="public-entry-source">OWID Energy Data · 固定提交 CSV · 校验 SHA-256 后载入</small>
+
+      <button className="public-entry text-button" onClick={onSample} disabled={busy}>
+        或载入随应用附带的真实示例（UCI 骑行日数据）<ArrowUpRight size={15} />
+      </button>
+      <small className="public-entry-source">731 天 · 16 字段 · 2011-01-01 至 2012-12-31 · 校验 SHA-256 后本地计算</small>
 
       <div className="intake-trust">
         <span><ShieldCheck size={14} />原文件不会上传</span>

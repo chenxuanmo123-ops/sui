@@ -39,6 +39,7 @@ import type { Labels } from './labels'
 import { isOwidHeaders } from './owid-labels'
 import { downloadPublicDataset } from './publicData'
 import type { PublicDownloadProgress } from './publicData'
+import { SAMPLE_DATA_PATH, SAMPLE_DATA_SHA256, SAMPLE_SOURCE_URL, SAMPLE_TITLE } from './sampleData'
 import type { Analysis, Dataset, Mapping } from './data'
 import { queryResultRows, sortResultRows } from './result-rows'
 import type { ResultSort } from './result-rows'
@@ -83,7 +84,7 @@ const VIEW_META: Record<View, { group: string; title: string; hint: string; desc
   branches: { group: '记录', title: '分析分支', hint: '每次计算都可回查', description: '每次计算保存独立结果，切换分支即可对照原来的口径。' },
 }
 type Chat = { text: string; answer: string; run?: number }
-type ReplaceRequest = { kind: 'file'; file: File } | { kind: 'public' } | { kind: 'dataset'; dataset: Dataset }
+type ReplaceRequest = { kind: 'file'; file: File } | { kind: 'public' } | { kind: 'sample' } | { kind: 'dataset'; dataset: Dataset }
 const blankMapping: Mapping = { x: '', metric: '', filter: '', value: '', from: '', to: '', unit: '', aggregate: 'sum' }
 
 function PDFSourcePage({ image, onClose }: { image: string; onClose: () => void }) {
@@ -313,6 +314,35 @@ export default function App() {
       setErrorLink({ label: '手动下载 owid-energy-data.csv', url: PUBLIC_DATA_MIRRORS[0]!.url })
     } finally { if (version === request.current) { setLoading(false); setPublicProgress(null) } }
   }
+  function loadSampleDataset() {
+    if (dataset) { setPendingReplace({ kind: 'sample' }); return }
+    void fetchSampleDataset()
+  }
+  async function fetchSampleDataset() {
+    const version = ++request.current
+    abort.current?.abort(); const controller = new AbortController(); abort.current = controller
+    setLoading(true); setError(''); setErrorLink(null); setNotice('')
+    try {
+      // Same-origin copy shipped with the app: no network dependency beyond this
+      // site, but still hashed against the pinned digest before anything loads.
+      const response = await fetch(import.meta.env.BASE_URL + SAMPLE_DATA_PATH, { signal: controller.signal })
+      if (!response.ok) throw new Error('内置示例文件读取失败（HTTP ' + response.status + '）')
+      const bytes = await response.arrayBuffer()
+      if (version !== request.current) return
+      const originalFileHash = await fileHash(bytes)
+      if (originalFileHash !== SAMPLE_DATA_SHA256) throw new Error('内置示例 SHA-256 与固定值不一致，已拒绝载入')
+      const { text } = decodeTextBytes(new Uint8Array(bytes))
+      const parsed = parseCSV(text), hash = await fingerprint(text)
+      if (version !== request.current) return
+      // Not `isPublic`: that flag drives the OWID rule tools and Chinese column
+      // aliases. The provenance entry is chosen by the file digest instead.
+      installDataset({ title: SAMPLE_TITLE, sourceUrl: SAMPLE_SOURCE_URL, originalFileHash, originalFileName: 'day.csv', ...parsed, loadedAt: new Date().toISOString(), fingerprint: hash, isPublic: false })
+      setNotice('已载入随应用附带的 UCI 公开示例 day.csv（731 天），SHA-256 校验一致。数据在浏览器本地解析与计算；请先说明分析目标与字段口径。')
+    } catch (e) {
+      if (version !== request.current || (e instanceof DOMException && e.name === 'AbortError')) return
+      setError(`内置示例加载失败：${e instanceof Error ? e.message : '读取异常'}。仍可导入自己的 CSV、Excel、PDF，或从网页载入公开数据。`)
+    } finally { if (version === request.current) setLoading(false) }
+  }
   useEffect(() => {
     if (!loading) { setShowIngest(false); return }
     const timer = window.setTimeout(() => setShowIngest(true), 160)
@@ -372,6 +402,7 @@ export default function App() {
     if (!action) return
     if (action.kind === 'file') void loadCSVFile(action.file)
     else if (action.kind === 'public') void fetchPublicDataset()
+    else if (action.kind === 'sample') void fetchSampleDataset()
     else installDataset(action.dataset)
   }
   async function run(nextMapping: Mapping, text: string) {
@@ -695,14 +726,14 @@ export default function App() {
         {fieldsOpen && dataset && <div className="field-drawer" id="dataset-field-drawer"><header><strong>核对字段与质量</strong><button className="icon-button" aria-label="关闭字段面板" onClick={()=>setFieldsOpen(false)}><X size={18}/></button></header><FieldShelf dataset={dataset} profiles={profiles} checkup={checkup} search={fieldSearch} onSearch={setFieldSearch} onData={field=>{setView('workspace');setWorkspaceSection('data');setDataTab('fields');if(field)setFieldSearch(field);setFieldsOpen(false)}} onPrepare={()=>setView('prepare')} onSource={()=>setView('source')} onRoles={()=>setRolesOpen(true)} onCheckup={active||bundle?()=>{setFieldsOpen(false);backToCheckup()}:undefined}/></div>}
 
         {dataset && view !== 'source' && view !== 'workspace' && <SourceSummary dataset={dataset} onOpen={() => setView('source')} />}
-        {(view === 'prepare' || view === 'explore' || view === 'compare') && !dataset && <EmptyStage view={view} onImport={() => pickFile()} onPublic={() => void loadPublicDataset()} onWorkspace={() => setView('workspace')} loading={loading} />}
+        {(view === 'prepare' || view === 'explore' || view === 'compare') && !dataset && <EmptyStage view={view} onImport={() => pickFile()} onPublic={() => void loadPublicDataset()} onSample={() => loadSampleDataset()} onWorkspace={() => setView('workspace')} loading={loading} />}
         {view === 'prepare' && dataset && <PreparationView key={dataset.fingerprint} dataset={dataset} canUndo={preparationHistory.length > 0} onCommit={next => { const previous = dataset; const past = preparationHistory; installDataset(next); setPreparationHistory([...past, previous]); setView('prepare'); setNotice('处理已应用，旧分析已清空，可撤销本次处理。') }} onUndo={() => { const past = preparationHistory; const previous = past.at(-1); if (previous) { installDataset(previous); setPreparationHistory(past.slice(0,-1)); setView('prepare'); setNotice('已恢复上一份数据快照，分析需重新执行。') } }} onExplore={() => setView('explore')} />}
         {view === 'compare' && dataset && <CompareView key={dataset.fingerprint} session={compareSession} onSessionChange={setCompareSession} dataset={dataset} onAsk={(question, context) => { setAssistantSeed({question,context,nonce:Date.now()}); setAssistantOpen(true) }} />}
         {view === 'explore' && dataset && <ExploreView key={dataset.fingerprint} session={exploreSession} onSessionChange={setExploreSession} dataset={dataset} onAsk={(question, context) => { setAssistantSeed({question,context,nonce:Date.now()}); setAssistantOpen(true) }} />}
         {view === 'query' && dataset && <SqlConsole key={dataset.fingerprint} dataset={dataset} table={consoleTable} onTable={setConsoleTable} onImport={() => pickFile()} onPublic={() => void loadPublicDataset()} />}
-        {view === 'query' && !dataset && <EmptyStage view="query" onImport={() => pickFile()} onPublic={() => void loadPublicDataset()} onWorkspace={() => setView('workspace')} loading={loading} />}
+        {view === 'query' && !dataset && <EmptyStage view="query" onImport={() => pickFile()} onPublic={() => void loadPublicDataset()} onSample={() => loadSampleDataset()} onWorkspace={() => setView('workspace')} loading={loading} />}
 
-        {view === 'workspace' && !dataset && <WorkspaceWelcome onPick={pickFile} onFile={file => void importSelectedFile(file)} busy={loading} configured={!!models.defaultProfile} onConfigure={() => setShowModels(true)} onPublic={()=>void loadPublicDataset()} />}
+        {view === 'workspace' && !dataset && <WorkspaceWelcome onPick={pickFile} onFile={file => void importSelectedFile(file)} busy={loading} configured={!!models.defaultProfile} onConfigure={() => setShowModels(true)} onPublic={()=>void loadPublicDataset()} onSample={()=>loadSampleDataset()} />}
         <div className="workbench" hidden={view !== 'workspace' || !dataset}>
           <div className="workbench-toolbar">
             <div className="workbench-sections" role="group" aria-label="工作台功能分区">
@@ -760,8 +791,8 @@ export default function App() {
             </aside>
           </section>
         </div>
-        {view === 'branches' && <section className="panel branch-panel"><div className="section-heading"><h2>已保存的计算分支</h2><span className="tag">{history.length} 个</span></div>{history.length ? <div className="branch-list">{[...history].reverse().map(item => <article key={item.id} className={'branch-row' + (activeId === item.id ? ' current' : '')}><button className="branch-main" onClick={() => restore(item)}><span className="branch-number">#{item.id}</span><div><strong>{item.question}</strong><p>{labels.field(item.mapping.metric)} · {item.mapping.from || '不限'} → {item.mapping.to || '不限'} · {item.points.length} 个分组</p><small>{new Date(item.createdAt).toLocaleString('zh-CN')} · {item.usedRows} 条有效来源</small></div><ArrowUpRight size={18} /></button><div className="branch-actions"><button className="text-button" onClick={() => openRenameBranch(item)} aria-label={'重命名分析分支 #' + item.id}><Pencil size={14} />重命名</button><button className="text-button danger" onClick={() => openDeleteBranch(item)} aria-label={'删除分析分支 #' + item.id}><Trash2 size={14} />删除</button></div></article>)}</div> : <EmptyStage view="branches" compact hasData={!!dataset} onImport={() => pickFile()} onPublic={() => void loadPublicDataset()} onWorkspace={() => setView('workspace')} loading={loading} />}<p className="table-note">当前工作区会保存到此浏览器，显示“已保存到本机”后刷新可恢复。重命名只改变分支名称；删除会同时移除该分支的追问结果和包含它们的 AI 分析，不可撤销。更换数据集会替换当前工作区；请先导出需要保留的报告。</p></section>}
-        {view === 'source' && !dataset && <EmptyStage view="source" onImport={() => pickFile()} onPublic={() => void loadPublicDataset()} onWorkspace={() => setView('workspace')} loading={loading} />}
+        {view === 'branches' && <section className="panel branch-panel"><div className="section-heading"><h2>已保存的计算分支</h2><span className="tag">{history.length} 个</span></div>{history.length ? <div className="branch-list">{[...history].reverse().map(item => <article key={item.id} className={'branch-row' + (activeId === item.id ? ' current' : '')}><button className="branch-main" onClick={() => restore(item)}><span className="branch-number">#{item.id}</span><div><strong>{item.question}</strong><p>{labels.field(item.mapping.metric)} · {item.mapping.from || '不限'} → {item.mapping.to || '不限'} · {item.points.length} 个分组</p><small>{new Date(item.createdAt).toLocaleString('zh-CN')} · {item.usedRows} 条有效来源</small></div><ArrowUpRight size={18} /></button><div className="branch-actions"><button className="text-button" onClick={() => openRenameBranch(item)} aria-label={'重命名分析分支 #' + item.id}><Pencil size={14} />重命名</button><button className="text-button danger" onClick={() => openDeleteBranch(item)} aria-label={'删除分析分支 #' + item.id}><Trash2 size={14} />删除</button></div></article>)}</div> : <EmptyStage view="branches" compact hasData={!!dataset} onImport={() => pickFile()} onPublic={() => void loadPublicDataset()} onSample={() => loadSampleDataset()} onWorkspace={() => setView('workspace')} loading={loading} />}<p className="table-note">当前工作区会保存到此浏览器，显示“已保存到本机”后刷新可恢复。重命名只改变分支名称；删除会同时移除该分支的追问结果和包含它们的 AI 分析，不可撤销。更换数据集会替换当前工作区；请先导出需要保留的报告。</p></section>}
+        {view === 'source' && !dataset && <EmptyStage view="source" onImport={() => pickFile()} onPublic={() => void loadPublicDataset()} onSample={() => loadSampleDataset()} onWorkspace={() => setView('workspace')} loading={loading} />}
         {view === 'source' && dataset && <section className="panel provenance-panel"><div className="section-heading"><h2>来源与数据快照</h2><span className="tag">{dataset ? (sourceInfo(dataset).status.includes('已核验公开') ? '公开文件匹配' : dataset.sourceNotes ? '上传者备注' : dataset.isPublic ? '公开来源' : '上传文件') : '未载入'}</span></div>{dataset ? <><SourceDetails dataset={dataset}/><SourceEditor key={dataset.fingerprint} dataset={dataset} onSave={sourceNotes => { const next = {...dataset, sourceNotes}; datasetRef.current = next; setDataset(next); setPreparationHistory(past => past.map(d => ({...d, sourceNotes}))); setNotice('出处备注已更新，分析结果与数据快照保持绑定。') }}/><p className="source-handling">文件在浏览器内读取与计算；PDF 视觉识别需另外授权发送当前页图像。AI 的字段摘要、样本与类别字典按独立授权发送。来源备注不会自动发送给模型；数据与备注自动保存于此浏览器，可通过“清除本机工作区”删除。</p>{dataset.origin && <section className="import-origin"><h3>文件解析与核对记录</h3><p>{dataset.origin.format} · {dataset.origin.method} · 表头原行 {dataset.origin.headerRow}</p><code>原文件 SHA-256: {dataset.origin.fileHash}</code><ul>{dataset.origin.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>{dataset.origin.pageImage && <button className="secondary" onClick={() => setShowPage(true)}>查看 PDF 原始页</button>}</section>}<div className="source-limit"><AlertCircle size={18} /><p>类型扫描只提供候选，不保证识别财务口径、统计范围或单位。数值字段可能是编号，汇总前需要人工确认；Excel 可选择工作表与表头；PDF 文字与视觉提取均需核对。暂不支持跨表联结与因果推断。</p></div>{owidLike && <button className="secondary" onClick={exportPublicCSV}><ArrowDownToLine size={16} />导出中文列名 CSV</button>}<button className="secondary" onClick={() => { setDataTab('fields'); setWorkspaceSection('data'); setView('workspace') }}><Table2 size={16} />检查字段质量</button></> : <div className="small-empty">尚未载入数据，可导入 CSV、Excel、PDF 或重试公开来源。</div>}</section>}
         {studio && workspaceSection==='analysis' && <form className="investigation-composer" aria-label="分析问题" onSubmit={e=>{e.preventDefault();setAssistantSeed({question:analysisDraft.trim(),context:'',nonce:Date.now()});setAssistantOpen(true)}}><div className="composer-label"><button type="button" className="icon-button composer-open" aria-label={assistantOpen?'收起 AI 分析助手':'打开 AI 分析助手'} onClick={()=>setAssistantOpen(!assistantOpen)}><MessageSquareText size={18}/></button><label htmlFor="analysis-draft">{bundle||active?'沿着发现，继续追问':'从这份数据中，你想了解什么？'}</label><span>{models.ready ? '理解 → 确认口径 → 真实计算' : '未配置模型 · 本地手动计算仍可用'}</span></div><div className="composer-entry"><textarea id="analysis-draft" value={analysisDraft} onChange={e=>setAnalysisDraft(e.target.value)} maxLength={4000} rows={1} placeholder={bundle||active?'提出新问题，或点选图表分组限定追问范围…':'输入分析问题；也可以留空，让 AI 先帮你理解数据…'}/><button className="primary" type="submit">与 AI 一起分析<ArrowUpRight size={17}/></button></div></form>}
         <footer><span>数鉴 · 本地工作台 0.7</span><span>真实数据 · 明确口径 · 可回查证据</span></footer>
@@ -789,7 +820,7 @@ export default function App() {
     </dialog>}
     {pendingReplace && <dialog ref={replaceRef} className="workspace-clear-dialog" aria-labelledby="replace-workspace-title" onCancel={event=>{event.preventDefault();setPendingReplace(null)}}>
       <h2 id="replace-workspace-title">替换当前工作区？</h2>
-      <p>将用「{pendingReplace.kind === 'file' ? pendingReplace.file.name : pendingReplace.kind === 'public' ? 'OWID 公开能源数据' : pendingReplace.dataset.title}」替换当前数据。当前数据、{history.length} 个计算分支、{bundleHistory.length} 项 AI 分析{bundleHistory.length ? '' : '（暂无）'}、{Object.keys(fieldRoles).length} 项字段纠正与 {preparationHistory.length} 步处理记录会从本机工作区清除。</p>
+      <p>将用「{pendingReplace.kind === 'file' ? pendingReplace.file.name : pendingReplace.kind === 'public' ? 'OWID 公开能源数据' : pendingReplace.kind === 'sample' ? 'UCI 骑行日数据（内置示例）' : pendingReplace.dataset.title}」替换当前数据。当前数据、{history.length} 个计算分支、{bundleHistory.length} 项 AI 分析{bundleHistory.length ? '' : '（暂无）'}、{Object.keys(fieldRoles).length} 项字段纠正与 {preparationHistory.length} 步处理记录会从本机工作区清除。</p>
       <p>原文件与已导出的报告不受影响。如仍需当前结果，请先取消并导出报告。</p>
       <div><button className="secondary" autoFocus onClick={()=>setPendingReplace(null)}>保留当前工作区</button><button className="primary" onClick={confirmReplace}>替换并导入</button></div>
     </dialog>}
