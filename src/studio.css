@@ -692,9 +692,9 @@
 .sql-file { color: var(--obs-muted); }
 .sql-editor-mode {
   padding: 2px 7px;
-  color: var(--obs-warn);
-  background: rgba(245, 183, 64, .07);
-  border: 1px solid rgba(245, 183, 64, .2);
+  color: var(--obs-verified);
+  background: rgba(61, 220, 151, .08);
+  border: 1px solid rgba(61, 220, 151, .24);
   border-radius: 4px;
   font-size: 8.5px;
   letter-spacing: .12em;
@@ -1798,4 +1798,65 @@
 @media (max-width: 760px) {
   /* The 360px inline floor clipped right-aligned value labels at 390px. */
   .bundle-result .data-chart { min-width: 0 !important; }
+}
+
+/* ---------- left rail: same cool surface as the workspace ----------
+   The rail kept the old warm-green ink (#c5d0c9 / #141e19 / #26352d) and a
+   solid green storage card, which read as a second theme next to the blue
+   work surface. Everything here is rail-scoped so other panels are untouched. */
+.app-rail {
+  color: #c3d3e4;
+  border-right-color: rgba(125, 211, 252, .1);
+}
+.app-rail .brand small { color: #7f93ab; }
+.rail-label { color: #77879c; }
+.app-rail .primary-navigation .nav-item { color: #a9bacd; }
+.app-rail .primary-navigation .nav-item:hover {
+  color: #eef5fd;
+  background: rgba(143, 184, 255, .08);
+}
+.app-rail .primary-navigation .nav-item.active {
+  color: #eef5fd;
+  background: rgba(143, 184, 255, .1);
+}
+.app-rail .primary-navigation .nav-item b {
+  color: #071120;
+  background: var(--obs-cyan);
+}
+.rail-dataset { background: rgba(226, 236, 255, .024); border-color: rgba(226, 236, 255, .09); }
+.rail-dataset-name strong { color: #eaf2fb; }
+.rail-dataset-name small { color: #8398ae; }
+.rail-dataset-name svg { color: var(--obs-cyan); }
+.rail-dataset-actions button {
+  color: #a9bacd;
+  background: rgba(7, 12, 20, .6);
+  border-color: rgba(143, 184, 255, .16);
+}
+.rail-dataset-actions button:hover { color: #fff; border-color: rgba(143, 184, 255, .34); }
+.app-rail .workspace-storage {
+  color: #a9bacd;
+  background: rgba(226, 236, 255, .024);
+  border-color: rgba(226, 236, 255, .09);
+}
+.app-rail .workspace-storage.has-error { border-color: rgba(214, 96, 96, .55); }
+.app-rail .storage-line svg { color: var(--obs-cyan); }
+.app-rail .storage-line strong { color: #dbe7f4; }
+.app-rail .storage-line time { color: #8398ae; }
+.app-rail .storage-actions button { color: #93a3b7; }
+.app-rail .storage-details summary { color: #93a3b7; }
+.app-rail .storage-details p { color: #8398ae; }
+.app-rail .workspace-storage > p[role="alert"] { color: #f0a79a; }
+
+/* Remaining warm markers inside the result sheet and the rail AI dot. */
+.bundle-result .text-button,
+.review-insight-block .text-button {
+  color: var(--obs-cyan);
+  background: rgba(45, 212, 191, .08);
+  border-color: rgba(45, 212, 191, .28);
+}
+.bundle-result .text-button:hover,
+.review-insight-block .text-button:hover { color: #071120; background: var(--obs-cyan); }
+.rail-ai[data-state="active"] .rail-ai-dot {
+  background: var(--obs-cyan);
+  box-shadow: 0 0 0 3px rgba(110, 168, 255, .18);
 }
