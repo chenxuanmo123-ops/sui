@@ -1879,3 +1879,273 @@
 .rail-ai-copy small { margin-top: 3px; color: #8398ae; font-size: 9.5px; }
 .rail-ai-dot { box-shadow: 0 0 8px rgba(110, 168, 255, .45); }
 .rail-ai[data-state="off"] .rail-ai-dot { box-shadow: none; }
+
+/* ================= result sheet: clicked state =================
+   Clicking a point used to reflow the whole sheet: the grid split the card
+   into a 426px chart plus a 260px rail (the chart lost two thirds of its
+   width whenever the AI dock was open), and the selected row was filled with
+   the same teal as the data, so bar 1 read as a second, longer bar. */
+
+/* 1. A selected group must not resize the plot. Stack the selection card
+   below the chart and let the chart keep the full width at every viewport. */
+.bundle-result.has-selection .result-chart-table,
+.result-chart-table { display: block; }
+.bundle-result .result-chart-table .result-detail {
+  position: static;
+  margin-top: 14px;
+  padding: 0;
+  border: 0;
+}
+.bundle-result .result-detail .selected-group {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 272px);
+  grid-template-areas:
+    "heading heading"
+    "name    actions"
+    "value   actions"
+    "meta    actions"
+    "note    actions";
+  align-items: start;
+  gap: 3px 24px;
+  margin: 0;
+  padding: 15px 18px;
+  background: rgba(7, 12, 20, .55);
+  border: 1px solid rgba(45, 212, 191, .22);
+  border-radius: 10px;
+}
+.bundle-result .selected-group .context-heading {
+  grid-area: heading;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0 4px;
+  font-size: 10.5px;
+  letter-spacing: .05em;
+}
+.bundle-result .selected-group .context-heading span { margin: 0; }
+.bundle-result .selected-group .context-heading .icon-button { width: 26px; height: 26px; padding: 4px; }
+/* app.css keeps --app-ink (near-black) on this line, which disappears on the
+   dark sheet; the group name is the identity of the selection, so it must read. */
+.bundle-result .selected-group > strong {
+  grid-area: name;
+  margin: 1px 0 0;
+  color: var(--obs-text);
+  font-size: 15px;
+  font-weight: 600;
+}
+.bundle-result .selected-group .context-value { grid-area: value; margin: 1px 0 0; font-size: 30px; line-height: 1.2; }
+.bundle-result .selected-group > p { grid-area: meta; margin: 3px 0 0; font-size: 12px; line-height: 1.65; }
+.bundle-result .selected-group > small { grid-area: note; margin-top: 5px; font-size: 10.5px; line-height: 1.7; }
+.bundle-result .selected-group .selected-group-actions {
+  grid-area: actions;
+  align-self: center;
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 0;
+}
+.bundle-result .selected-group .selected-group-actions > * { width: 100%; }
+.bundle-result .result-detail .group-context-empty {
+  margin-top: 14px;
+  padding: 14px 16px;
+  background: rgba(7, 12, 20, .35);
+  border: 1px dashed rgba(148, 197, 255, .2);
+  border-radius: 10px;
+}
+.bundle-result .group-shortcuts { max-width: 620px; }
+.bundle-result .group-context-empty h4 { font-size: 15px; }
+.bundle-result .group-context-empty p { max-width: 620px; font-size: 12px; line-height: 1.7; }
+.bundle-result .group-shortcuts button { padding: 10px 12px; border-radius: 8px; }
+.bundle-result .group-shortcuts span { font-size: 10px; }
+.bundle-result .group-shortcuts strong { font-size: 14px; }
+.bundle-result .group-shortcuts small { font-size: 11.5px; }
+
+/* 2. The selected-row band must read as a row tint, not as a second bar. */
+.bundle-result .analysis-viz { --viz-band: rgba(226, 236, 255, .055); }
+
+/* 3. Locator on one line, chart kind beside it, hint at the right edge. */
+.chart-action-line {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  row-gap: 8px;
+  min-height: 42px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(148, 197, 255, .12);
+}
+.bundle-result .group-locator { flex: 0 0 auto; white-space: nowrap; }
+.bundle-result .group-locator select { min-width: 168px; max-width: 230px; min-height: 32px; }
+.bundle-result .chart-action-line > span { margin-left: auto; }
+.bundle-result .result-chart-kind { flex: 0 0 auto; margin: 0; }
+.bundle-result .segmented {
+  background: rgba(7, 12, 20, .7);
+  border: 1px solid rgba(148, 197, 255, .2);
+  border-radius: 8px;
+}
+.bundle-result .segmented button { color: var(--obs-muted); }
+.bundle-result .segmented button:hover { color: var(--obs-text); background: rgba(226, 236, 255, .05); }
+.bundle-result .segmented button.active {
+  color: #071120;
+  background: var(--obs-cyan);
+  box-shadow: none;
+}
+
+/* 4. Two insight cards left a 500px hole under the collapsed next-cuts bar.
+   One column, brief first, next cuts as a full-width bar. */
+.result-insights {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+.result-insights .insight-brief { margin-top: 0; padding: 15px 18px; }
+.result-insights .insight-headline h3 { font-size: 17px; line-height: 1.55; }
+.result-insights .next-cuts { margin-top: 0; }
+
+/* 5. Group table chrome: the search box and sort select stayed light and the
+   search field was 52px tall next to a 30px select. */
+.result-data-details .result-table-controls {
+  color: var(--obs-muted);
+  gap: 10px;
+  padding-bottom: 12px;
+}
+.result-data-details .result-table-controls > label { color: var(--obs-muted); }
+.result-data-details .result-table-controls > span { color: var(--obs-faint); }
+.result-data-details .result-table-search,
+.result-data-details .result-table-controls select {
+  color: var(--obs-text);
+  background: rgba(7, 12, 20, .78);
+  border: 1px solid rgba(148, 197, 255, .22);
+  border-radius: 7px;
+}
+.result-data-details .result-table-search {
+  min-height: 34px;
+  padding: 0 10px;
+  box-sizing: border-box;
+}
+.result-data-details .result-table-search svg { flex: 0 0 auto; color: var(--obs-faint); }
+.result-data-details .result-table-search input {
+  height: 30px;
+  min-height: 0;
+  padding: 0;
+  color: var(--obs-text);
+  background: transparent;
+}
+.result-data-details .result-table-search input::placeholder { color: var(--obs-faint); }
+.result-data-details .result-table-search:focus-within {
+  border-color: rgba(45, 212, 191, .5);
+  box-shadow: 0 0 0 2px rgba(45, 212, 191, .12);
+}
+.result-data-details .result-table-controls select { min-height: 34px; padding: 4px 28px 4px 9px; }
+.result-data-details .bundle-table {
+  border: 1px solid rgba(148, 197, 255, .14);
+  border-radius: 10px;
+}
+.result-data-details .bundle-table table { font-size: 12.5px; }
+.result-data-details .bundle-table th { font-weight: 600; }
+.result-data-details .bundle-table td { border-bottom-color: rgba(148, 197, 255, .1); }
+.result-data-details .bundle-table tr:last-child td { border-bottom: 0; }
+
+@media (max-width: 760px) {
+  .bundle-result .result-detail .selected-group {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "heading" "name" "value" "meta" "actions" "note";
+    gap: 2px;
+    padding: 13px 14px;
+  }
+  .bundle-result .selected-group .selected-group-actions { grid-template-columns: 1fr 1fr; }
+  /* The column stack inherited align-items:center, so the chart-kind control
+     floated to the middle of the card instead of sitting under the locator. */
+  .bundle-result .chart-action-line { align-items: flex-start; }
+  .bundle-result .chart-action-line > span { display: none; }
+  .bundle-result .group-locator { width: 100%; justify-content: flex-start; }
+  .bundle-result .group-locator select { flex: 1; max-width: none; }
+  .result-data-details .result-table-controls { gap: 8px; }
+  .result-data-details .result-table-search { flex: 1 1 150px; }
+  .result-data-details .result-table-search input { width: 100%; }
+  .result-data-details .result-table-controls > span { margin-left: 0; }
+  .result-data-details .bundle-table th,
+  .result-data-details .bundle-table td { padding: 9px 8px; }
+  .result-data-details .bundle-table td:first-child,
+  .result-data-details .bundle-table th:first-child { white-space: normal; }
+}
+@media (max-width: 560px) {
+  /* A 108px label column on a 328px card left ~180px for the sentence. */
+  .result-insights .insight-section,
+  .result-insights .insight-section.is-meaning,
+  .result-insights .insight-section.is-limit {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 3px;
+  }
+  .result-insights .insight-section h4 { margin: 0; }
+}
+
+/* ---------- multi-result task rail ----------
+   app.css is imported after desk.css, so the rail buttons fell back to the
+   cream app-sheet pills and sat as a light block on the dark evidence sheet.
+   It also pinned at 58px, under the 100px sticky chrome, so the first task
+   slid behind the toolbar. Same ledger surface, below the pinned chrome. */
+.result-workspace.has-rail .result-navigation {
+  top: calc(var(--shell-header-h) + var(--shell-toolbar-h) + 10px);
+  gap: 0;
+  padding: 0;
+  background: transparent;
+  border-top: 1px solid var(--obs-line);
+}
+.result-workspace.has-rail .result-navigation button {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  min-height: 52px;
+  padding: 12px 10px 11px 4px;
+  color: var(--obs-muted);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--obs-line);
+  border-radius: 0;
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: left;
+  white-space: normal;
+}
+.result-workspace.has-rail .result-navigation button:hover {
+  color: var(--obs-text);
+  background: rgba(148, 197, 255, .06);
+}
+.result-workspace.has-rail .result-navigation button.active {
+  color: var(--obs-text);
+  background: rgba(110, 168, 255, .08);
+  border-bottom-color: rgba(148, 197, 255, .3);
+  box-shadow: inset 3px 0 0 var(--obs-lime);
+  font-weight: 600;
+}
+.result-workspace.has-rail .result-navigation button > span {
+  width: 21px;
+  height: 19px;
+  color: var(--obs-faint);
+  background: transparent;
+  font-family: var(--obs-mono);
+  font-size: 10px;
+}
+.result-workspace.has-rail .result-navigation button.active > span { color: var(--obs-lime); background: transparent; }
+
+@media (max-width: 980px) {
+  .result-workspace.has-rail .result-navigation {
+    gap: 6px;
+    margin-bottom: 12px;
+    padding: 0 0 2px;
+    border-top: 0;
+  }
+  .result-workspace.has-rail .result-navigation button {
+    grid-template-columns: 20px auto;
+    min-height: 40px;
+    max-width: 260px;
+    padding: 8px 12px;
+    border: 1px solid var(--obs-line);
+    border-radius: 8px;
+    white-space: nowrap;
+  }
+  .result-workspace.has-rail .result-navigation button.active {
+    border-color: rgba(148, 197, 255, .32);
+    box-shadow: inset 0 -2px 0 var(--obs-lime);
+  }
+}

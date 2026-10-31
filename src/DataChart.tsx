@@ -52,8 +52,12 @@ export default function DataChart({ interaction = 'evidence', compact = false, c
   const width = exportMode ? (compact?640:760) : Math.max(360,plotWidthPixels || (compact?640:760))
   // Taller plates: a 3-group answer used to render as a 264px strip on desktop.
   const height = horizontal ? Math.max(360,visible.length*46+104) : (compact?420:472)
-  const left = horizontal?Math.min(204,Math.max(124,...visible.map(p=>facetName(p.label).length*7+22))):72
-  const right = horizontal?96:28, top=30, bottom=horizontal?46:64
+  // A phone-width plate only has ~360 viewBox units. The desktop gutters
+  // (124 + 96) left the plot at 140 units, so every bar read as a stub; keep
+  // the value column clear of the longest bar but give the plot the rest.
+  const narrow = horizontal && width < 520
+  const left = horizontal?Math.min(204,Math.max(narrow?68:124,...visible.map(p=>facetName(p.label).length*7+22))):72
+  const right = horizontal?(narrow?88:96):28, top=30, bottom=horizontal?46:64
   const plotWidth=width-left-right, plotHeight=height-top-bottom, range=domain.max-domain.min || 1
   const valueX = (v:number)=>left+(v-domain.min)/range*plotWidth
   const valueY = (v:number)=>top+(domain.max-v)/range*plotHeight
