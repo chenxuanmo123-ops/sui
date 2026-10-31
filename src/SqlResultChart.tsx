@@ -4,6 +4,7 @@ import { BarChart, LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, DataZoomComponent, AriaComponent } from 'echarts/components'
 import { SVGRenderer } from 'echarts/renderers'
 import { formatNumber } from './data'
+import { CHART_ACCENT, CHART_ACCENT_BRIGHT, CHART_GRID, CHART_INK, CHART_TOOLTIP_BG, CHART_TOOLTIP_BORDER, CHART_TOOLTIP_TEXT, CHART_VALUE } from './chart-palette'
 import type { ConsoleRow } from './sql-console'
 import { numericColumns, sqlChartDefaults, sqlChartSeries } from './sql-chart'
 import type { SqlChartSpec } from './sql-chart'
@@ -22,8 +23,8 @@ export default function SqlResultChart({ columns, rows }: { columns: string[]; r
     const chart = echarts.init(ref.current, undefined, { renderer: 'svg' })
     const { labels, values } = sqlChartSeries(spec, rows)
     const zoom = rows.length > 24
-    const text = { color: '#d9c2ad', fontSize: 12, fontFamily: 'system-ui, sans-serif' }
-    const seriesColor = '#ff8a3d'
+    const text = { color: CHART_INK, fontSize: 12, fontFamily: 'system-ui, sans-serif' }
+    const seriesColor = CHART_ACCENT
     const animate = rows.length <= 240 && !window.matchMedia('(prefers-reduced-motion: reduce)').matches
     chart.setOption({
       animation: animate,
@@ -34,7 +35,7 @@ export default function SqlResultChart({ columns, rows }: { columns: string[]; r
       textStyle: { fontFamily: 'system-ui, sans-serif' },
       aria: { enabled: true },
       tooltip: {
-        trigger: 'item', renderMode: 'richText', confine: true, backgroundColor: '#111720', borderColor: 'rgba(255,170,115,.42)', textStyle: { color: '#ffe8d2', fontSize: 12.5 }, padding: 14,
+        trigger: 'item', renderMode: 'richText', confine: true, backgroundColor: CHART_TOOLTIP_BG, borderColor: CHART_TOOLTIP_BORDER, textStyle: { color: CHART_TOOLTIP_TEXT, fontSize: 12.5 }, padding: 14,
         formatter: (params: unknown) => {
           const item = params as { dataIndex: number }
           const row = rows[item.dataIndex]
@@ -44,15 +45,15 @@ export default function SqlResultChart({ columns, rows }: { columns: string[]; r
       },
       grid: { left: 76, right: 28, top: 34, bottom: 62 },
       xAxis: { type: 'category', data: labels, axisTick: { show: false }, axisLine: { show: false }, axisLabel: { ...text, hideOverlap: true, overflow: 'truncate', width: 90 }, name: spec.x >= 0 ? columns[spec.x] : '结果行号', nameLocation: 'middle', nameGap: 34, nameTextStyle: text },
-      yAxis: { type: 'value', axisLine: { show: false }, axisTick: { show: false }, axisLabel: { ...text, formatter: (value: number) => formatNumber(value, 2) }, splitLine: { lineStyle: { color: 'rgba(255,175,120,.18)', type: 'dashed' } }, name: columns[spec.y], nameGap: 22, nameTextStyle: text },
+      yAxis: { type: 'value', axisLine: { show: false }, axisTick: { show: false }, axisLabel: { ...text, formatter: (value: number) => formatNumber(value, 2) }, splitLine: { lineStyle: { color: CHART_GRID, type: 'dashed' } }, name: columns[spec.y], nameGap: 22, nameTextStyle: text },
       ...(zoom ? { dataZoom: [{ type: 'inside', start: 0, end: Math.min(100, 24 / rows.length * 100), filterMode: 'none', zoomOnMouseWheel: 'ctrl', moveOnMouseWheel: false }] } : {}),
       series: [{
         type: spec.kind,
         data: values,
         barMaxWidth: 26,
-        ...(spec.kind === 'bar' ? { itemStyle: { borderRadius: [3, 3, 0, 0], shadowBlur: 10, shadowColor: 'rgba(255,138,61,.3)' }, label: { show: rows.length <= 12, position: 'top', fontSize: 12, fontWeight: 600, color: '#ffe2c4', formatter: (params: { value: unknown }) => params.value == null ? '' : formatNumber(Number(params.value), 2) } } : {}),
-        ...(spec.kind === 'line' ? { lineStyle: { width: 3, shadowBlur: 10, shadowColor: 'rgba(255,138,61,.42)' }, symbol: 'circle', symbolSize: 8, itemStyle: { shadowBlur: 8, shadowColor: 'rgba(255,138,61,.5)' }, label: { show: rows.length <= 12, position: 'top', fontSize: 12, fontWeight: 600, color: '#ffe2c4' }, areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(255,138,61,.24)' }, { offset: .12, color: 'rgba(255,138,61,.03)' }, { offset: .3, color: 'rgba(255,138,61,0)' }, { offset: 1, color: 'rgba(255,138,61,0)' }] } } } : {}),
-        emphasis: { itemStyle: { color: '#ffb066' } },
+        ...(spec.kind === 'bar' ? { itemStyle: { borderRadius: [3, 3, 0, 0], shadowBlur: 10, shadowColor: 'rgba(45,212,191,.3)' }, label: { show: rows.length <= 12, position: 'top', fontSize: 12, fontWeight: 600, color: CHART_VALUE, formatter: (params: { value: unknown }) => params.value == null ? '' : formatNumber(Number(params.value), 2) } } : {}),
+        ...(spec.kind === 'line' ? { lineStyle: { width: 3, shadowBlur: 10, shadowColor: 'rgba(45,212,191,.42)' }, symbol: 'circle', symbolSize: 8, itemStyle: { shadowBlur: 8, shadowColor: 'rgba(45,212,191,.5)' }, label: { show: rows.length <= 12, position: 'top', fontSize: 12, fontWeight: 600, color: CHART_VALUE }, areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(45,212,191,.24)' }, { offset: .12, color: 'rgba(45,212,191,.03)' }, { offset: .3, color: 'rgba(45,212,191,0)' }, { offset: 1, color: 'rgba(45,212,191,0)' }] } } } : {}),
+        emphasis: { itemStyle: { color: CHART_ACCENT_BRIGHT } },
       }],
     })
     const observer = new ResizeObserver(() => chart.resize())

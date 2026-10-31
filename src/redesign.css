@@ -18,8 +18,8 @@
   --obs-verified: #3ddc97;
   --obs-warn: #f5b740;
   --obs-fail: #ff7185;
-  --obs-data: #ffb547;
-  --obs-data-soft: rgba(255, 181, 71, .15);
+  --obs-data: #2dd4bf;
+  --obs-data-soft: rgba(45, 212, 191, .15);
   --obs-violet: #a78bfa;
   --ui-radius: 14px;
 }
@@ -280,7 +280,7 @@
   padding: 22px 18px 20px;
   overflow: hidden;
   background:
-    radial-gradient(circle at 50% 36%, rgba(255, 181, 71, .07), transparent 44%),
+    radial-gradient(circle at 50% 36%, rgba(45, 212, 191, .07), transparent 44%),
     linear-gradient(180deg, rgba(255, 255, 255, .022), rgba(255, 255, 255, .004));
   border: 1px dashed rgba(226, 236, 255, .19);
   border-radius: 13px;
@@ -310,7 +310,7 @@
   inset: 0;
   border: 1px solid rgba(110, 168, 255, .22);
   border-radius: 50%;
-  border-top-color: rgba(255, 181, 71, .7);
+  border-top-color: rgba(45, 212, 191, .7);
   animation: obs-spin 9s linear infinite;
 }
 .aperture-core {
@@ -319,7 +319,7 @@
   justify-content: center;
   width: 62px;
   height: 62px;
-  background: radial-gradient(circle at 50% 32%, rgba(255, 181, 71, .16), rgba(255, 255, 255, .03));
+  background: radial-gradient(circle at 50% 32%, rgba(45, 212, 191, .16), rgba(255, 255, 255, .03));
   border: 1px solid rgba(226, 236, 255, .16);
   border-radius: 50%;
 }
@@ -833,20 +833,20 @@
 .chart-panel .analysis-viz,
 .bundle-result .analysis-viz,
 .viz-dialog .analysis-viz {
-  --viz-grid: rgba(255, 175, 120, .14);
-  --viz-axis: #d9c2ad;
-  --viz-tick: #e2ccb8;
-  --viz-tick-active: #ffe2c4;
-  --viz-value: #ffe2c4;
-  --viz-band: rgba(255, 138, 61, .15);
+  --viz-grid: rgba(148, 197, 255, .16);
+  --viz-axis: #9fb3c8;
+  --viz-tick: #b6c7da;
+  --viz-tick-active: #e2eefc;
+  --viz-value: #e2eefc;
+  --viz-band: rgba(45, 212, 191, .16);
   --viz-point-ring: #0a0e14;
-  --viz-mark: #ff8a3d;
-  --viz-mark-active: #7cc4ff;
-  --viz-reference: #ff7b8a;
+  --viz-mark: #2dd4bf;
+  --viz-mark-active: #7dd3fc;
+  --viz-reference: #a78bfa;
 }
 .chart-panel .viz-legend i,
 .chart-panel .legend i { background: var(--obs-data); }
-.chart-panel .finding { border-left-color: rgba(255, 181, 71, .5); }
+.chart-panel .finding { border-left-color: rgba(45, 212, 191, .5); }
 .chart-panel .finding > span { color: var(--obs-data); }
 
 /* ---------- responsive ---------- */

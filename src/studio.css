@@ -255,7 +255,7 @@
 }
 .stage-orbit-a { width: 238px; height: 238px; border-style: dashed; border-color: rgba(110, 168, 255, .3); }
 .stage-orbit-b { width: 338px; height: 338px; border-color: rgba(167, 139, 250, .15); }
-.stage-orbit-c { width: 168px; height: 168px; border-color: rgba(255, 181, 71, .18); }
+.stage-orbit-c { width: 168px; height: 168px; border-color: rgba(45, 212, 191, .18); }
 .stage-sweep {
   position: absolute;
   inset: 0;
@@ -289,7 +289,7 @@
   height: 7px;
   border-radius: 50%;
 }
-.stage-node-a { top: 24%; left: 26%; background: var(--obs-data); box-shadow: 0 0 14px rgba(255, 181, 71, .9); }
+.stage-node-a { top: 24%; left: 26%; background: var(--obs-data); box-shadow: 0 0 14px rgba(45, 212, 191, .9); }
 .stage-node-b { right: 22%; bottom: 31%; background: var(--obs-verified); box-shadow: 0 0 14px rgba(61, 220, 151, .8); }
 .stage-node-c { bottom: 18%; left: 30%; background: var(--obs-violet); box-shadow: 0 0 14px rgba(167, 139, 250, .8); }
 .stage-readout {
@@ -1155,7 +1155,7 @@
 .top-actions .text-button { font-size: 12px; }
 /* Chinese / raw column-name switch. Pressed is the Chinese view, the default
    for the public dataset. */
-.top-actions .name-toggle { padding: 4px 9px; border: 1px solid rgba(255, 170, 115, .38); border-radius: 6px; color: var(--obs-accent, #ffb27a); }
+.top-actions .name-toggle { padding: 4px 9px; border: 1px solid rgba(125, 211, 252, .38); border-radius: 6px; color: var(--obs-accent, #7dd3fc); }
 .top-actions .name-toggle[aria-pressed="false"] { border-color: rgba(148, 163, 184, .26); color: #a8b6c8; }
 .top-actions .top-import { font-size: 11.5px; }
 .status-message { min-height: 22px; color: #b7c4d6; font-size: 12.5px; }
@@ -1203,24 +1203,24 @@
 .chart-panel .analysis-viz,
 .bundle-result .analysis-viz,
 .viz-dialog .analysis-viz {
-  --viz-grid: rgba(255, 175, 120, .16);
-  --viz-axis: #d9c2ad;
-  --viz-tick: #e2ccb8;
-  --viz-tick-active: #ffe2c4;
-  --viz-value: #ffe2c4;
-  --viz-band: rgba(255, 138, 61, .16);
-  --viz-mark: #ff8a3d;
-  --viz-mark-active: #7cc4ff;
-  --viz-reference: #ff7b8a;
+  --viz-grid: rgba(148, 197, 255, .16);
+  --viz-axis: #9fb3c8;
+  --viz-tick: #b6c7da;
+  --viz-tick-active: #e2eefc;
+  --viz-value: #e2eefc;
+  --viz-band: rgba(45, 212, 191, .16);
+  --viz-mark: #2dd4bf;
+  --viz-mark-active: #7dd3fc;
+  --viz-reference: #a78bfa;
 }
 .chart-panel .viz-plot,
 .bundle-result .viz-plot,
 .viz-dialog .viz-plot {
   padding: 6px 6px 2px;
   background:
-    radial-gradient(520px 180px at 20% 0, rgba(255, 138, 61, .07), transparent 72%),
+    radial-gradient(520px 180px at 20% 0, rgba(45, 212, 191, .07), transparent 72%),
     linear-gradient(180deg, rgba(26, 33, 44, .84), rgba(11, 16, 24, .93));
-  border: 1px solid rgba(255, 170, 115, .2);
+  border: 1px solid rgba(125, 211, 252, .2);
   border-radius: 12px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05);
 }
@@ -1229,26 +1229,26 @@
 .viz-dialog .data-chart text { font-size: 12px; }
 .chart-panel .data-chart polyline,
 .bundle-result .data-chart polyline,
-.viz-dialog .data-chart polyline { stroke-width: 3.1; filter: drop-shadow(0 0 5px rgba(255, 138, 61, .55)); }
+.viz-dialog .data-chart polyline { stroke-width: 3.1; filter: drop-shadow(0 0 5px rgba(45, 212, 191, .5)); }
 .chart-panel .data-chart circle,
 .bundle-result .data-chart circle,
-.viz-dialog .data-chart circle { filter: drop-shadow(0 0 4px rgba(255, 176, 116, .6)); }
+.viz-dialog .data-chart circle { filter: drop-shadow(0 0 4px rgba(94, 234, 212, .55)); }
 .chart-panel .viz-legend span,
-.bundle-result .viz-legend span { color: #ecd7c2; font-size: 12px; }
+.bundle-result .viz-legend span { color: #cbd9e8; font-size: 12px; }
 .chart-panel .viz-tooltip,
 .bundle-result .viz-tooltip {
   background: rgba(17, 23, 32, .985);
-  border-color: rgba(255, 170, 115, .38);
+  border-color: rgba(125, 211, 252, .35);
   box-shadow: 0 22px 54px rgba(0, 0, 0, .66);
 }
 .chart-panel .viz-tooltip > strong,
-.bundle-result .viz-tooltip > strong { color: #ffe2c4; font-size: 13px; }
+.bundle-result .viz-tooltip > strong { color: #e2eefc; font-size: 13px; }
 .chart-panel .viz-tooltip dt,
-.bundle-result .viz-tooltip dt { color: #d3b9a2; font-size: 11.5px; }
+.bundle-result .viz-tooltip dt { color: #9fb3c8; font-size: 11.5px; }
 .chart-panel .viz-tooltip dd,
-.bundle-result .viz-tooltip dd { color: #ffe8d2; font-size: 13px; }
+.bundle-result .viz-tooltip dd { color: #e2eefc; font-size: 13px; }
 .chart-panel .viz-footer,
-.bundle-result .viz-footer { color: #c6ae97; }
+.bundle-result .viz-footer { color: #9fb3c8; }
 
 /* ---------- local ingest screen ----------
    Shown only while a real import is in flight. No percentage is invented:
@@ -1288,7 +1288,7 @@
   border: 1px solid rgba(143, 184, 255, .28);
 }
 .ingest-ring-a { inset: 0; border-top-color: rgba(143, 184, 255, .9); animation: ingest-spin 2.4s linear infinite; }
-.ingest-ring-b { inset: 15px; border-right-color: rgba(255, 196, 92, .85); animation: ingest-spin 3.6s linear infinite reverse; }
+.ingest-ring-b { inset: 15px; border-right-color: rgba(94, 234, 212, .85); animation: ingest-spin 3.6s linear infinite reverse; }
 .ingest-sweep {
   position: absolute;
   inset: 28px;
@@ -1354,7 +1354,7 @@
   top: 0;
   bottom: 0;
   width: 38%;
-  background: linear-gradient(90deg, transparent, #6ea8ff 40%, #ffc45c 78%, transparent);
+  background: linear-gradient(90deg, transparent, #6ea8ff 40%, #5eead4 78%, transparent);
   border-radius: inherit;
   animation: ingest-track 1.5s var(--obs-ease) infinite;
 }
@@ -1365,7 +1365,7 @@
 
 /* Byte progress for the public download: same track, but the bar width is the
    real share of the file received instead of an indefinite shimmer. */
-.ingest-track.is-real > span { left: 0; width: 0; background: linear-gradient(90deg, #6ea8ff, #ffc45c); animation: none; transition: width .28s var(--obs-ease); }
+.ingest-track.is-real > span { left: 0; width: 0; background: linear-gradient(90deg, #6ea8ff, #5eead4); animation: none; transition: width .28s var(--obs-ease); }
 @media (prefers-reduced-motion: reduce) { .ingest-track.is-real > span { transition: none; } }
 .ingest-cancel { margin-top: 16px; }
 .banner span a { color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
@@ -1441,19 +1441,19 @@
    the data story rather than the chrome. */
 .chart-empty {
   background:
-    radial-gradient(520px 240px at 50% 4%, rgba(255, 138, 61, .09), transparent 72%),
+    radial-gradient(520px 240px at 50% 4%, rgba(45, 212, 191, .09), transparent 72%),
     linear-gradient(180deg, rgba(23, 30, 40, .9), rgba(13, 18, 26, .95));
-  border: 1px dashed rgba(255, 170, 115, .26);
+  border: 1px dashed rgba(125, 211, 252, .26);
   border-radius: 12px;
 }
-.chart-empty h3 { color: #ffe2c4; }
+.chart-empty h3 { color: #e2eefc; }
 .chart-empty > p { color: #b7c4d4; }
-.chart-empty .empty-kicker { color: #ff9d5c; letter-spacing: .1em; }
-.chart-empty .canvas-emblem { background: rgba(255, 138, 61, .09); border-color: rgba(255, 170, 115, .32); color: #ff9d5c; }
-.chart-empty .canvas-emblem > span { background: #16202c; border-color: #0d141d; color: #ffb37a; }
+.chart-empty .empty-kicker { color: #5eead4; letter-spacing: .1em; }
+.chart-empty .canvas-emblem { background: rgba(45, 212, 191, .09); border-color: rgba(125, 211, 252, .32); color: #5eead4; }
+.chart-empty .canvas-emblem > span { background: #16202c; border-color: #0d141d; color: #7dd3fc; }
 .chart-empty .canvas-principles { color: #9fb0c4; border-top-color: rgba(255, 255, 255, .08); }
 .chart-empty .text-button { color: #c8d3e2; }
-.chart-empty .text-button:hover { color: #ffe2c4; }
+.chart-empty .text-button:hover { color: #e2eefc; }
 
 /* ---------- field drawer above the pinned chrome ----------
    The drawer is a modal surface; it outranks the sticky workbench toolbar (55)
@@ -1662,4 +1662,140 @@
   background: rgba(61, 220, 151, .06);
   border-color: rgba(61, 220, 151, .18);
   border-left-color: var(--obs-verified);
+}
+
+/* The AI result sheet is the evidence page: one dark surface like the rest of
+   the deck, and the chart takes the full width instead of sharing a 772px card
+   with a 260px picker and a 316px brief rail. */
+.bundle-result {
+  color: var(--obs-text);
+  background: linear-gradient(180deg, #101823 0%, #0b1119 100%);
+  border-color: rgba(125, 211, 252, .18);
+}
+.result-chart-table {
+  background: transparent;
+  border-color: rgba(125, 211, 252, .12);
+}
+.bundle-grid,
+.bundle-grid.single-result { grid-template-columns: minmax(0, 1fr); }
+.result-body { grid-template-columns: minmax(0, 1fr); }
+.result-insights { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+.result-chart-table,
+.single-result .result-chart-table { display: block; background: transparent; border: 0; }
+.result-chart-table .result-detail,
+.single-result .result-chart-table .result-detail {
+  margin-top: 14px;
+  padding: 14px 0 0;
+  border-left: 0;
+  border-top: 1px solid rgba(148, 197, 255, .16);
+}
+.analysis-bundle .bundle-heading h2,
+.bundle-result .result-sheet-head h3,
+.bundle-result .rate-summary > strong,
+.bundle-result .group-context-empty h4 { color: var(--obs-text); }
+.analysis-bundle .bundle-heading > div > p,
+.analysis-bundle .bundle-heading p,
+.bundle-result .result-sheet-kicker,
+.bundle-result .result-record-count,
+.bundle-result .result-answer .result-finding,
+.bundle-result .bundle-formula,
+.bundle-result .group-context-empty p { color: var(--obs-muted); }
+.chart-action-line { color: var(--obs-muted); }
+.chart-action-line .group-locator select {
+  color: var(--obs-text);
+  background: rgba(7, 10, 15, .8);
+  border-color: var(--obs-line-strong);
+}
+.result-trend {
+  color: var(--obs-muted);
+  background: rgba(7, 10, 15, .55);
+  border-color: rgba(148, 197, 255, .14);
+}
+.result-insights .insight-brief,
+.result-insights .next-cuts {
+  background: rgba(10, 16, 24, .75);
+  border-color: rgba(148, 197, 255, .16);
+}
+.bundle-review {
+  background: rgba(10, 16, 24, .75);
+  border-color: rgba(148, 197, 255, .16);
+  border-left-color: var(--obs-lime);
+  color: var(--obs-text);
+}
+/* The review is the same dark audit surface as the result sheet. */
+.bundle-review > h3 { color: var(--obs-text); }
+.bundle-review .review-caption { color: var(--obs-muted); }
+.bundle-review .review-finding { border-top-color: rgba(148, 197, 255, .16); }
+.bundle-review .review-finding:first-of-type { border-top-color: rgba(148, 197, 255, .24); }
+.bundle-review .review-finding > p { color: var(--obs-text); }
+.bundle-review .review-evidence .text-button,
+.bundle-review .text-button {
+  color: var(--obs-cyan);
+  background: rgba(45, 212, 191, .1);
+  border-color: rgba(45, 212, 191, .3);
+}
+.bundle-review .review-evidence .text-button:hover,
+.bundle-review .text-button:hover { color: #071120; background: var(--obs-cyan); }
+.bundle-review .finding-kind {
+  color: var(--obs-verified);
+  background: rgba(89, 226, 162, .08);
+  border-color: rgba(89, 226, 162, .28);
+}
+.bundle-review .finding-kind.is-hypothesis {
+  color: #a78bfa;
+  background: rgba(167, 139, 250, .1);
+  border-color: rgba(167, 139, 250, .32);
+}
+.bundle-review .review-insight-block h4,
+.bundle-review .review-insight-block > section > strong { color: var(--obs-lime); }
+.bundle-review .review-insight-block > section { border-top-color: rgba(148, 197, 255, .14); }
+.bundle-review .review-insight-block li { border-top-color: rgba(148, 197, 255, .12); }
+.bundle-review .review-insight-block li > p,
+.bundle-review .review-insight-block p { color: var(--obs-muted); }
+.bundle-review > details,
+.bundle-review > details li { color: var(--obs-muted); }
+/* The unit prompt is a confirmation step, not a warm warning. */
+.unit-declaration {
+  background: rgba(45, 212, 191, .06);
+  border-color: rgba(45, 212, 191, .28);
+}
+.group-shortcuts button {
+  color: var(--obs-text);
+  background: rgba(255, 255, 255, .04);
+  border-color: rgba(148, 197, 255, .16);
+}
+.group-shortcuts button:hover { background: rgba(45, 212, 191, .1); border-color: rgba(45, 212, 191, .35); }
+@media (max-width: 760px) {
+  .result-insights { grid-template-columns: minmax(0, 1fr); }
+}
+.analysis-bundle .bundle-heading { background: transparent; }
+.analysis-bundle .bundle-interaction-hint { color: var(--obs-muted); }
+.analysis-bundle .result-status { color: var(--obs-verified); }
+.bundle-result .insight-headline h3,
+.bundle-result .next-cuts > summary,
+.bundle-result .group-shortcuts strong { color: var(--obs-text); }
+.bundle-result .insight-section p,
+.bundle-result .insight-section li,
+.bundle-result .next-cuts p,
+.bundle-result .group-shortcuts span,
+.bundle-result .group-shortcuts small { color: var(--obs-muted); }
+.bundle-result .result-data-details { background: transparent; }
+.bundle-result .result-data-details > summary { color: var(--obs-text); }
+.bundle-result .insight-brief.is-compact .insight-headline h3 { color: var(--obs-text); }
+.bundle-result .insight-brief.is-compact .insight-section p { color: var(--obs-muted); }
+.bundle-result .insight-kicker,
+.bundle-result .insight-footnote { color: var(--obs-faint); }
+.bundle-result .insight-section h4 { color: var(--obs-muted); }
+.bundle-result .insight-section.is-meaning h4 { color: var(--obs-lime); }
+.bundle-result .insight-section.is-limit h4 { color: #a78bfa; }
+/* citation chips: teal evidence, not a warm marker */
+.bundle-result .ai-evidence,
+.bundle-review .ai-evidence {
+  color: var(--obs-cyan);
+  background: rgba(45, 212, 191, .1);
+  border-color: rgba(45, 212, 191, .3);
+}
+@media (max-width: 760px) {
+  /* The 360px inline floor clipped right-aligned value labels at 390px. */
+  .bundle-result .data-chart { min-width: 0 !important; }
 }

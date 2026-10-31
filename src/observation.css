@@ -2108,16 +2108,16 @@ textarea.sr-only,
 .bundle-result .analysis-viz,
 .viz-dialog .analysis-viz {
   color: var(--obs-text);
-  --viz-grid: rgba(255, 175, 120, .14);
-  --viz-axis: #d9c2ad;
-  --viz-tick: #e2ccb8;
-  --viz-tick-active: #ffe2c4;
-  --viz-value: #ffe2c4;
-  --viz-band: rgba(255, 138, 61, .15);
+  --viz-grid: rgba(148, 197, 255, .16);
+  --viz-axis: #9fb3c8;
+  --viz-tick: #b6c7da;
+  --viz-tick-active: #e2eefc;
+  --viz-value: #e2eefc;
+  --viz-band: rgba(45, 212, 191, .16);
   --viz-point-ring: #0a1018;
-  --viz-mark: #ff8a3d;
-  --viz-mark-active: #7cc4ff;
-  --viz-reference: #ff7b8a;
+  --viz-mark: #2dd4bf;
+  --viz-mark-active: #7dd3fc;
+  --viz-reference: #a78bfa;
 }
 .chart-panel .viz-toolbar { border-bottom-color: var(--obs-line); color: var(--obs-muted); }
 .chart-panel .viz-controls > label,
