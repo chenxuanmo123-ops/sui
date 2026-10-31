@@ -1860,3 +1860,22 @@
   background: var(--obs-cyan);
   box-shadow: 0 0 0 3px rgba(110, 168, 255, .18);
 }
+
+/* The rail is a surface, not a transparent void: a bottomless black band
+   below the AI card read as a different colour from the rest of the page. */
+.app-rail {
+  background: linear-gradient(180deg, #0a1119 0%, #080d14 62%, #070b11 100%);
+  border-right-color: rgba(143, 184, 255, .1);
+}
+/* The AI state card sat at 48px with 9px type, visibly stubbier and bluer
+   than the two cards around it. Give it the same surface and room. */
+.rail-ai {
+  gap: 9px;
+  padding: 11px 10px;
+  background: rgba(226, 236, 255, .024);
+  border-color: rgba(226, 236, 255, .09);
+}
+.rail-ai-copy strong { color: #eaf2fb; font-size: 10.5px; letter-spacing: .05em; }
+.rail-ai-copy small { margin-top: 3px; color: #8398ae; font-size: 9.5px; }
+.rail-ai-dot { box-shadow: 0 0 8px rgba(110, 168, 255, .45); }
+.rail-ai[data-state="off"] .rail-ai-dot { box-shadow: none; }
