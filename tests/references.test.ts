@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { REFERENCE_LIMITS, chunkText, referenceKey, referenceQuery, referenceTokens, retrieveReferences } from '../src/references'
 import type { ReferenceDoc } from '../src/references'
+import { KNOWLEDGE_BASE } from '../src/knowledge'
 
 const doc = (overrides: Partial<ReferenceDoc> = {}): ReferenceDoc => ({
   id: 'file-1',
@@ -9,6 +10,34 @@ const doc = (overrides: Partial<ReferenceDoc> = {}): ReferenceDoc => ({
   chunks: [{ text: '本季度退款率按订单数计算，分母为已支付订单，未支付订单不计入。' }],
   chars: 31,
   ...overrides,
+})
+
+describe('内置知识库', () => {
+  it('条目结构有界、键唯一，正文只写方法与口径，不写数据结论', () => {
+    const keys = KNOWLEDGE_BASE.entries.map(entry => entry.key)
+    expect(new Set(keys).size).toBe(keys.length)
+    expect(KNOWLEDGE_BASE.entries.length).toBeGreaterThanOrEqual(20)
+    for (const entry of KNOWLEDGE_BASE.entries) {
+      expect(entry.title.trim().length).toBeGreaterThan(4)
+      expect(entry.title.length).toBeLessThan(60)
+      expect(entry.body.trim().length).toBeGreaterThan(60)
+      expect(entry.body.length).toBeLessThan(700)
+      expect(['工作规范', '统计口径', '数据质量', '表达边界', '场景提示']).toContain(entry.topic)
+    }
+  })
+
+  it('农业与能源问题各自召回对应场景口径', () => {
+    const farm = retrieveReferences([], '这份农业数据里产量和亩、公顷的面积口径混在一起，单产怎么算')
+    expect(farm.some(hit => hit.title.includes('农业'))).toBe(true)
+    const power = retrieveReferences([], '石油产量和消费量怎么比较，装机容量能不能一起加')
+    expect(power.some(hit => hit.title.includes('能源'))).toBe(true)
+  })
+
+  it('开放问题召回“能回答什么”的工作规范，而不是拒绝执行', () => {
+    const hits = retrieveReferences([], '先帮我整体看看这份数据，能看出什么情况')
+    expect(hits.length).toBeGreaterThan(0)
+    expect(hits.every(hit => hit.source === 'method')).toBe(true)
+  })
 })
 
 describe('参考资料切分与检索', () => {

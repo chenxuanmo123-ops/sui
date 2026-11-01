@@ -16,6 +16,7 @@ import './observation.css'
 import './redesign.css'
 import './studio.css'
 import './motion.css'
+import './agent.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

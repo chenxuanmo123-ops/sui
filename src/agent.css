@@ -1,0 +1,752 @@
+/* ---------- agent console: conversation flow vs analysis flow ----------
+   Loaded last so it decides the final geometry of the assistant window:
+   a wide dock on desktop, a two-column workbench when expanded, and a
+   single-pane tabbed sheet on narrow screens. */
+
+/* ---------- window shell ---------- */
+.assistant-window .assistant-window-content {
+  height: calc(100% - 50px);
+  overflow: hidden;
+}
+.assistant-window .ai-workbench {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+.assistant-window .ai-workbench > .request-progress { flex: none; }
+/* The wait card is 89px of the 515px chat pane. That shrink pushed the thread to
+   185px and the composer past its own max-height, so the privacy note and the
+   optional-send row disappeared behind an inner scroll for the whole request.
+   Compact it inside the dock; the main workspace keeps the full-size card. */
+.assistant-window .ai-workbench > .request-progress {
+  margin: 8px 12px;
+  padding: 8px 11px;
+  align-items: center;
+  gap: 8px;
+  border-radius: 9px;
+}
+.assistant-window .ai-workbench > .request-progress strong { font-size: 12px; }
+.assistant-window .ai-workbench > .request-progress small { margin-top: 2px; font-size: 11px; line-height: 1.45; }
+
+/* ---------- header + view tabs ---------- */
+.assistant-window .ai-agent-head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px 11px 14px;
+  background: rgba(9, 13, 20, .72);
+  border-bottom: 1px solid var(--obs-line);
+}
+.assistant-window .ai-agent-title {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+.assistant-window .ai-agent-title > svg { flex: none; color: var(--obs-lime); }
+/* The text block is a flex item too: without min-width:0 it refuses to shrink
+   below its content and the subtitle ran underneath the tab group. */
+.assistant-window .ai-agent-title > div { min-width: 0; }
+.assistant-window .ai-agent-title h2 {
+  overflow: hidden;
+  margin: 0;
+  color: var(--obs-text);
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: .01em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.assistant-window .ai-agent-title p {
+  overflow: hidden;
+  margin: 2px 0 0;
+  color: var(--obs-muted);
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.assistant-window .ai-agent-tabs {
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+  padding: 3px;
+  background: rgba(7, 10, 15, .7);
+  border: 1px solid var(--obs-line);
+  border-radius: 999px;
+}
+.assistant-window .ai-agent-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 28px;
+  padding: 0 11px;
+  color: var(--obs-muted);
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background .16s var(--obs-ease), color .16s var(--obs-ease);
+}
+.assistant-window .ai-agent-tabs button:hover { color: var(--obs-text); background: rgba(143, 184, 255, .08); }
+.assistant-window .ai-agent-tabs button[aria-selected="true"] {
+  color: #08111d;
+  background: var(--obs-lime);
+}
+.assistant-window .ai-agent-tabs button[aria-selected="true"]:hover { color: #08111d; background: #8dbcff; }
+.assistant-window .ai-tab-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  color: var(--obs-cyan);
+  background: rgba(7, 10, 15, .35);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+}
+.assistant-window .ai-agent-tabs button[aria-selected="true"] .ai-tab-count {
+  color: #08111d;
+  background: rgba(7, 10, 15, .18);
+}
+.assistant-window .ai-settings-trigger { flex: none; }
+
+/* ---------- two-pane body ---------- */
+.assistant-window .ai-agent-body {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 0;
+}
+.assistant-window .ai-agent-body > [data-pane] { min-height: 0; }
+.assistant-window .ai-agent-body > [data-pane]:not([data-active="true"]) { display: none; }
+.assistant-window .ai-chat-pane,
+.assistant-window .ai-analysis-pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ---------- conversation flow ---------- */
+.assistant-window .ai-thread {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+  padding: 16px 14px 10px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+/* Both the log and the analysis trace are scrollers whose content is taller than
+   the window at 720px, so their last visible line gets cut in half by the pane
+   edge — that reads as a broken layout, not as "scroll for more". Fade whichever
+   edge still has content behind it: top once the log is scrolled, bottom while
+   anything remains below. The mask only exists while one flag is set, because an
+   always-on mask also disables subpixel antialiasing for the whole text block.
+   AiWorkbench's syncScrollEdges owns both flags. */
+.assistant-window .ai-thread[data-scrolled],
+.assistant-window .ai-thread[data-more],
+.assistant-window .ai-analysis-pane[data-scrolled],
+.assistant-window .ai-analysis-pane[data-more] {
+  -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 var(--ai-fade-top, 0px), #000 calc(100% - var(--ai-fade-bottom, 0px)), transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0, #000 var(--ai-fade-top, 0px), #000 calc(100% - var(--ai-fade-bottom, 0px)), transparent 100%);
+}
+.assistant-window .ai-thread[data-scrolled],
+.assistant-window .ai-analysis-pane[data-scrolled] { --ai-fade-top: 16px; }
+.assistant-window .ai-thread[data-more],
+.assistant-window .ai-analysis-pane[data-more] { --ai-fade-bottom: 28px; }
+/* The fade says "scroll", but the thin native thumb only appears on hover in
+   some themes; keep it visible at rest so the pane reads as scrollable. */
+.assistant-window .ai-thread,
+.assistant-window .ai-analysis-pane { scrollbar-color: rgba(154, 166, 184, .55) transparent; }
+.assistant-window .ai-turn { display: grid; gap: 8px; }
+.assistant-window .ai-msg {
+  padding: 11px 13px;
+  border-radius: 12px;
+  font-size: 12.5px;
+  line-height: 1.65;
+}
+.assistant-window .ai-msg p { margin: 0 0 6px; color: var(--obs-text); font-size: 12.5px; line-height: 1.65; }
+.assistant-window .ai-msg p:last-child { margin-bottom: 0; }
+.assistant-window .ai-msg-user {
+  justify-self: end;
+  max-width: 88%;
+  background: rgba(110, 168, 255, .16);
+  border: 1px solid rgba(110, 168, 255, .3);
+  border-bottom-right-radius: 4px;
+}
+.assistant-window .ai-msg-user p { color: #f3f7ff; }
+.assistant-window .ai-msg-assistant {
+  background: rgba(143, 184, 255, .05);
+  border: 1px solid var(--obs-line);
+  border-bottom-left-radius: 4px;
+}
+.assistant-window .ai-msg-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 7px;
+  color: var(--obs-cyan);
+  font-family: var(--obs-mono);
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.assistant-window .ai-msg-meta svg { color: var(--obs-lime); }
+.assistant-window .ai-msg ul { display: grid; gap: 5px; margin: 6px 0 8px; padding-left: 17px; }
+.assistant-window .ai-msg li { color: var(--obs-text); font-size: 12.5px; line-height: 1.55; }
+.assistant-window .ai-msg-note { margin: 8px 0 0; color: #93a1b3; font-size: 11.5px; line-height: 1.55; }
+.assistant-window .ai-welcome { border-color: rgba(110, 168, 255, .22); }
+.assistant-window .ai-msg-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 11px; }
+.assistant-window .ai-msg-actions button { gap: 4px; }
+
+.assistant-window .ai-starters { display: grid; gap: 7px; margin: 11px 0 8px; }
+.assistant-window .ai-starters button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 11px;
+  color: var(--obs-text);
+  background: rgba(110, 168, 255, .07);
+  border: 1px solid rgba(110, 168, 255, .24);
+  border-radius: 9px;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: left;
+  cursor: pointer;
+  transition: background .16s var(--obs-ease), border-color .16s var(--obs-ease), transform .16s var(--obs-ease);
+}
+.assistant-window .ai-starters button svg { flex: none; color: var(--obs-cyan); }
+.assistant-window .ai-starters button:hover:not(:disabled) {
+  background: rgba(110, 168, 255, .15);
+  border-color: rgba(110, 168, 255, .46);
+  transform: translateX(2px);
+}
+.assistant-window .ai-starters button:disabled { opacity: .5; cursor: not-allowed; }
+
+/* review lives in the conversation, not in the trace */
+.assistant-window .ai-review {
+  margin: 0;
+  padding: 14px;
+  background: rgba(9, 13, 20, .55);
+  border: 1px solid var(--obs-line);
+  border-radius: 12px;
+}
+.assistant-window .ai-review h3 { margin: 0 0 6px; font-size: 13px; }
+.assistant-window .ai-review article { padding: 10px 0; border-bottom: 1px solid var(--obs-line); }
+.assistant-window .ai-review article:last-of-type { border-bottom: 0; }
+.assistant-window .ai-review article > p { color: var(--obs-text); font-size: 12.5px; line-height: 1.65; }
+.assistant-window .ai-next {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--obs-line);
+}
+.assistant-window .ai-next > strong {
+  color: var(--obs-muted);
+  font-family: var(--obs-mono);
+  font-size: 10px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.assistant-window .ai-next button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  padding: 9px 12px;
+  color: var(--obs-text);
+  background: rgba(110, 168, 255, .08);
+  border: 1px solid rgba(110, 168, 255, .3);
+  border-radius: 9px;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: left;
+  cursor: pointer;
+  transition: background .16s var(--obs-ease), border-color .16s var(--obs-ease), transform .16s var(--obs-ease);
+}
+.assistant-window .ai-next button svg { flex: none; color: var(--obs-cyan); }
+.assistant-window .ai-next button:hover:not(:disabled) {
+  background: rgba(110, 168, 255, .17);
+  border-color: rgba(110, 168, 255, .52);
+  transform: translateX(2px);
+}
+.assistant-window .ai-next button:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ---------- composer ---------- */
+.assistant-window .ai-composer-wrap {
+  flex: none;
+  max-height: 46%;
+  padding: 10px 12px 12px;
+  overflow-y: auto;
+  background: linear-gradient(180deg, rgba(7, 10, 15, .55), rgba(7, 10, 15, .96));
+  border-top: 1px solid var(--obs-line);
+}
+.assistant-window .ai-composer {
+  display: grid;
+  gap: 9px;
+  padding: 12px;
+  background: rgba(13, 18, 26, .82);
+  border: 1px solid var(--obs-line);
+  border-radius: 12px;
+}
+.assistant-window .ai-composer > label:not(.ai-check) {
+  color: var(--obs-muted);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.assistant-window .ai-composer textarea {
+  min-height: 72px;
+  padding: 10px 11px;
+  color: var(--obs-text);
+  background: rgba(7, 10, 15, .8);
+  border: 1px solid var(--obs-line-strong);
+  border-radius: 9px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  resize: vertical;
+}
+.assistant-window .ai-composer textarea::placeholder { color: #768394; }
+.assistant-window .ai-composer textarea:focus {
+  outline: 2px solid rgba(110, 168, 255, .14);
+  border-color: rgba(110, 168, 255, .48);
+}
+.assistant-window .ai-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.assistant-window .ai-actions .primary { gap: 6px; min-height: 38px; padding: 0 16px; }
+.assistant-window .ai-actions > small { flex: 1 0 100%; color: #8c99aa; font-size: 11px; }
+.assistant-window .ai-composer .ai-hint { margin: 0; color: #8c99aa; font-size: 11.5px; line-height: 1.55; }
+.assistant-window .ai-composer details > summary { color: var(--obs-muted); font-size: 11.5px; cursor: pointer; }
+.assistant-window .ai-composer details[open] > summary { color: var(--obs-cyan); }
+.assistant-window .ai-connection { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.assistant-window .ai-connection label { display: inline-flex; align-items: center; gap: 7px; color: var(--obs-muted); font-size: 11.5px; white-space: nowrap; }
+.assistant-window .ai-connection select { max-width: 100%; min-height: 30px; font-size: 11.5px; }
+.assistant-window .service-state { flex: none; }
+
+/* Legacy sheets painted these blocks with the light paper palette; the
+   console keeps a single dark surface so nothing reads as a white hole. */
+.assistant-window .ai-workbench .ai-plan,
+.assistant-window .ai-workbench .ai-review,
+.assistant-window .ai-workbench .ai-results,
+.assistant-window .ai-workbench .ai-events,
+.assistant-window .ai-workbench .ai-repair-changes { color: var(--obs-text); background: transparent; }
+.assistant-window .ai-workbench .ai-questions {
+  padding: 11px 13px;
+  color: #f0d5a2;
+  background: rgba(245, 183, 64, .08);
+  border: 1px solid rgba(245, 183, 64, .22);
+  border-radius: 9px;
+}
+.assistant-window .ai-workbench .ai-questions li { color: #f0d5a2; font-size: 12px; line-height: 1.6; }
+.assistant-window .ai-workbench .ai-questions p { color: #d9c199; font-size: 11.5px; line-height: 1.55; }
+.assistant-window .ai-workbench .ai-tasks { display: grid; gap: 9px; margin: 12px 0; padding: 0; list-style: none; }
+.assistant-window .ai-workbench .ai-tasks li {
+  padding: 10px 12px;
+  color: var(--obs-text);
+  background: rgba(143, 184, 255, .05);
+  border: 1px solid var(--obs-line);
+  border-left: 3px solid rgba(110, 168, 255, .55);
+  border-radius: 8px;
+}
+.assistant-window .ai-workbench .ai-tasks li strong { color: var(--obs-text); font-size: 12.5px; }
+.assistant-window .ai-workbench .ai-tasks li p { color: var(--obs-muted); font-size: 11.5px; line-height: 1.6; }
+.assistant-window .ai-workbench .ai-task-mapping { display: grid; gap: 4px; margin-top: 7px; }
+.assistant-window .ai-workbench .ai-task-mapping span { color: #93a1b3; font-size: 11px; line-height: 1.5; }
+.assistant-window .ai-workbench .ai-hypotheses,
+.assistant-window .ai-workbench .ai-understanding { color: var(--obs-muted); }
+.assistant-window .ai-workbench .ai-hypotheses h4 { color: var(--obs-text); }
+.assistant-window .ai-workbench .ai-repair-mapping {
+  padding: 8px 10px;
+  color: var(--obs-muted);
+  background: rgba(7, 10, 15, .55);
+  border: 1px solid var(--obs-line);
+  border-radius: 7px;
+  font-family: var(--obs-mono);
+  font-size: 11px;
+  line-height: 1.55;
+}
+.assistant-window .ai-workbench .ai-fact { color: var(--obs-muted); font-size: 11.5px; }
+.assistant-window .ai-workbench details > summary { color: var(--obs-muted); font-size: 11.5px; cursor: pointer; }
+.assistant-window .ai-workbench details[open] > summary { color: var(--obs-cyan); }
+.assistant-window .ai-workbench .ai-optional textarea { min-height: 64px; font-size: 12px; }
+.assistant-window .ai-workbench .ai-check { display: flex; align-items: flex-start; gap: 7px; color: var(--obs-muted); font-size: 11.5px; line-height: 1.55; }
+.assistant-window .ai-workbench .ai-reference-hits article { border-left: 2px solid rgba(110, 168, 255, .42); }
+.assistant-window .ai-workbench .ai-evidence { color: #8ff0c2; background: rgba(61, 220, 151, .1); }
+.assistant-window .ai-workbench .ai-result-links button { max-width: 100%; justify-content: flex-start; text-align: left; }
+.assistant-window .ai-workbench .ai-limits { color: var(--obs-muted); font-size: 11.5px; line-height: 1.6; }
+.assistant-window .ai-workbench .ai-limits strong { color: #f5d08a; }
+
+/* ---------- analysis flow ---------- */
+.assistant-window .ai-analysis-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  overflow-y: auto;
+  background: rgba(7, 10, 15, .3);
+}
+.assistant-window .ai-analysis-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 13px 14px 10px;
+  border-bottom: 1px solid var(--obs-line);
+}
+.assistant-window .ai-analysis-head h3 { margin: 2px 0 0; color: var(--obs-text); font-size: 13px; }
+.assistant-window .ai-eyebrow {
+  color: var(--obs-cyan);
+  font-family: var(--obs-mono);
+  font-size: 9px;
+  letter-spacing: .18em;
+}
+.assistant-window .ai-analysis-head > small { color: var(--obs-faint); font-size: 10.5px; }
+.assistant-window .ai-analysis-empty {
+  display: grid;
+  gap: 9px;
+  justify-items: start;
+  margin: 16px 14px;
+  padding: 16px;
+  color: var(--obs-muted);
+  background: rgba(143, 184, 255, .04);
+  border: 1px dashed var(--obs-line-strong);
+  border-radius: 12px;
+}
+.assistant-window .ai-analysis-empty svg { color: var(--obs-lime); }
+.assistant-window .ai-analysis-empty p { margin: 0; font-size: 12px; line-height: 1.6; }
+.assistant-window .ai-analysis-pane > .ai-plan,
+.assistant-window .ai-analysis-pane > .execution-progress,
+.assistant-window .ai-analysis-pane > .ai-execution-warnings,
+.assistant-window .ai-analysis-pane > .ai-repair-changes,
+.assistant-window .ai-analysis-pane > .ai-results,
+.assistant-window .ai-analysis-pane > .ai-events,
+.assistant-window .ai-analysis-pane > .ai-reference-sent {
+  margin: 0;
+  padding: 14px;
+  border-top: 1px solid var(--obs-line);
+}
+.assistant-window .ai-analysis-pane > .ai-plan { border-top: 0; }
+.assistant-window .ai-analysis-pane .ai-plan-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.assistant-window .ai-analysis-pane .ai-plan-title h3 { font-size: 12.5px; }
+.assistant-window .ai-analysis-pane .ai-plan-title > small { color: var(--obs-faint); font-size: 10.5px; }
+.assistant-window .ai-analysis-pane .ai-check { color: var(--obs-muted); font-size: 11.5px; line-height: 1.55; }
+.assistant-window .execution-progress ul { display: grid; gap: 6px; margin: 9px 0; padding: 0; list-style: none; }
+.assistant-window .execution-progress li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 9px;
+  color: var(--obs-muted);
+  background: rgba(143, 184, 255, .04);
+  border: 1px solid var(--obs-line);
+  border-radius: 7px;
+  font-size: 11.5px;
+}
+.assistant-window .execution-progress li[data-state="completed"] { border-color: rgba(61, 220, 151, .34); }
+.assistant-window .execution-progress li[data-state="completed"] b { color: var(--obs-verified); }
+.assistant-window .execution-progress li[data-state="running"] { border-color: rgba(110, 168, 255, .4); }
+.assistant-window .execution-progress li[data-state="failed"] { border-color: rgba(255, 113, 133, .36); }
+.assistant-window .execution-progress li[data-state="failed"] b { color: var(--obs-fail); }
+.assistant-window .execution-progress li b { flex: none; font-size: 11px; font-weight: 600; }
+.assistant-window .ai-results h3 { font-size: 12.5px; }
+
+/* ---------- window states ---------- */
+@media (min-width: 1201px) {
+  .app-shell { --agent-dock: clamp(420px, 36vw, 620px); }
+  .app-shell.has-ai-dock .assistant-window.is-docked:not(.expanded) {
+    right: 10px;
+    width: var(--agent-dock);
+  }
+  .app-shell.has-ai-dock .app-body { padding-right: calc(var(--agent-dock) + 20px); }
+}
+
+@media (min-width: 1080px) {
+  .assistant-window.expanded {
+    inset: 68px 18px 18px auto;
+    width: min(1240px, calc(100vw - 36px));
+  }
+  .assistant-window.expanded .ai-agent-tabs { display: none; }
+  .assistant-window.expanded .ai-agent-body {
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 460px);
+  }
+  .assistant-window.expanded .ai-agent-body > [data-pane] { display: flex; }
+  .assistant-window.expanded .ai-analysis-pane { border-left: 1px solid var(--obs-line); }
+  .assistant-window.expanded .ai-thread { padding: 20px 22px 10px; }
+  .assistant-window.expanded .ai-composer-wrap { padding: 12px 20px 16px; max-height: 46%; }
+  .assistant-window.expanded .ai-agent-head { padding: 13px 20px; }
+  .assistant-window.expanded .ai-analysis-head { padding: 13px 16px 10px; }
+  /* Both panes are on screen, so "back to the conversation" has nowhere to go. */
+  .assistant-window.expanded .ai-empty-switch { display: none; }
+}
+
+@media (max-width: 760px) {
+  /* .is-studio carries an extra class, so the full-screen sheet must match it
+     explicitly or studio.css keeps the window inset by 6px. */
+  .assistant-window.is-docked:not(.expanded),
+  .is-studio .assistant-window.is-docked:not(.expanded),
+  .assistant-window:not(.is-docked):not(.expanded),
+  .assistant-window.expanded,
+  .is-studio .assistant-window.expanded {
+    inset: 0;
+    width: 100vw;
+    height: 100dvh;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+    z-index: 80;
+  }
+  .assistant-window-bar { border-radius: 0; }
+  .assistant-window .ai-thread { padding: 14px 12px 8px; }
+  .assistant-window .ai-msg { font-size: 13px; }
+  .assistant-window .ai-msg p, .assistant-window .ai-msg li { font-size: 13px; }
+  .assistant-window .ai-composer textarea { font-size: 14px; }
+  .assistant-window .ai-actions .primary { flex: 1; justify-content: center; }
+}
+
+/* ---------- public web background (user-initiated, never evidence) ---------- */
+.assistant-window .ai-actions .ai-lookup { flex: 0 0 auto; width: auto; min-height: 34px; padding: 0 12px; font-size: 11.5px; }
+.ai-web { border-left: 3px solid rgba(125, 211, 252, .5); }
+.ai-web-note { margin: 4px 0 9px; padding: 8px 10px; color: #cfe6ff; font-size: 11.5px; line-height: 1.65; background: rgba(125, 211, 252, .07); border: 1px solid rgba(125, 211, 252, .18); border-radius: 8px; }
+.ai-web-results { display: grid; gap: 8px; margin: 8px 0; }
+.ai-web-results article { padding: 10px 11px; background: rgba(143, 184, 255, .05); border: 1px solid var(--obs-line); border-radius: 8px; }
+.ai-web-results h4 { margin: 0 0 5px; color: var(--obs-text); font-size: 12px; }
+.ai-web-results p { margin: 0 0 7px; color: var(--obs-muted); font-size: 11.5px; line-height: 1.7; }
+.ai-web-results a { display: inline-flex; align-items: center; gap: 4px; color: var(--obs-cyan); font-size: 11px; text-decoration: none; }
+.ai-web-results a:hover { text-decoration: underline; }
+.ai-web-error { margin: 6px 0; padding: 8px 10px; color: #ffc2c8; font-size: 11.5px; line-height: 1.65; background: rgba(255, 113, 133, .08); border: 1px solid rgba(255, 113, 133, .24); border-radius: 8px; }
+.ai-reference-kb { display: block; margin: 2px 0 8px; color: #8592a3; font-size: 10.5px; line-height: 1.6; }
+
+/* ---------- the dock must not squeeze the page behind it ----------
+   Opening the assistant takes 420–620px from the content column *without*
+   changing the viewport, so every viewport media query stays asleep and
+   two-column screens keep their desktop tracks until each card is a 119px
+   sliver with text spilling over its neighbour. Stack the page layouts as
+   soon as the dock is open on a screen that cannot hold both. */
+@media (max-width: 1799px) {
+  .app-body:has(.assistant-trigger.is-open) .review-bento,
+  .app-body:has(.assistant-trigger.is-open) .workspace-welcome,
+  .app-body:has(.assistant-trigger.is-open) .explore-layout,
+  .app-body:has(.assistant-trigger.is-open) .sql-layout,
+  .app-body:has(.assistant-trigger.is-open) .empty-stage-body,
+  .app-body:has(.assistant-trigger.is-open) .empty-stage.is-compact .empty-stage-body,
+  .app-body:has(.assistant-trigger.is-open) .sql-idle {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .app-body:has(.assistant-trigger.is-open) .review-aside {
+    position: static;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .app-body:has(.assistant-trigger.is-open) .explore-controls { position: static; }
+  .app-body:has(.assistant-trigger.is-open) .review-intro { flex-wrap: wrap; }
+  .app-body:has(.assistant-trigger.is-open) .investigation-composer { width: min(1080px, calc(100% - 46px)); }
+}
+@media (max-width: 900px) {
+  .app-body:has(.assistant-trigger.is-open) .review-aside { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Long column names are single unbreakable tokens: let them break instead of
+   forcing their grid track to the width of the token. */
+.question-card h3,
+.question-card > p { overflow-wrap: anywhere; }
+.canvas-preview-scroll { overflow-x: auto; }
+
+/* ---------- composer must fit, not hide its own buttons ----------
+   At 720–900px window heights the composer's content is ~415px tall but the
+   dock only gives it 46% of the pane, so the last rows (privacy note, options)
+   sat behind an invisible inner scroll. Compact the fixed rows and give the
+   composer a little more of the pane. */
+/* 54% was too tight once the wait card took its share of the pane: 402px of
+   body gave the composer 217px for 269px of rows, and the wrap's own
+   overflow:hidden-on-scroll silently swallowed the send options. 64% only binds
+   when the pane is short (a request in flight, or a small window); at rest the
+   wrap stays content-sized. */
+.assistant-window .ai-composer-wrap { max-height: 64%; }
+.assistant-window .ai-composer { gap: 6px; padding: 10px 11px; }
+.assistant-window .ai-composer textarea { min-height: 54px; }
+.assistant-window .ai-connection { gap: 6px; }
+.assistant-window .ai-connection label { font-size: 11px; }
+.assistant-window .ai-actions { gap: 6px 8px; }
+.assistant-window .ai-actions > small { flex: 1 1 auto; margin-left: auto; text-align: right; font-size: 10.5px; }
+.assistant-window .ai-composer .ai-hint { font-size: 11px; line-height: 1.5; }
+.assistant-window .ai-composer > details > summary { padding: 5px 0; font-size: 11px; }
+
+/* The dataset ribbon behind the dock is a nowrap flex row; at ~570px it
+   squeezed every button into vertical single characters. Let it wrap. */
+@media (max-width: 1799px) {
+  .app-body:has(.assistant-trigger.is-open) .topbar.dataset-ribbon { flex-wrap: wrap; gap: 8px 12px; }
+  .app-body:has(.assistant-trigger.is-open) .topbar.dataset-ribbon .top-actions { flex-wrap: wrap; }
+  .app-body:has(.assistant-trigger.is-open) .topbar.dataset-ribbon button { white-space: nowrap; }
+  .app-body:has(.assistant-trigger.is-open) .topbar.dataset-ribbon .specimen-fingerprint { display: none; }
+}
+
+/* Keep the docked composer inside its pane at every window height: fixed
+   textarea height, one-line send note, and the disclosure summary compact. */
+.assistant-window .ai-composer textarea { height: 58px; min-height: 58px; }
+.assistant-window .ai-composer .ai-send-note { margin: 2px 0 6px; color: #8c99aa; font-size: 11px; line-height: 1.65; }
+.assistant-window .ai-connection { flex-wrap: nowrap; overflow: hidden; padding-bottom: 0; }
+.is-studio .assistant-window.is-docked:not(.expanded) .ai-composer .ai-connection { padding-bottom: 0; border-bottom: 0; }
+.assistant-window .ai-connection select { min-width: 0; max-width: 190px; }
+
+/* The docked-height textarea is pinned to 92–96px by instrument.css and
+   desk.css with selectors more specific than any rule above, which is why the
+   composer kept overflowing its pane by ~90px. Outrank them: same shape,
+   one extra class. */
+.app-body .assistant-window.is-docked:not(.expanded) .ai-composer.ai-intake textarea,
+.is-studio .assistant-window.is-docked:not(.expanded) .ai-composer.ai-intake textarea {
+  height: 58px;
+  min-height: 58px;
+}
+
+/* Send row stays on one line: the primary button takes whatever is left and
+   the 联网查术语 button keeps its own width. Giving every button `flex: 0 0
+   auto` while the primary is also pinned to `width: 100%` (instrument.css,
+   docked state) made the row 519px wide inside a 405px box, so the lookup
+   button and the keyboard hint were laid out past the window and hidden by
+   its `overflow: hidden` — the button existed in the DOM but not on screen.
+   Below 761px the row wraps again: two 100%-wide buttons cannot share a line
+   on a phone. */
+@media (min-width: 761px) {
+  .assistant-window .ai-actions { flex-wrap: nowrap; }
+  .assistant-window .ai-actions > button { flex: 0 0 auto; white-space: nowrap; }
+  .assistant-window .ai-actions > button.primary { flex: 1 1 auto; min-width: 0; }
+  .is-studio .assistant-window.is-docked:not(.expanded) .ai-actions > button.primary { width: auto; }
+  /* On one line the note only shortens; wrapped (below 761px) it keeps its own
+     row and must stay readable — it also carries "why send is disabled". */
+  .assistant-window .ai-actions > small {
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-left: auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* Phone: the note gets its own row, so the send button and 联网查术语 keep
+   the first one. Sharing a row with the note squeezed the primary button to
+   43px — "与 AI 一起" and nothing else. */
+@media (max-width: 760px) {
+  .assistant-window .ai-actions > button.primary { flex: 1 1 0%; width: auto; }
+  .assistant-window .ai-actions > small { flex: 1 0 100%; margin-left: 0; order: 2; text-align: left; white-space: normal; }
+}
+
+/* The disclosure is a one-line summary, not a 62px block. */
+.assistant-window .ai-composer > details.ai-optional { padding: 6px 0 0; }
+.assistant-window .ai-composer > details.ai-optional > summary { padding: 2px 0; }
+
+/* When the optional send options are opened deliberately, give the composer
+   more of the pane and let the options body scroll inside itself instead of
+   pushing the send button and privacy note out of view. */
+.assistant-window .ai-composer-wrap:has(.ai-optional[open]) { max-height: 82%; }
+.assistant-window .ai-composer > details.ai-optional[open] {
+  max-height: 26vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+.assistant-window .ai-composer > details.ai-optional[open] > summary {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: inherit;
+}
+
+/* ---------- the dock narrows the page, so re-apply the app's own narrow rules ----------
+   The content column behind the dock is 100vw - rail - dock wide: at 1280 that is
+   ~510px, narrower than the app's 980px breakpoint, but the viewport is still
+   1280 so none of those media queries fire. Everything designed for a narrow
+   page (rail stacked above results, single-column review, breadcrumb trimmed,
+   chart/table/insight stacked) has to be switched on by the dock instead. */
+@media (max-width: 1799px) {
+  .app-shell.has-ai-dock .app-header .breadcrumb > span,
+  .app-shell.has-ai-dock .app-header .breadcrumb > svg,
+  .app-shell.has-ai-dock .app-header .breadcrumb > small { display: none; }
+  .app-shell.has-ai-dock .app-header { padding: 0 16px; gap: 12px; }
+  .app-shell.has-ai-dock .breadcrumb { overflow: hidden; }
+  .app-shell.has-ai-dock .breadcrumb > strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .app-shell.has-ai-dock .result-workspace.has-rail { display: block; }
+  .app-shell.has-ai-dock .result-navigation {
+    position: static;
+    flex-direction: row;
+    margin-bottom: 14px;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+  .app-shell.has-ai-dock .result-navigation button {
+    grid-template-columns: 20px minmax(0, 1fr);
+    min-height: 40px;
+    flex: 0 0 auto;
+    max-width: 260px;
+    padding: 8px 10px;
+    white-space: nowrap;
+  }
+
+  .app-shell.has-ai-dock .bundle-heading { flex-direction: column; gap: 12px; }
+  .app-shell.has-ai-dock .bundle-heading-actions { justify-content: flex-start; flex-wrap: wrap; }
+  .app-shell.has-ai-dock .result-chart-table { display: block; }
+  .app-shell.has-ai-dock .result-detail { position: static; padding: 14px 0 0; border-left: 0; border-top: 1px solid var(--app-rule); }
+  .app-shell.has-ai-dock .result-insights { grid-template-columns: minmax(0, 1fr); }
+  .app-shell.has-ai-dock .insight-section,
+  .app-shell.has-ai-dock .insight-section.is-meaning,
+  .app-shell.has-ai-dock .insight-section.is-limit { grid-template-columns: minmax(0, 1fr); gap: 5px; }
+  .app-shell.has-ai-dock .insight-brief { padding: 16px 14px; }
+
+  .app-shell.has-ai-dock .review-intro { grid-template-columns: minmax(0, 1fr); flex-wrap: wrap; }
+  .app-shell.has-ai-dock .review-intro-actions { justify-content: flex-start; }
+  .app-shell.has-ai-dock .checkup-verdict { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .app-shell.has-ai-dock .question-grid { grid-template-columns: minmax(0, 1fr); }
+  .app-shell.has-ai-dock .page-heading { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .app-shell.has-ai-dock .heading-actions { flex-wrap: wrap; }
+  .app-shell.has-ai-dock .review-fields > div { grid-template-columns: minmax(0, 1fr); }
+
+  /* 数据处理 / 对比诊断 data panels: four stat cards and a sticky control
+     column do not fit 510px. */
+  .app-shell.has-ai-dock .quality-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .app-shell.has-ai-dock .quality-overview article { padding: 14px; }
+  .app-shell.has-ai-dock .quality-overview strong { overflow-wrap: anywhere; font-size: 24px; }
+  .app-shell.has-ai-dock .preparation-grid { grid-template-columns: minmax(0, 1fr); }
+  .app-shell.has-ai-dock .field-statistics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .app-shell.has-ai-dock .explore-layout { grid-template-columns: minmax(0, 1fr); }
+  .app-shell.has-ai-dock .explore-controls { position: static; }
+  .app-shell.has-ai-dock .core-heading { flex-wrap: wrap; gap: 14px; }
+  .app-shell.has-ai-dock .core-heading h2 { font-size: 22px; }
+}
+
+/* A closed <details> must not lay out or paint its body. In this build the
+   result-table details stayed in flow while closed: its 416px table was laid
+   out 57px below the summary and painted underneath the next result card,
+   which is what made the results area look like it was overlapping itself.
+   This restores the browser default explicitly. */
+/* `.ai-workbench .ai-check { display: flex }` outranks the bare selector, so
+   the closed 发送说明 drawer still laid out one checkbox row below the
+   composer — a stray strip at the panel's bottom edge. The prefixed copies
+   exist only to win that tie-break. */
+details:not([open]) > *:not(summary),
+.assistant-window .ai-workbench details:not([open]) > *:not(summary),
+.assistant-window .ai-composer details:not([open]) > *:not(summary) { display: none; }
+
+/* Expanded window at 720px: the 46% cap came up 43px short of the composer. */
+@media (min-width: 1080px) {
+  .assistant-window.expanded .ai-composer-wrap { max-height: 60%; }
+}

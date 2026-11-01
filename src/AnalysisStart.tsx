@@ -3,6 +3,7 @@ import { AlertCircle, ArrowRight, ArrowUpRight, Clock3, Hash, LoaderCircle, Shie
 import { formatNumber } from './data'
 import type { Dataset } from './data'
 import type { Checkup, CheckupQuestion } from './checkup'
+import { useLabels } from './labels'
 
 type Profile = { key: string; kind: string; missing: number; nonempty: number }
 type Props = {
@@ -34,12 +35,28 @@ const KIND_LABELS: Record<CheckupQuestion['kind'], string> = {
 }
 
 export default function AnalysisStart({ dataset, profiles, checkup, error, computing, runningQuestion, questionError, onPrepare, onExplore, onManual, onData, onField, onRoles, onRunQuestion, onRunExploreQuestion, onAsk }: Props) {
+  const labels = useLabels()
   const headers = dataset.headers.slice(0, 6)
   const missing = profiles.reduce((total, profile) => total + profile.missing, 0)
 
-  const fields = checkup?.all ?? profiles.map(profile => ({ key: profile.key, roleLabel: profile.kind, missing: profile.missing, overridden: false, autoRoleLabel: undefined }))
+  const fields = checkup?.all ?? profiles.map(profile => ({ key: profile.key, roleLabel: profile.kind, missing: profile.missing, overridden: false, autoRoleLabel: undefined, role: undefined, unique: 0, nonempty: profile.nonempty }))
+  // The quick view used to list the first ten columns in file order, which on
+  // the OWID sheet is five indistinguishable "biofuel_…" measures. Show what
+  // the sheet can actually do instead: the time field, up to four grouping
+  // dimensions, then the most complete measures.
+  // Dimensions rank by completeness first — a 26%-missing code column is a worse
+  // place to start than the country column, even though it has fewer distinct
+  // values. Cardinality only breaks ties.
+  const isDimension = (field: typeof fields[number]) => field.role === 'binary' || field.role === 'category' || field.role === 'text'
+  const quickFields = [
+    ...fields.filter(field => field.role === 'time'),
+    ...[...fields].filter(isDimension).sort((a, b) => ((b.nonempty ?? 0) - (a.nonempty ?? 0)) || ((a.unique ?? 0) - (b.unique ?? 0))).slice(0, 4),
+    ...fields.filter(field => field.role === 'measure').sort((a, b) => (b.nonempty ?? 0) - (a.nonempty ?? 0)),
+    ...fields.filter(field => field.role !== 'time' && field.role !== 'measure' && !isDimension(field)),
+  ].slice(0, 10)
   const timeRange = checkup?.timeField?.time ? `${checkup.timeField.time.min}–${checkup.timeField.time.max}` : ''
   const questionCount = checkup?.questions.length ?? 0
+  const groupable = checkup ? checkup.categories.length + checkup.highCardinality.length : 0
 
   const facts = <div className="review-facts">
     <span><strong>{dataset.rows.length.toLocaleString()}</strong> 条原始记录</span>
@@ -127,26 +144,27 @@ export default function AnalysisStart({ dataset, profiles, checkup, error, compu
           {facts}
           <div className="checkup-role-counts">
             <span><strong>{checkup.measures.length}</strong> 数值指标</span>
-            <span><strong>{checkup.categories.length}</strong> 分类维度</span>
+            <span><strong>{groupable}</strong> 可分组维度</span>
             <span><strong>{checkup.binaries.length}</strong> 二值结果</span>
             <span><strong>{checkup.timeField ? 1 : 0}</strong> 时间字段</span>
           </div>
         </section> : facts}
 
         <div className="review-fields">
-          <p>字段速览 <span>角色是候选；点击核对含义和质量</span>
+          <p className="review-fields-head"><strong>字段速览</strong>
             {checkup && <button className="text-button" onClick={onRoles}><Settings2 size={14} />类型不对？纠正</button>}
           </p>
-          <div>{fields.slice(0, 10).map(field => <button key={field.key} onClick={() => onField(field.key)} title={field.key + ' · ' + field.roleLabel + (field.overridden ? '（手动纠正，自动判断为 ' + field.autoRoleLabel + '）' : '') + (field.missing ? ' · 空值 ' + field.missing : '')}>
-            <span>{field.key}</span><small>{field.roleLabel}</small>{field.overridden && <em>已纠正</em>}{field.missing > 0 && <i />}
-          </button>)}{fields.length > 10 && <button className="remaining-fields" onClick={() => onField('')}>其余 {fields.length - 10} 个字段<ArrowUpRight size={13} /></button>}</div>
+          <p className="review-fields-hint">角色是候选；点击核对含义和质量</p>
+          <div>{quickFields.map(field => <button key={field.key} onClick={() => onField(field.key)} title={labels.field(field.key) + ' · 原始列名 ' + field.key + ' · ' + field.roleLabel + (field.overridden ? '（手动纠正，自动判断为 ' + field.autoRoleLabel + '）' : '') + (field.missing ? ' · 空值 ' + field.missing : '')}>
+            <span>{labels.field(field.key)}</span><small>{field.roleLabel}</small>{field.overridden && <em>已纠正</em>}{field.missing > 0 && <i />}
+          </button>)}{fields.length > quickFields.length && <button className="remaining-fields" onClick={() => onField('')}>其余 {fields.length - quickFields.length} 个字段<ArrowUpRight size={13} /></button>}</div>
           {checkup && <p className="review-fields-note"><Clock3 size={13} />时间字段按真实取值验证，不只凭列名；单位仍需要你确认。</p>}
         </div>
       </aside>
 
       <section className="canvas-data-preview" aria-label="原始数据快速预览">
         <header><span><Table2 size={16} />原始记录</span><small>前 {Math.min(dataset.rows.length, 5)} 行 · 前 {headers.length} 列</small><button className="text-button" onClick={onData}>查看全部<ArrowUpRight size={13} /></button></header>
-        <div className="canvas-preview-scroll"><table><thead><tr><th>记录号</th>{headers.map(header => <th key={header} title={header}>{header}</th>)}</tr></thead><tbody>{dataset.rows.slice(0, 5).map((row, index) => <tr key={index}><td>{dataset.sourceRecords?.[index] ?? index + 2}</td>{headers.map(header => <td key={header} title={String(row[header] ?? '')}>{String(row[header] ?? '—')}</td>)}</tr>)}</tbody></table></div>
+        <div className="canvas-preview-scroll"><table><thead><tr><th>记录号</th>{headers.map(header => <th key={header} title={labels.field(header) + ' · 原始列名 ' + header}>{labels.field(header)}</th>)}</tr></thead><tbody>{dataset.rows.slice(0, 5).map((row, index) => <tr key={index}><td>{dataset.sourceRecords?.[index] ?? index + 2}</td>{headers.map(header => <td key={header} title={String(row[header] ?? '')}>{row[header] ? labels.value(header, row[header]) : '—'}</td>)}</tr>)}</tbody></table></div>
       </section>
     </div>
   </div>

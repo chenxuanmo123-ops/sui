@@ -45,6 +45,25 @@ export const reviewSchema = object({
   })),
   limitations: { ...list(text(600)), minItems: 1 }, nextQuestions: list(text(500), 5),
 });
+// Model answers routinely carry harmless envelope keys ("confidence", a stray
+// "sql") or an explicit null for a block they chose not to fill. Those keys are
+// never read by the executor, so conform them away before the strict check
+// instead of rejecting an otherwise usable answer. Values, enums, lengths and
+// required fields are untouched, and real columns are still checked by the
+// caller against the dataset.
+export function conform(value, schema) {
+  if (!value || typeof value !== 'object') return value;
+  if (schema.type === 'array') return value.filter(item => item !== null && item !== undefined).map(item => conform(item, schema.items));
+  if (schema.type !== 'object') return value;
+  const out = {};
+  for (const [name, item] of Object.entries(value)) {
+    const child = schema.properties[name];
+    if (!child) continue;
+    if ((item === null || item === undefined) && child.optional) continue;
+    out[name] = conform(item, child);
+  }
+  return out;
+}
 export function validate(value, schema, path = 'output') {
   if (schema.type === 'object') {
     if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(path + ' 必须是对象');

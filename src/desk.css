@@ -202,7 +202,7 @@ button, input, select, textarea { font-family: inherit; }
   box-shadow: inset 3px 0 0 var(--desk-marker);
   font-weight: 650;
 }
-.result-navigation button span {
+.result-navigation button .result-nav-index {
   width: 21px;
   height: 19px;
   color: var(--desk-faint);
@@ -211,7 +211,7 @@ button, input, select, textarea { font-family: inherit; }
   font-family: var(--desk-mono);
   font-size: 10px;
 }
-.result-navigation button.active span { color: var(--desk-ink); background: var(--desk-marker); }
+.result-navigation button.active .result-nav-index { color: var(--desk-ink); background: var(--desk-marker); }
 .bundle-grid { min-width: 0; }
 .bundle-result {
   padding: 22px 24px 24px;

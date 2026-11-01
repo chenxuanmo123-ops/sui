@@ -173,7 +173,19 @@ export default function App() {
   const request = useRef(0)
   const abort = useRef<AbortController | null>(null)
   const profiles = useMemo(() => dataset ? profileDataset(dataset) : [], [dataset])
-  const { checkup, error: checkupError } = useCheckup(dataset, fieldRoles)
+  // Display-only names: the dataset keeps its upstream keys, so SQL, snapshots
+  // and exports still refer to the pinned file while the reader sees Chinese.
+  // The pinned snapshot can also arrive as a manual import (the built-in
+  // download sometimes fails on a slow network), so identify it by its column
+  // signature instead of only by how it was loaded.
+  // Defined before the checkup: the checkup writes reader-facing sentences
+  // ("按年份看人均一次能源消费量怎么变化") and must follow the same toggle.
+  const owidLike = useMemo(() => Boolean(dataset && (dataset.isPublic || isOwidHeaders(dataset.headers))), [dataset])
+  const labels = useMemo<Labels>(() => {
+    if (!dataset || !owidLike || !zhNames) return identityLabels
+    return publicLabels(countryLabels(dataset.rows))
+  }, [dataset, owidLike, zhNames])
+  const { checkup, error: checkupError } = useCheckup(dataset, fieldRoles, labels.field)
   // Only roles the checkup actually accepted and the user explicitly corrected
   // are sent as confirmed metadata; automatic guesses stay type candidates.
   const confirmedRoles = useMemo(() => Object.fromEntries((checkup?.all ?? []).filter(field => field.overridden).map(field => [field.key, field.role])), [checkup])
@@ -185,17 +197,7 @@ export default function App() {
   const filterValues = useMemo(() => dataset && mapping.filter ? [...new Set(dataset.rows.map(r => r[mapping.filter]).filter((v): v is string => v !== null))].sort((a, b) => a.localeCompare(b, 'zh-CN')).slice(0, 5000) : [], [dataset, mapping.filter])
   const resultRows = useMemo(() => active ? sortResultRows(queryResultRows(active.points, resultQuery), resultSort) : [], [active, resultQuery, resultSort])
   const scopedRowIds = active?.points.find(p => p.label === selectedPoint)?.rowIds ?? active?.points.flatMap(p => p.rowIds) ?? []
-  // Display-only names: the dataset keeps its upstream keys, so SQL, snapshots
-  // and exports still refer to the pinned file while the reader sees Chinese.
-  // The pinned snapshot can also arrive as a manual import (the built-in
-  // download sometimes fails on a slow network), so identify it by its column
-  // signature instead of only by how it was loaded.
-  const owidLike = useMemo(() => Boolean(dataset && (dataset.isPublic || isOwidHeaders(dataset.headers))), [dataset])
-  const labels = useMemo<Labels>(() => {
-    if (!dataset || !owidLike || !zhNames) return identityLabels
-    return publicLabels(countryLabels(dataset.rows))
-  }, [dataset, owidLike, zhNames])
-  const displayMetric = active ? (active.ai ? active.ai.taskTitle : owidLike ? labels.field(active.mapping.metric) : active.mapping.rate ? '按「'+active.mapping.x+'」分组的 '+active.mapping.metric+' = '+active.mapping.rate.successValue+' 比例' : active.mapping.aggregate==='count' ? '按「'+active.mapping.x+'」分组的记录数' : '「'+active.mapping.metric+'」按「'+active.mapping.x+'」'+aggregateNames[active.mapping.aggregate]) : '等待生成分析结果'
+  const displayMetric =active ? (active.ai ? active.ai.taskTitle : owidLike ? labels.field(active.mapping.metric) : active.mapping.rate ? '按「'+active.mapping.x+'」分组的 '+active.mapping.metric+' = '+active.mapping.rate.successValue+' 比例' : active.mapping.aggregate==='count' ? '按「'+active.mapping.x+'」分组的记录数' : '「'+active.mapping.metric+'」按「'+active.mapping.x+'」'+aggregateNames[active.mapping.aggregate]) : '等待生成分析结果'
   const pending = Boolean(active && JSON.stringify(active.mapping) !== JSON.stringify(mapping))
 
   useEffect(() => {
@@ -473,7 +475,7 @@ export default function App() {
     finally { computeLock.current = false; setComputing(false); setRunningQuestion(null) }
   }
   function askFromCheckup(question: string) {
-    setAssistantSeed({ question, context: '来自数据体检。字段角色与问题由本地规则判断；业务含义、单位与统计范围仍需你确认。', nonce: Date.now() })
+    setAssistantSeed({ question, context: '来自数据体检。字段角色与问题由本地规则判断；业务含义、单位与统计范围仍需你确认。', nonce: Date.now(), auto: true })
     setAssistantOpen(true)
   }
   function receiveBundle(next: AnalysisBundle) {
@@ -517,7 +519,7 @@ export default function App() {
     if(!dataset)return
     try {
       const scope=createFollowUpScope(dataset,result,label)
-      setAssistantSeed({question:'请在选定分组内，进一步比较其他合适维度的表现，并说明数据能支持的观察与限制。',context:'原问题：'+(bundle?.response.plan.goal||result.question).slice(0,800)+'\n已确认的来源口径：'+JSON.stringify(result.mapping).slice(0,1500)+'\n原分析假设：'+JSON.stringify(bundle?.response.plan.assumptions||[]).slice(0,900),scope,nonce:Date.now()})
+      setAssistantSeed({question:'请在选定分组内，进一步比较其他合适维度的表现，并说明数据能支持的观察与限制。',context:'原问题：'+(bundle?.response.plan.goal||result.question).slice(0,800)+'\n已确认的来源口径：'+JSON.stringify(result.mapping).slice(0,1500)+'\n原分析假设：'+JSON.stringify(bundle?.response.plan.assumptions||[]).slice(0,900),scope,nonce:Date.now(),auto:true})
       setAssistantOpen(true)
     }catch(error){setError(error instanceof Error?error.message:'无法创建追问')}
   }
@@ -670,7 +672,11 @@ export default function App() {
     { id: 'clear', group: '本机', label: '清除本机工作区', hint: '删除此浏览器保存的数据与结果', icon: <Trash2 size={16} />, run: () => setShowClear(true), disabled: !dataset, disabledReason: '本机没有已载入的工作区' },
   ]
   if(!workspaceReady)return <main className="workspace-restoring" aria-busy="true"><LoaderCircle className="spin" size={28}/><h1>正在恢复本机工作区</h1><p>检查已保存的数据、分析结果与来源关联…</p></main>
-  return <LabelContext.Provider value={labels}><div className={"app-shell"+(studio?" is-studio":"")+(studio&&assistantOpen?" has-ai-dock":"")}>
+  // has-ai-dock used to be gated on studio, so leaving the workbench (探索分析,
+  // SQL 查询…) dropped the reserved column while the window still rendered
+  // docked — it then sat on top of the page instead of beside it. The dock
+  // reserves space wherever the assistant is open.
+  return <LabelContext.Provider value={labels}><div className={"app-shell"+(studio?" is-studio":"")+(assistantOpen?" has-ai-dock":"")}>
     <a className="skip-link" href="#main">跳转到分析内容</a>
     <input ref={uploadRef} id="file-upload" className="sr-only" aria-label="导入 CSV、Excel 或 PDF 文件" type="file" accept=".csv,.xlsx,.xls,.pdf" onChange={e => void handleFile(e)} />
     <aside className="app-rail" aria-label="应用导航">
@@ -733,8 +739,8 @@ export default function App() {
         {dataset && view !== 'source' && view !== 'workspace' && <SourceSummary dataset={dataset} onOpen={() => setView('source')} />}
         {(view === 'prepare' || view === 'explore' || view === 'compare') && !dataset && <EmptyStage view={view} onImport={() => pickFile()} onPublic={() => void loadPublicDataset()} onSample={() => loadSampleDataset()} onWorkspace={() => setView('workspace')} loading={loading} />}
         {view === 'prepare' && dataset && <PreparationView key={dataset.fingerprint} dataset={dataset} canUndo={preparationHistory.length > 0} onCommit={next => { const previous = dataset; const past = preparationHistory; installDataset(next); setPreparationHistory([...past, previous]); setView('prepare'); setNotice('处理已应用，旧分析已清空，可撤销本次处理。') }} onUndo={() => { const past = preparationHistory; const previous = past.at(-1); if (previous) { installDataset(previous); setPreparationHistory(past.slice(0,-1)); setView('prepare'); setNotice('已恢复上一份数据快照，分析需重新执行。') } }} onExplore={() => setView('explore')} />}
-        {view === 'compare' && dataset && <CompareView key={dataset.fingerprint} session={compareSession} onSessionChange={setCompareSession} dataset={dataset} onAsk={(question, context) => { setAssistantSeed({question,context,nonce:Date.now()}); setAssistantOpen(true) }} />}
-        {view === 'explore' && dataset && <ExploreView key={dataset.fingerprint} session={exploreSession} onSessionChange={setExploreSession} dataset={dataset} onAsk={(question, context) => { setAssistantSeed({question,context,nonce:Date.now()}); setAssistantOpen(true) }} />}
+        {view === 'compare' && dataset && <CompareView key={dataset.fingerprint} session={compareSession} onSessionChange={setCompareSession} dataset={dataset} onAsk={(question, context) => { setAssistantSeed({question,context,nonce:Date.now(),auto:true}); setAssistantOpen(true) }} />}
+        {view === 'explore' && dataset && <ExploreView key={dataset.fingerprint} session={exploreSession} onSessionChange={setExploreSession} dataset={dataset} onAsk={(question, context) => { setAssistantSeed({question,context,nonce:Date.now(),auto:true}); setAssistantOpen(true) }} />}
         {view === 'query' && dataset && <SqlConsole key={dataset.fingerprint} dataset={dataset} table={consoleTable} onTable={setConsoleTable} onImport={() => pickFile()} onPublic={() => void loadPublicDataset()} />}
         {view === 'query' && !dataset && <EmptyStage view="query" onImport={() => pickFile()} onPublic={() => void loadPublicDataset()} onSample={() => loadSampleDataset()} onWorkspace={() => setView('workspace')} loading={loading} />}
 
@@ -753,7 +759,7 @@ export default function App() {
           {dataset && bundle && <AnalysisResults key={bundle.id||bundle.response.generatedAt} bundle={bundle} dataset={dataset} overrides={fieldRoles} onEvidence={openAiEvidence} onFollowUp={askSelected} onParent={showParent} onBackToCheckup={backToCheckup} onRoles={()=>setRolesOpen(true)} onUnit={declareUnit}/>}
           {!bundle && !!dataset && <div className="studio-layout" hidden={!active && !inspectorOpen}><div className="canvas-column">
               <details className="dataset-orientation" hidden={!!active} open={bundle ? inspectorOpen : undefined}><summary><Database size={17}/><span>AI 数据定位与授权</span><small>理解字段 · 确认分析边界</small><ChevronRight size={16}/></summary>
-            <InitialAnalysis allowAutomatic={allowAutoInspection} dataset={dataset} profile={models.defaultProfile} confirmedRoles={confirmedRoles} loading={loading} onConfigure={() => setShowModels(true)} onQuestion={(question, context) => { setAssistantSeed({ question, context, nonce: Date.now() }); setAssistantOpen(true); }} />
+            <InitialAnalysis allowAutomatic={allowAutoInspection} dataset={dataset} profile={models.defaultProfile} confirmedRoles={confirmedRoles} loading={loading} onConfigure={() => setShowModels(true)} onQuestion={(question, context) => { setAssistantSeed({ question, context, nonce: Date.now(), auto: true }); setAssistantOpen(true); }} />
               </details>
               <div hidden={(!active && !inspectorOpen) || (!!bundle && !inspectorOpen)}>
             <div className="canvas-title" hidden={!!active}><span><BarChart3 size={17} />分析画布</span><span className="canvas-state">{dataset ? '数据已就绪 · 等待分析' : '等待导入数据'}</span></div>
@@ -799,7 +805,7 @@ export default function App() {
         {view === 'branches' && <section className="panel branch-panel"><div className="section-heading"><h2>已保存的计算分支</h2><span className="tag">{history.length} 个</span></div>{history.length ? <div className="branch-list">{[...history].reverse().map(item => <article key={item.id} className={'branch-row' + (activeId === item.id ? ' current' : '')}><button className="branch-main" onClick={() => restore(item)}><span className="branch-number">#{item.id}</span><div><strong>{item.question}</strong><p>{labels.field(item.mapping.metric)} · {item.mapping.from || '不限'} → {item.mapping.to || '不限'} · {item.points.length} 个分组</p><small>{new Date(item.createdAt).toLocaleString('zh-CN')} · {item.usedRows} 条有效来源</small></div><ArrowUpRight size={18} /></button><div className="branch-actions"><button className="text-button" onClick={() => openRenameBranch(item)} aria-label={'重命名分析分支 #' + item.id}><Pencil size={14} />重命名</button><button className="text-button danger" onClick={() => openDeleteBranch(item)} aria-label={'删除分析分支 #' + item.id}><Trash2 size={14} />删除</button></div></article>)}</div> : <EmptyStage view="branches" compact hasData={!!dataset} onImport={() => pickFile()} onPublic={() => void loadPublicDataset()} onSample={() => loadSampleDataset()} onWorkspace={() => setView('workspace')} loading={loading} />}<p className="table-note">当前工作区会保存到此浏览器，显示“已保存到本机”后刷新可恢复。重命名只改变分支名称；删除会同时移除该分支的追问结果和包含它们的 AI 分析，不可撤销。更换数据集会替换当前工作区；请先导出需要保留的报告。</p></section>}
         {view === 'source' && !dataset && <EmptyStage view="source" onImport={() => pickFile()} onPublic={() => void loadPublicDataset()} onSample={() => loadSampleDataset()} onWorkspace={() => setView('workspace')} loading={loading} />}
         {view === 'source' && dataset && <section className="panel provenance-panel"><div className="section-heading"><h2>来源与数据快照</h2><span className="tag">{dataset ? (sourceInfo(dataset).status.includes('已核验公开') ? '公开文件匹配' : dataset.sourceNotes ? '上传者备注' : dataset.isPublic ? '公开来源' : '上传文件') : '未载入'}</span></div>{dataset ? <><SourceDetails dataset={dataset}/><SourceEditor key={dataset.fingerprint} dataset={dataset} onSave={sourceNotes => { const next = {...dataset, sourceNotes}; datasetRef.current = next; setDataset(next); setPreparationHistory(past => past.map(d => ({...d, sourceNotes}))); setNotice('出处备注已更新，分析结果与数据快照保持绑定。') }}/><p className="source-handling">文件在浏览器内读取与计算；PDF 视觉识别需另外授权发送当前页图像。AI 的字段摘要、样本与类别字典按独立授权发送。来源备注不会自动发送给模型；数据与备注自动保存于此浏览器，可通过“清除本机工作区”删除。</p>{dataset.origin && <section className="import-origin"><h3>文件解析与核对记录</h3><p>{dataset.origin.format} · {dataset.origin.method} · 表头原行 {dataset.origin.headerRow}</p><code>原文件 SHA-256: {dataset.origin.fileHash}</code><ul>{dataset.origin.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>{dataset.origin.pageImage && <button className="secondary" onClick={() => setShowPage(true)}>查看 PDF 原始页</button>}</section>}<div className="source-limit"><AlertCircle size={18} /><p>类型扫描只提供候选，不保证识别财务口径、统计范围或单位。数值字段可能是编号，汇总前需要人工确认；Excel 可选择工作表与表头；PDF 文字与视觉提取均需核对。暂不支持跨表联结与因果推断。</p></div>{owidLike && <button className="secondary" onClick={exportPublicCSV}><ArrowDownToLine size={16} />导出中文列名 CSV</button>}<button className="secondary" onClick={() => { setDataTab('fields'); setWorkspaceSection('data'); setView('workspace') }}><Table2 size={16} />检查字段质量</button></> : <div className="small-empty">尚未载入数据，可导入 CSV、Excel、PDF 或重试公开来源。</div>}</section>}
-        {studio && workspaceSection==='analysis' && <form className="investigation-composer" aria-label="分析问题" onSubmit={e=>{e.preventDefault();setAssistantSeed({question:analysisDraft.trim(),context:'',nonce:Date.now()});setAssistantOpen(true)}}><div className="composer-label"><button type="button" className="icon-button composer-open" aria-label={assistantOpen?'收起 AI 分析助手':'打开 AI 分析助手'} onClick={()=>setAssistantOpen(!assistantOpen)}><MessageSquareText size={18}/></button><label htmlFor="analysis-draft">{bundle||active?'沿着发现，继续追问':'从这份数据中，你想了解什么？'}</label><span>{models.ready ? '理解 → 确认口径 → 真实计算' : '未配置模型 · 本地手动计算仍可用'}</span></div><div className="composer-entry"><textarea id="analysis-draft" value={analysisDraft} onChange={e=>setAnalysisDraft(e.target.value)} maxLength={4000} rows={1} placeholder={bundle||active?'提出新问题，或点选图表分组限定追问范围…':'输入分析问题；也可以留空，让 AI 先帮你理解数据…'}/><button className="primary" type="submit">与 AI 一起分析<ArrowUpRight size={17}/></button></div></form>}
+        {studio && workspaceSection==='analysis' && <form className="investigation-composer" aria-label="分析问题" onSubmit={e=>{e.preventDefault();setAssistantSeed({question:analysisDraft.trim(),context:'',nonce:Date.now(),auto:true});setAssistantOpen(true)}}><div className="composer-label"><button type="button" className="icon-button composer-open" aria-label={assistantOpen?'收起 AI 分析助手':'打开 AI 分析助手'} onClick={()=>setAssistantOpen(!assistantOpen)}><MessageSquareText size={18}/></button><label htmlFor="analysis-draft">{bundle||active?'沿着发现，继续追问':'从这份数据中，你想了解什么？'}</label><span>{models.ready ? '理解 → 确认口径 → 真实计算' : '未配置模型 · 本地手动计算仍可用'}</span></div><div className="composer-entry"><textarea id="analysis-draft" value={analysisDraft} onChange={e=>setAnalysisDraft(e.target.value)} maxLength={4000} rows={1} placeholder={bundle||active?'提出新问题，或点选图表分组限定追问范围…':'输入分析问题；也可以留空，让 AI 先帮你理解数据…'}/><button className="primary" type="submit">与 AI 一起分析<ArrowUpRight size={17}/></button></div></form>}
         <footer><span>数鉴 · 本地工作台 0.7</span><span>真实数据 · 明确口径 · 可回查证据</span></footer>
       </div>
     </main>

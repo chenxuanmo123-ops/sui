@@ -27,6 +27,29 @@ test('计划约束：字段真实、任务唯一、拒绝额外属性', () => {
   const duplicateBinding = clone(plan); duplicateBinding.hypotheses = [{ id: 'h1', statement: '重复绑定不应产生两个结果', testTaskIds: ['annual', 'annual'] }]; assert.throws(() => checkPlan(duplicateBinding,dataset), /候选假设/);
   const blankHypothesis = clone(plan); blankHypothesis.hypotheses = [{ id: 'annual', statement: ' ', testTaskIds: ['annual'] }]; assert.throws(() => checkPlan(blankHypothesis,dataset), /候选假设/);
 });
+test('模型写中文标签、大小写或带单位时确定性映射回真实列，无法映射的任务单独跳过', () => {
+  const labelled = { ...dataset, columns: [
+    { field: 'year', label: '年份', numeric: 3 },
+    { field: 'oil_production', label: '石油产量（TWh）', numeric: 3 },
+    { field: 'country', label: '国家/地区', numeric: 0 },
+  ] };
+  const aliased = clone(plan);
+  aliased.tasks[0].mapping = { ...mapping, x: '年份', metric: '石油产量（TWh）', filter: '国家/地区', value: 'China' };
+  const checked = checkPlan(aliased, labelled, { strictFields: false });
+  assert.equal(checked.tasks[0].mapping.x, 'year');
+  assert.equal(checked.tasks[0].mapping.metric, 'oil_production');
+  assert.equal(checked.tasks[0].mapping.filter, 'country');
+  const spaced = clone(plan);
+  spaced.tasks[0].mapping.metric = 'OIL PRODUCTION';
+  assert.equal(checkPlan(spaced, labelled, { strictFields: false }).tasks[0].mapping.metric, 'oil_production');
+  const mixed = clone(plan);
+  mixed.tasks[0].mapping = { ...mapping, x: 'year', metric: 'oil_production', filter: 'country' };
+  mixed.tasks.push({ ...clone(mixed.tasks[0]), id: 'bogus', mapping: { ...mixed.tasks[0].mapping, metric: '利润' } });
+  const partial = checkPlan(mixed, labelled, { strictFields: false });
+  assert.deepEqual(partial.tasks.map(task => task.id), ['annual']);
+  assert.match(partial.questions.join(' '), /利润/);
+});
+
 test('散点任务只接受两个真实数值字段，不能混用聚合 mapping', () => {
   const scatter = clone(plan);
   scatter.tasks = [{ id: 'relation', title: '两个数值字段是否线性同步', rationale: '只描述线性同步程度，不是因果', chart: 'scatter', scatter: { x: 'year', y: 'value', filter: '', value: '' } }];
@@ -106,7 +129,11 @@ test('兼容接口契约与证据拒绝规则（本地测试替身，不是实�
     response=await post('plan',{...input,context:''}); assert.equal(response.status,200); assert.match(JSON.parse(requestBody.messages[1].content).context,/未补充/);
     const withoutContext={...input}; delete withoutContext.context; response=await post('plan',withoutContext); assert.equal(response.status,200);
     answer='not JSON'; response=await post('plan',input); assert.equal(response.status,400);
-    answer=clone(plan); answer.tasks[0].mapping.metric='invented'; response=await post('plan',input); assert.equal(response.status,400);
+    // An invented field no longer kills the whole turn: the task is dropped and
+    // the plan comes back with an explicit, actionable question. No SQL runs
+    // against the unknown name.
+    answer=clone(plan); answer.tasks[0].mapping.metric='invented'; response=await post('plan',input); assert.equal(response.status,200);
+    const clarified=await response.json(); assert.equal(clarified.plan.tasks.length,0); assert.match(clarified.plan.questions.join(' '),/invented/);
     upstreamCode=401; response=await post('plan',input); assert.equal(response.status,400); assert.ok(!(await response.text()).includes('TEST_ONLY_SECRET')); upstreamCode=200;
     response=await post('plan',input,{Origin:'https://other.example'}); assert.equal(response.status,403);
     const reviewInput={question:'比较结果',context:'已确认口径',plan,facts:[{id:'annual:fact0',text:'程序计算的证据'}]};
@@ -252,7 +279,8 @@ test('输出格式异常自动重新生成一次，字段校验失败与HTTP故�
     calls = []; responses = []; let response = await post(); assert.equal(response.status, 400);
     const message = (await response.json()).error; assert.equal(calls.length, 2); assert.match(message, /自动重试一次/); assert.ok(!message.includes('TEST_ONLY_SECRET')); assert.ok(!message.includes('JSON'));
     calls = []; const bad = clone(plan); bad.tasks[0].mapping.metric = 'imaginary'; responses = [{ content: JSON.stringify(bad) }];
-    response = await post(); assert.equal(response.status, 400); assert.equal(calls.length, 1);
+    response = await post(); assert.equal(response.status, 200); assert.equal(calls.length, 1);
+    assert.equal((await response.json()).plan.tasks.length, 0);
     calls = []; responses = [{ content: '{"goal":', finish: 'length' }];
     response = await post(); assert.equal(response.status, 400); assert.equal(calls.length, 1); assert.match((await response.json()).error, /截断/);
     calls = []; upstreamCode = 401;

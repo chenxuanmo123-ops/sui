@@ -755,7 +755,12 @@
 }
 .review-fields > p:first-child > span { color: var(--obs-faint); font-size: 10.5px; font-weight: 400; }
 .review-fields > p:first-child .text-button { margin-left: auto; font-size: 10.5px; }
-.review-fields > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
+.review-fields-head { margin-bottom: 3px !important; }
+.review-fields-hint { display: block; margin: 0 0 11px; color: var(--obs-faint); font-size: 10.5px; font-weight: 400; line-height: 1.55; }
+/* One column: a Chinese name such as 人均其他可再生能源发电量（不含生物质） does not fit
+   half of this rail, and the ellipsis made four different biofuel columns render
+   as the same "biofuel_con…". Names wrap instead of being cut. */
+.review-fields > div { display: grid; grid-template-columns: minmax(0, 1fr); gap: 5px; }
 .review-fields button {
   display: flex;
   align-items: center;
@@ -770,7 +775,7 @@
   font-size: 11px;
 }
 .review-fields button:hover:not(:disabled) { background: rgba(110, 168, 255, .08); border-color: rgba(110, 168, 255, .3); }
-.review-fields button > span { overflow: hidden; min-width: 0; text-overflow: ellipsis; white-space: nowrap; }
+.review-fields button > span { min-width: 0; overflow-wrap: anywhere; line-height: 1.4; }
 .review-fields button > small { flex: 0 0 auto; color: var(--obs-faint); font-size: 9.5px; }
 .review-fields button > em { flex: 0 0 auto; color: var(--obs-warn); font-size: 8px; font-style: normal; }
 .review-fields button > i { flex: 0 0 4px; width: 4px; height: 4px; margin-left: auto; background: var(--obs-warn); border-radius: 50%; }
@@ -1069,3 +1074,254 @@
   .result-stage-main .insight-headline h3 { font-size: 20px; max-width: none; }
   .result-stage.has-result .chart-panel { padding: 18px 16px 16px; }
 }
+
+/* ---------- native controls & portal dialogs ----------
+   Two surfaces escaped this layer and kept the old light-paper styling:
+   unchecked checkboxes/radios drawn by the browser, and the two dialogs that
+   render through a portal instead of <dialog> (field roles, alternate cut).
+   Both showed up as isolated bright blocks inside a dark window — and the
+   portal dialogs were worse than off-palette: observation.css colours body
+   text light, so field names sat near-white on a #fdfefb panel. */
+
+/* Native widgets belong to the dark theme: unchecked boxes, scrollbars,
+   select popups and date pickers all follow this. */
+html:root { color-scheme: dark; }
+
+.cut-dialog-backdrop { background: rgba(5, 8, 12, .66); backdrop-filter: blur(6px); }
+.cut-dialog {
+  color: var(--obs-text);
+  background: var(--obs-surface);
+  border: 1px solid var(--obs-line-strong);
+  border-radius: var(--ui-radius);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .56);
+}
+.cut-dialog > header { border-bottom-color: var(--obs-line); }
+.cut-kicker { color: var(--obs-faint); }
+.cut-dialog h2 { color: var(--obs-text); }
+.cut-dialog header p { color: var(--obs-muted); }
+.cut-dialog .text-button,
+.cut-dialog .icon-button { color: var(--obs-muted); }
+.cut-dialog .text-button:hover,
+.cut-dialog .icon-button:hover { color: var(--obs-text); background: rgba(226, 236, 255, .06); }
+.cut-loading { color: var(--obs-muted); }
+.cut-error { color: var(--obs-fail); }
+.cut-scope { color: var(--obs-faint); }
+.cut-footnote { color: var(--obs-faint); }
+.cut-chart-toolbar { color: var(--obs-faint); }
+.cut-sources { border-top-color: var(--obs-line); }
+.cut-sources h3 { color: var(--obs-text); }
+.cut-sources p { color: var(--obs-muted); }
+.cut-sources li { background: var(--obs-surface-2); border-left-color: var(--obs-line-strong); }
+.cut-sources li span { color: var(--obs-muted); }
+.cut-sources li strong { color: var(--obs-text); }
+.cut-sql summary { color: var(--obs-muted); }
+.cut-sql pre { color: var(--obs-text); background: var(--obs-void); border-color: var(--obs-line); }
+.cut-dialog .segmented { background: var(--obs-surface-2); border-color: var(--obs-line); }
+.cut-dialog .segmented button { color: var(--obs-muted); }
+.cut-dialog .segmented button.active {
+  color: var(--obs-text);
+  background: rgba(110, 168, 255, .16);
+  box-shadow: none;
+}
+
+/* Field-role rows: one name column with its reason, one select column. */
+.field-role-tools label { color: var(--obs-faint); background: var(--obs-surface-2); border-color: var(--obs-line); }
+.field-role-tools input { color: var(--obs-text); }
+.field-role-tools input::placeholder { color: var(--obs-faint); }
+.field-role-tools > span { color: var(--obs-muted); }
+.field-role-list { border-top-color: var(--obs-line); }
+.field-role-row { border-bottom-color: var(--obs-line); }
+.field-role-row.corrected { background: linear-gradient(90deg, rgba(245, 183, 64, .10), transparent 45%); }
+.field-role-name strong { color: var(--obs-text); }
+.field-role-name small { color: var(--obs-muted); }
+.field-role-detail { color: var(--obs-faint); }
+.field-role-choose select {
+  color: var(--obs-text);
+  background: var(--obs-surface-2);
+  border: 1px solid var(--obs-line-strong);
+  border-radius: 8px;
+}
+.field-role-choose select:disabled { color: var(--obs-faint); }
+.field-role-reason { color: var(--obs-muted); }
+.field-role-reason.blocked { color: var(--obs-fail); }
+.field-role-empty { color: var(--obs-muted); }
+
+/* Help sheet: `color-scheme: dark` turned the native <dialog> canvas dark, but
+   styles.css still paints its ink, border and list text for the old light
+   sheet — dark-on-dark. Give it the same surface treatment as the other
+   dialogs so the sheet reads as one panel, not a hole in the page. */
+.help-dialog {
+  color: var(--obs-text);
+  background: var(--obs-surface);
+  border: 1px solid var(--obs-line-strong);
+  border-radius: var(--ui-radius);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .56);
+}
+.help-dialog::backdrop { background: rgba(5, 8, 12, .66); backdrop-filter: blur(6px); }
+.help-dialog .section-heading { border-bottom: 1px solid var(--obs-line); }
+.help-dialog h2,
+.help-dialog .section-heading h2 { color: var(--obs-text); }
+.help-dialog ol { color: var(--obs-text); }
+.help-dialog ol li { color: var(--obs-text); }
+.help-dialog ol li::marker { color: var(--obs-lime); }
+.help-dialog > p { color: var(--obs-muted); }
+.help-dialog .icon-button { color: var(--obs-muted); }
+.help-dialog .icon-button:hover { color: var(--obs-text); background: rgba(226, 236, 255, .06); }
+.help-dialog .primary {
+  color: #061019;
+  background: var(--obs-lime);
+  border: 0;
+}
+.help-dialog .primary:hover:not(:disabled) { background: var(--obs-cyan); }
+
+/* ---------- muted green left over from the previous theme ----------
+   The deck is neutral blue-gray (--obs-*), but a dozen small labels still carry
+   the old green-gray ramp (#8a9e92, #c3d4c8, #e7f3ea …). Against the blue-gray
+   chrome they read as a different theme — especially the header model pill, the
+   rail group labels and the SQL plate, which are always on screen. Retune those
+   survivors to the same neutral ramp; the verified-green and data-teal accents
+   are semantic and stay as they are. */
+.app-rail .rail-label { color: var(--obs-faint); }
+.app-rail .primary-navigation .nav-item { color: var(--obs-muted); }
+.rail-ai[data-state="off"] .rail-ai-dot { background: var(--obs-faint); }
+.breadcrumb svg { color: var(--obs-faint); }
+.header-actions .icon-button { color: var(--obs-muted); }
+.header-actions .model-trigger,
+.header-actions .command-trigger { color: #c9d3e1; }
+.header-actions .connection-dot { background: var(--obs-faint); }
+.orbit-core > b,
+.orbit-label,
+.welcome-deck-bar,
+.welcome-title-line { color: var(--obs-faint); }
+
+.chart-panel .finding p { color: #dfe7f1; }
+.process-panel .process-list strong { color: var(--obs-text); }
+.core-panel h4 { color: var(--obs-text); }
+.core-panel .core-check { color: #c9d3e1; }
+
+/* code plates were the greenest surfaces in the app */
+.sql-code {
+  color: #dbe3ee;
+  background: #0a0f16;
+  border-color: var(--obs-line);
+}
+.evidence-panel .sql-code { background: #080c12; border-color: var(--obs-line); }
+.command-trigger kbd {
+  color: var(--obs-faint);
+  background: rgba(255, 255, 255, .05);
+  border-color: var(--obs-line);
+}
+.manual-rules > summary,
+.manual-mapping > summary { color: var(--obs-muted); }
+
+/* ---------- alert surfaces still painted with the light paper palette ----------
+   Error and warning blocks are the one place the deck still opens a white/pink
+   hole: `.ai-error` and `.ai-warning` (styles.css) are light-pink and light-amber
+   sheets, and only `.initial-analysis .ai-error` had been retuned. The same leak
+   fires in the SQL console, 探索分析, 对比诊断, 数据处理, the assistant console and
+   the header banner — all of them mid-use, which is exactly when a bright block
+   looks like a broken panel. Retint them to the fail/warn endpoints of the
+   --obs-* scale, keeping the same tinted-fill + hairline-border shape the
+   assistant already uses for `.ai-web-error`. */
+.ai-error,
+.ai-warning {
+  border: 1px solid transparent;
+  border-radius: 9px;
+}
+.ai-error {
+  color: var(--obs-fail);
+  background: rgba(255, 113, 133, .08);
+  border-color: rgba(255, 113, 133, .24);
+}
+.ai-error .secondary { color: var(--obs-text); }
+.ai-warning {
+  color: var(--obs-warn);
+  background: rgba(245, 183, 64, .08);
+  border-color: rgba(245, 183, 64, .22);
+}
+/* the SQL console pairs an icon with the message; keep them off each other */
+.sql-error { display: flex; align-items: center; gap: 8px; }
+.sql-error svg { flex: none; }
+
+/* reference errors ship `color: … !important` from styles.css */
+.ai-reference-error {
+  color: var(--obs-fail) !important;
+  background: rgba(255, 113, 133, .08);
+  border: 1px solid rgba(255, 113, 133, .2);
+}
+
+/* 对比诊断 renders staleness/incomparable notes outside a `.core-panel`, so the
+   scoped override in observation.css never reached them. */
+.core-warning,
+.core-panel .core-warning {
+  color: var(--obs-warn);
+  background: rgba(245, 183, 64, .07);
+  border-color: rgba(245, 183, 64, .24);
+}
+
+/* header error banner */
+.banner,
+.banner.error {
+  color: var(--obs-fail);
+  background: rgba(255, 113, 133, .08);
+  border-color: rgba(255, 113, 133, .24);
+}
+.banner .icon-button { color: var(--obs-muted); }
+.banner .icon-button:hover { color: var(--obs-text); background: rgba(226, 236, 255, .06); }
+.banner a { color: var(--obs-text); }
+
+/* crash card from ErrorBoundary: was a white card floating on the dark shell */
+.workspace-restoring.app-error {
+  color: var(--obs-text);
+  background: var(--obs-surface);
+  border: 1px solid var(--obs-line-strong);
+  border-radius: var(--ui-radius);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .5);
+}
+.app-error h1 { color: var(--obs-text); }
+.app-error > p,
+.app-error details { color: var(--obs-muted); }
+.app-error details p { color: var(--obs-muted); background: rgba(7, 10, 15, .55); }
+.app-error .primary { color: #061019; background: var(--obs-lime); border: 0; }
+
+/* ---------- KPI readouts were wider than their own cards ----------
+   `.quality-overview` packs four cards into a ~700–890px content column (对比诊断
+   和数据处理都保留 260px 的控制栏), but the figure is 29px Inter: a 13-digit sum
+   renders 239px wide against a 126px content box, so at 1280 「136,302,580,177」
+   ran out of its card and sat on top of the next one. The 1100px breakpoint in
+   core.css measures the viewport, not this column, so it never fired.
+
+   The strip now answers to its own column instead of the viewport: 对比诊断 puts
+   it inside `.explore-output` (718px at 1280) while 数据处理 puts it directly in
+   the 1000px workspace, so the same viewport needs different column counts.
+   Two columns is the default because a 13-digit figure needs ~260px of card;
+   four only once every card gets ~230px; one once two cards no longer fit.
+   Tabular figures keep digits in the same slot across rows. */
+.core-workspace,
+.explore-output { container-type: inline-size; }
+.core-workspace .quality-overview {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@container (min-width: 960px) {
+  .core-workspace .quality-overview { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@container (max-width: 600px) {
+  .core-workspace .quality-overview { grid-template-columns: minmax(0, 1fr); }
+}
+.quality-overview article { min-width: 0; }
+.quality-overview strong {
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.quality-overview,
+.field-statistics dd,
+.core-table-wrap td { font-variant-numeric: tabular-nums; }
+
+/* ---------- the checkup strip's first figure sat 10px left of the rest ----
+   `investigation.css` still carries `.review-facts>span:first-child{padding-left:0}`
+   from the old white audit strip. The redesigned 数据体检 turns the strip into
+   four equal tiles, so that rule (0,2,1) outranks `.review-facts > span` (0,1,1)
+   and leaves 「23,377」 touching its tile edge while 「1,997,225」 below it and
+   「130」 beside it start 10px in — the numbers never line up in a column.
+   Restore the same inner padding for the first tile. */
+.review-facts > span:first-child { padding-left: 10px; }

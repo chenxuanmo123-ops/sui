@@ -27,7 +27,7 @@ export function AnalysisResults({ bundle, dataset, overrides, onEvidence, onFoll
   {bundle.failures.length>0 && <div role="status" className="bundle-warning">{bundle.failures.length} 项任务失败，以下仅展示成功计算；请在助手中查看错误并修正。</div>}
   <p className="bundle-interaction-hint"><MousePointer2 size={15}/>点击图表或表格中的分组，可限定范围继续分析；点击记录数查看来源。</p>
   <div className={'result-workspace'+(bundle.results.length>1?' has-rail':'')}>
-  {bundle.results.length>1&&<nav className="result-navigation" aria-label="本轮分析任务">{bundle.results.map((r,i)=><button key={r.id} className={focused===r.id?'active':''} aria-pressed={focused===r.id} onClick={()=>{setFocused(r.id);setSelection(null)}}><span>{i+1}</span>{r.ai?.taskTitle||r.question}</button>)}</nav>}
+  {bundle.results.length>1&&<nav className="result-navigation" aria-label="本轮分析任务">{bundle.results.map((r,i)=><button key={r.id} className={focused===r.id?'active':''} aria-pressed={focused===r.id} onClick={()=>{setFocused(r.id);setSelection(null)}}><span className="result-nav-index">{i+1}</span><span className="result-nav-label">{r.ai?.taskTitle||r.question}</span></button>)}</nav>}
   <div className={'bundle-grid'+(bundle.results.length===1?' single-result':'')}>{bundle.results.map(result=>{
    const label=selection?.id===result.id?selection.label:''
    const point=result.points.find(p=>p.label===label)

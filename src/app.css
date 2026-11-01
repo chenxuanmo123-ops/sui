@@ -585,7 +585,12 @@ button, input, select, textarea { font-family: inherit; }
 .review-fields > p { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 9px; font-size: 11px; font-weight: 600; }
 .review-fields > p > span { color: var(--app-faint); font-size: 9px; font-weight: 400; }
 .review-fields > p .text-button { margin-left: auto; font-size: 9.5px; }
-.review-fields > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
+.review-fields-head { margin: 0 0 3px !important; }
+.review-fields-hint { display: block !important; margin: 0 0 9px !important; color: var(--app-faint); font-size: 9px !important; font-weight: 400 !important; line-height: 1.5; }
+/* One column: a Chinese name such as 人均其他可再生能源发电量（不含生物质） does not
+   fit half of a 320px rail, and the ellipsis made four different biofuel columns
+   render as the same "biofuel_con…". Names may wrap instead of being cut. */
+.review-fields > div { display: grid; grid-template-columns: minmax(0, 1fr); gap: 5px; }
 .review-fields > div > button {
   display: flex;
   align-items: center;
@@ -601,7 +606,7 @@ button, input, select, textarea { font-family: inherit; }
   text-align: left;
 }
 .review-fields > div > button:hover { background: var(--app-marker-soft); border-color: #d9ce73; }
-.review-fields button > span { min-width: 0; overflow: hidden; font-family: var(--app-mono); text-overflow: ellipsis; white-space: nowrap; }
+.review-fields button > span { min-width: 0; overflow-wrap: anywhere; line-height: 1.4; }
 .review-fields button > small { flex-shrink: 0; margin-left: auto; color: var(--app-faint); font-size: 8.5px; }
 .review-fields button > em { flex-shrink: 0; color: var(--app-green); font-size: 8px; font-style: normal; }
 .review-fields button > i { flex: 0 0 auto; width: 4px; height: 4px; background: var(--app-amber); border-radius: 50%; }
@@ -721,7 +726,12 @@ button, input, select, textarea { font-family: inherit; }
   font-size: 10.5px;
   white-space: nowrap;
 }
-.result-navigation button > span { color: var(--app-faint); font-family: var(--app-mono); font-size: 9px; }
+.result-navigation button > .result-nav-index { color: var(--app-faint); font-family: var(--app-mono); font-size: 9px; }
+/* The task title is its own element so it can be ellipsised. As bare text in a
+   capped-width button (max-width 280px, nowrap) it kept painting past the edge:
+   at 1280 with the assistant docked, task 1's title ran straight through task
+   2's. min-width:0 is what lets a flex/grid track actually shrink. */
+.result-navigation .result-nav-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .result-navigation button.active { color: var(--app-ink); background: var(--app-marker-soft); border-color: var(--app-ink); font-weight: 600; }
 .bundle-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
 .bundle-result {

@@ -1,4 +1,4 @@
-import { validate } from './contracts.mjs';
+import { conform, validate } from './contracts.mjs';
 
 export class StructuredOutputError extends Error {
   constructor(kind) { super(kind); this.kind = kind; }
@@ -35,7 +35,11 @@ export function parseStructuredContent(content, schema) {
     try { result = JSON.parse(candidates[0]); }
     catch { throw new StructuredOutputError('format'); }
   }
-  try { validate(result, schema); }
+  // Only keys the schema declares survive; a provider's own envelope fields or
+  // an explicit null for an unused optional block are dropped rather than
+  // failing an answer that is otherwise complete.
+  const shaped = conform(result, schema);
+  try { validate(shaped, schema); }
   catch { throw new StructuredOutputError('schema'); }
-  return result;
+  return shaped;
 }

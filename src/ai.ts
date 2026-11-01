@@ -54,7 +54,7 @@ export type Review = { answerability: 'partial' | 'descriptive_only' | 'insuffic
 export type ReviewResponse = { review: Review; references?: ReferenceExcerpt[] };
 export const CATEGORY_LIMITS = { columns: 12, values: 16, valueLength: 120, totalChars: 8000 } as const;
 export type ConfirmedRoles = Record<string, 'time' | 'measure' | 'category' | 'binary' | 'identifier' | 'text'>;
-export function datasetContext(dataset: Dataset, samples: boolean, categories = false, confirmedRoles: ConfirmedRoles = {}) {
+export function datasetContext(dataset: Dataset, samples: boolean, categories = false, confirmedRoles: ConfirmedRoles = {}, labels?: Record<string, string>) {
   let dictionaryColumns = 0, dictionaryChars = 0;
   return { name: dataset.title, hash: dataset.fingerprint, rowCount: dataset.rows.length, provenance: dataset.isPublic ? dataset.sourceUrl : '用户上传文件，代表性待用户确认', samplePolicy: samples ? '每列最先遇到的非空唯一值，最多三个，不代表整体分布' : '不发送原始单元格样本', categoryPolicy: categories ? '仅发送有界低基数文本列的完整取值集合，无频次；不代表业务定义或总体分布' : '不发送类别取值字典', columns: profileDataset(dataset).map(p => {
     const values: string[] = [];
@@ -76,7 +76,8 @@ export function datasetContext(dataset: Dataset, samples: boolean, categories = 
       }
     }
     const confirmedRole = confirmedRoles[p.key];
-    return { field: p.key, typeCandidate: p.kind, missing: p.missing, nonempty: p.nonempty, numeric: p.numeric, ...(samples ? { examples: values } : {}), ...(categoryValues ? { categoryValues, categoryValuesComplete: true } : {}), ...(confirmedRole ? { confirmedRole } : {}) };
+    const label = labels?.[p.key];
+    return { field: p.key, ...(label && label !== p.key ? { label } : {}), typeCandidate: p.kind, missing: p.missing, nonempty: p.nonempty, numeric: p.numeric, ...(samples ? { examples: values } : {}), ...(categoryValues ? { categoryValues, categoryValuesComplete: true } : {}), ...(confirmedRole ? { confirmedRole } : {}) };
   }) };
 }
 export async function aiRequest<T>(path: string, body: unknown, signal: AbortSignal): Promise<T> {
@@ -91,6 +92,25 @@ export async function aiRequest<T>(path: string, body: unknown, signal: AbortSig
     if (error instanceof DOMException && error.name === 'TimeoutError') throw new Error('模型等待超时，请重试或切换更快的模型。');
     if (error instanceof SyntaxError) throw new Error('AI 分析接口未返回有效响应，请联系部署者检查服务端接口配置。本地数据处理、统计和图表仍可使用。');
     if (error instanceof TypeError) throw new Error('AI 分析服务连接中断，请检查网络或联系部署者检查服务状态。本地数据处理、统计和图表仍可使用。');
+    throw error;
+  }
+}
+/** Public background lookup: Wikipedia excerpts only, requested by the user,
+ * attributed, and explicitly not evidence about this dataset. */
+export type WebLookupSource = { title: string; extract: string; url: string; pageId: number };
+export type WebLookupResponse = { query: string; source: string; language: 'zh' | 'en'; fetchedAt: string; results: WebLookupSource[]; note: string };
+export async function webLookupRequest(query: string, signal: AbortSignal): Promise<WebLookupResponse> {
+  let response: Response;
+  try {
+    response = await fetch('/api/ai/web-lookup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query }), signal: AbortSignal.any([signal, AbortSignal.timeout(20000)]) });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || '联网查询失败（HTTP ' + response.status + '）');
+    return result as WebLookupResponse;
+  } catch (error) {
+    if (signal.aborted) throw new Error('请求已取消。');
+    if (error instanceof DOMException && error.name === 'TimeoutError') throw new Error('联网查询超时，没有使用任何网页内容。');
+    if (error instanceof SyntaxError) throw new Error('联网查询接口未返回有效响应。');
+    if (error instanceof TypeError) throw new Error('联网查询服务连接中断，请检查网络。');
     throw error;
   }
 }

@@ -30,6 +30,10 @@ test('PDF 视觉转录：独立授权、真实图像请求、严格表格契约�
     answer = { columns: ['year', 'year'], rows: [['2015', '2015']], warnings: [] }; assert.equal((await post({ consent: true })).status, 400);
     answer = { columns: ['year', 'country'], rows: [], warnings: [] }; assert.equal((await post({ consent: true })).status, 400);
     answer = { columns: ['year', 'country'], rows: [[2015, 'China']], warnings: [] }; assert.equal((await post({ consent: true })).status, 400);
-    answer = { columns: ['year', 'country'], rows: [['2015', 'China']], warnings: [], invented: true }; assert.equal((await post({ consent: true })).status, 400);
+    // A provider's own extra key is dropped, never forwarded as transcription;
+    // the rows/columns contract above still rejects real violations.
+    answer = { columns: ['year', 'country'], rows: [['2015', 'China']], warnings: [], invented: true };
+    r = await post({ consent: true }); assert.equal(r.status, 200);
+    assert.ok(!('invented' in (await r.json()).extraction));
   } finally { await close(app); await close(upstream); }
 });

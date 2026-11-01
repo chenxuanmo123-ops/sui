@@ -2177,7 +2177,10 @@ textarea.sr-only,
 .canvas-data-preview table { color: var(--obs-text); }
 .canvas-data-preview th {
   color: var(--obs-muted);
-  background: rgba(255, 255, 255, .045);
+  /* Sticky (th { position: sticky } in styles.css), so it has to be opaque:
+     a translucent header let the rows scrolling underneath print through and
+     the labels were drawn on top of the data. */
+  background: var(--obs-surface-2);
   border-bottom-color: var(--obs-line);
 }
 .canvas-data-preview td { color: #dde5f0; border-bottom-color: rgba(255, 255, 255, .06); }
@@ -2193,10 +2196,31 @@ textarea.sr-only,
 }
 .data-panel .search-input::placeholder { color: var(--obs-faint); }
 .data-panel .table-note { color: var(--obs-faint); border-top-color: var(--obs-line); }
-.data-panel .table-scroll table th { color: var(--obs-muted); background: rgba(255, 255, 255, .045); }
+.data-panel .table-scroll table th { color: var(--obs-muted); background: var(--obs-surface-2); }
 .data-panel .table-scroll table td { color: #dde5f0; border-bottom-color: rgba(255, 255, 255, .06); }
 .data-panel .table-scroll table tr:hover td { background: rgba(226,236,255, .035); }
 .data-panel .result-table-controls { color: var(--obs-muted); }
+/* The search box is a <label> wrapping the <input>. Only the input had a dark
+   rule, so the label kept core.css's #fff plate and the field sat inside a
+   white rounded sticker 180x52. This also covers the preview panel and the
+   branch cards, which reuse the same component. */
+.main .result-table-search {
+  color: var(--obs-faint);
+  background: rgba(7, 10, 15, .8);
+  border-color: var(--obs-line-strong);
+  border-radius: 6px;
+}
+.main .result-table-search:focus-within {
+  border-color: rgba(45, 212, 191, .5);
+  box-shadow: 0 0 0 2px rgba(45, 212, 191, .12);
+}
+/* The input inherits a 1px border of its own, which drew a second rounded frame
+   inside the label's frame. The label is the only frame here. */
+.main .result-table-search input {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
 .data-panel .result-table-controls select,
 .data-panel .result-table-search input,
 .data-panel select,
@@ -2238,6 +2262,13 @@ textarea.sr-only,
 .evidence-panel .small-empty { color: var(--obs-faint); }
 .evidence-panel .sql-code { color: #d7e6ff; background: #08110c; border-color: var(--obs-line); }
 
+/* Heading chips kept the light-theme plate (.tag { background:#f0f5f2 } in
+   styles.css), so 公开来源 / 本地计算 · 无需 AI / 2 个 sat on the dark panel as
+   white stickers. Panels with their own dark tag rule re-declare it below with
+   the same specificity, so they keep their own values. */
+.section-heading .tag { color: var(--obs-cyan); background: rgba(143,184,255, .08); border-color: rgba(143,184,255, .2); }
+.section-heading .tag.amber { color: var(--obs-warn); background: rgba(240,191,90, .08); border-color: rgba(240,191,90, .24); }
+
 /* process log */
 .process-panel .section-heading h2 { color: var(--obs-text); }
 .process-panel .section-heading p { color: var(--obs-muted); }
@@ -2259,7 +2290,7 @@ textarea.sr-only,
   background: rgba(240, 191, 90, .07);
   border-color: rgba(240, 191, 90, .24);
 }
-.core-table-wrap th { color: var(--obs-muted); background: rgba(255, 255, 255, .045); }
+.core-table-wrap th { color: var(--obs-muted); background: var(--obs-surface-2); }
 .core-table-wrap th,
 .core-table-wrap td { border-bottom-color: rgba(255, 255, 255, .06); }
 .core-table-wrap td { color: #dde5f0; }
@@ -2389,7 +2420,7 @@ textarea.sr-only,
 .result-data-details > summary span { color: var(--obs-faint); }
 .bundle-result > p { color: var(--obs-muted); }
 .bundle-result .bundle-table td { color: #dde5f0; }
-.bundle-result .bundle-table th { color: var(--obs-muted); background: rgba(255, 255, 255, .045); }
+.bundle-result .bundle-table th { color: var(--obs-muted); background: var(--obs-surface-2); }
 .bundle-result .bundle-table tr:hover td { background: rgba(226,236,255, .035); }
 .bundle-result .bundle-table tr.is-selected td { background: rgba(110,168,255, .08); }
 .bundle-result .group-select { color: var(--obs-cyan); text-decoration-color: rgba(143,184,255, .35); }

@@ -1,5 +1,5 @@
 import type { Analysis, AnalysisScope, Dataset, Mapping } from './data'
-export type AssistantSeed = { question: string; context?: string; nonce: number; scope?: AnalysisScope }
+export type AssistantSeed = { question: string; context?: string; nonce: number; scope?: AnalysisScope; auto?: boolean }
 export function validateScope(dataset: Dataset, scope: AnalysisScope): void {
  if (scope.datasetHash !== dataset.fingerprint || scope.loadedAt !== dataset.loadedAt) throw new Error('追问范围属于旧数据，请从当前结果重新选择。')
  if (!Number.isInteger(scope.parentAnalysisId) || scope.parentAnalysisId < 1 || !scope.label || !Array.isArray(scope.rowIds) || !scope.rowIds.length || scope.rowIds.length > dataset.rows.length || new Set(scope.rowIds).size !== scope.rowIds.length || scope.rowIds.some(id => !Number.isInteger(id) || id < 2 || id > dataset.rows.length + 1)) throw new Error('追问来源记录无效，已停止计算。')

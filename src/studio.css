@@ -2118,7 +2118,7 @@
   box-shadow: inset 3px 0 0 var(--obs-lime);
   font-weight: 600;
 }
-.result-workspace.has-rail .result-navigation button > span {
+.result-workspace.has-rail .result-navigation button > .result-nav-index {
   width: 21px;
   height: 19px;
   color: var(--obs-faint);
@@ -2126,7 +2126,7 @@
   font-family: var(--obs-mono);
   font-size: 10px;
 }
-.result-workspace.has-rail .result-navigation button.active > span { color: var(--obs-lime); background: transparent; }
+.result-workspace.has-rail .result-navigation button.active > .result-nav-index { color: var(--obs-lime); background: transparent; }
 
 @media (max-width: 980px) {
   .result-workspace.has-rail .result-navigation {
@@ -2136,7 +2136,7 @@
     border-top: 0;
   }
   .result-workspace.has-rail .result-navigation button {
-    grid-template-columns: 20px auto;
+    grid-template-columns: 20px minmax(0, 1fr);
     min-height: 40px;
     max-width: 260px;
     padding: 8px 12px;

@@ -117,7 +117,18 @@ const ROLE_LABELS: Record<CheckupRole, string> = {
   category: '分类维度',
   binary: '二值结果',
   identifier: '编号 / 标识',
-  text: '高基数文本',
+  text: '高基数维度',
+}
+
+/**
+ * A text column with 51–1000 distinct values is still a usable grouping
+ * dimension — the role dialog offers 分类维度 for it and the top-N question
+ * groups by it. Only beyond the 1000-group limit is it just text. Calling both
+ * "高基数文本" while the UI counted 0 groupable fields is what made a
+ * 314-country column look misclassified.
+ */
+function roleLabel(role: CheckupRole, unique: number) {
+  return role === 'text' && unique > 1000 ? '高基数文本' : ROLE_LABELS[role]
 }
 
 const PAIRS: [string, string][] = [
@@ -276,17 +287,21 @@ function buildField(dataset: Dataset, key: string, summary: FieldSummary, forced
     detail = `${formatNumber(summary.unique, 0)} 个不同取值${summary.top[0] ? '，最多：' + summary.top[0].value + '（' + formatNumber(summary.top[0].count, 0) + ' 条）' : ''}`
   } else if (role === 'identifier') {
     detail = '几乎每行都不同，可能是编号；不要直接求和'
+  } else if (summary.unique <= 1000) {
+    // Groupable, but too many bars to read at once: say what to do instead of
+    // claiming the field cannot be grouped at all.
+    detail = `${formatNumber(summary.unique, 0)} 个不同取值，全量分组会挤成一条；可先看前 20 名或加筛选`
   } else {
-    detail = `${formatNumber(summary.unique, 0)} 个不同取值，基数较高，暂不作为默认分组`
+    detail = `${formatNumber(summary.unique, 0)} 个不同取值，超过单次 1000 组上限，不能直接分组`
   }
 
   return {
-    key, role, roleLabel: ROLE_LABELS[role], detail,
+    key, role, roleLabel: roleLabel(role, summary.unique), detail,
     missing: summary.missing, nonempty, unique: summary.unique,
     numeric: summary.numeric, top: summary.top, min: summary.min, max: summary.max,
     median: summary.median, outliers: summary.outliers,
     ...(time ? { time } : {}), ...(binary ? { binary } : {}),
-    ...(overridden ? { overridden, autoRoleLabel: ROLE_LABELS[autoRole] } : {}),
+    ...(overridden ? { overridden, autoRoleLabel: roleLabel(autoRole, summary.unique) } : {}),
   }
 }
 
@@ -347,13 +362,19 @@ function baseMapping(overrides: Partial<Mapping>): Mapping {
   return { x: '', metric: '', filter: '', value: '', from: '', to: '', unit: '', aggregate: 'sum', timeBucket: 'none', conditions: [], ...overrides }
 }
 
-function questionWhy(field: CheckupField) {
+function questionWhy(field: CheckupField, name: (key: string) => string) {
   return field.role === 'time' && field.time
-    ? `${field.key} 有 ${formatNumber(field.time.valid, 0)} 个可解析时间值（${field.time.min}–${field.time.max}）`
+    ? `${name(field.key)}有 ${formatNumber(field.time.valid, 0)} 个可解析时间值（${field.time.min}–${field.time.max}）`
     : field.detail
 }
 
-export function buildCheckup(dataset: Dataset, overrides: CheckupOverrides = {}): Checkup {
+/**
+ * @param name display name for a column key. The checkup keeps raw keys in
+ *   every mapping it emits (SQL, execution, evidence) but the sentences it
+ *   builds for the reader use `name`, so a Chinese-labelled dataset does not
+ *   show `energy_cons_change_pct` in the middle of a Chinese sentence.
+ */
+export function buildCheckup(dataset: Dataset, overrides: CheckupOverrides = {}, name: (key: string) => string = key => key): Checkup {
   const quality = inspectQuality(dataset)
   const all = dataset.headers.map(key => buildField(dataset, key, quality.fields.find(field => field.field === key)!, overrides[key]))
   const timeField = all.find((field): field is CheckupField & { time: CheckupTime } => field.role === 'time' && !!field.time) ?? null
@@ -361,7 +382,9 @@ export function buildCheckup(dataset: Dataset, overrides: CheckupOverrides = {})
   const categories = all.filter(field => field.role === 'category' && field.unique >= 2)
   const binaries = all.filter((field): field is CheckupField & { binary: CheckupBinary } => field.role === 'binary' && !!field.binary?.successValue)
   const identifiers = all.filter(field => field.role === 'identifier')
-  const highCardinality = all.filter(field => field.role === 'text' && field.unique > 50 && field.unique <= 500)
+  // Matches the 1000-group limit the role dialog states; a column between 501
+  // and 1000 distinct values is still groupable via top-N.
+  const highCardinality = all.filter(field => field.role === 'text' && field.unique > 50 && field.unique <= 1000)
   const missingCells = quality.fields.reduce((total, field) => total + field.missing, 0)
   const completeness = dataset.rows.length && dataset.headers.length
     ? 1 - missingCells / (dataset.rows.length * dataset.headers.length)
@@ -370,12 +393,12 @@ export function buildCheckup(dataset: Dataset, overrides: CheckupOverrides = {})
   const warnings: CheckupWarning[] = []
   if (missingCells) warnings.push({ tone: 'info', title: '存在空值', detail: `${formatNumber(missingCells, 0)} 个空值单元格。计算时会排除缺失值，不会自动当作 0。` })
   if (quality.duplicateRows) warnings.push({ tone: 'warn', title: '存在完全重复行', detail: `${formatNumber(quality.duplicateRows, 0)} 行与前面记录完全相同。可能是重复记录，也可能业务上允许重复；系统不会自动删除。` })
-  if (identifiers.length) warnings.push({ tone: 'info', title: '可能有编号字段', detail: `${identifiers.slice(0, 3).map(field => field.key).join('、')} 几乎每行都不同，求和或平均通常没有业务意义。` })
-  if (highCardinality.length) warnings.push({ tone: 'info', title: '高基数字段', detail: `${highCardinality.slice(0, 3).map(field => field.key).join('、')} 取值很多；直接全量分组容易超过 1000 组上限，建议先排序看前几项或加筛选。` })
+  if (identifiers.length) warnings.push({ tone: 'info', title: '可能有编号字段', detail: `${identifiers.slice(0, 3).map(field => name(field.key)).join('、')} 几乎每行都不同，求和或平均通常没有业务意义。` })
+  if (highCardinality.length) warnings.push({ tone: 'info', title: '取值很多的维度', detail: `${highCardinality.slice(0, 3).map(field => `${name(field.key)}（${formatNumber(field.unique, 0)} 个取值）`).join('、')}；全部画出来会挤成一条，建议先看前 20 名或加筛选。单次分组上限为 1000 组。` })
   const constant = all.filter(field => field.nonempty > 0 && field.unique === 1)
-  if (constant.length) warnings.push({ tone: 'info', title: '常量字段', detail: `${constant.slice(0, 3).map(field => field.key).join('、')} 只有一个取值，分组后不会产生差异。` })
+  if (constant.length) warnings.push({ tone: 'info', title: '常量字段', detail: `${constant.slice(0, 3).map(field => name(field.key)).join('、')} 只有一个取值，分组后不会产生差异。` })
   if (!timeField) warnings.push({ tone: 'info', title: '没有可验证的时间字段', detail: '无法自动生成时间趋势；仍可做分类比较和记录数分布。' })
-  else if (timeField.time!.gaps) warnings.push({ tone: 'info', title: '时间范围不连续', detail: `${timeField.key} 覆盖 ${timeField.time!.min}–${timeField.time!.max}，但缺少 ${timeField.time!.gaps} 个预期时间点；趋势线不会自动补齐。` })
+  else if (timeField.time!.gaps) warnings.push({ tone: 'info', title: '时间范围不连续', detail: `${name(timeField.key)} 覆盖 ${timeField.time!.min}–${timeField.time!.max}，但缺少 ${timeField.time!.gaps} 个预期时间点；趋势线不会自动补齐。` })
   if (!measures.length) warnings.push({ tone: 'info', title: '没有稳定的数值指标', detail: '只能先做记录数分布，或先清理金额/数量字段中的单位、千分位和缺失。' })
   warnings.push({ tone: 'info', title: '单位需要你确认', detail: '系统不自动猜测货币、百分比或数量级；没有声明单位时，图表只显示原始数值。' })
 
@@ -391,9 +414,9 @@ export function buildCheckup(dataset: Dataset, overrides: CheckupOverrides = {})
     add({
       id: `trend:${timeField.key}:${primary.key}`,
       kind: 'trend',
-      title: `按 ${timeField.key} 看 ${primary.key} 怎么变化`,
-      question: `按 ${timeField.key} 分组，${aggregateNames[aggregate]} ${primary.key}，观察时间上的变化。`,
-      why: `${questionWhy(timeField)}；${primary.key} 有 ${formatNumber(primary.numeric, 0)} 个可解析数值。按${bucket === 'month' ? '月' : '年'}汇总，趋势只描述这些聚合值。`,
+      title: `按${name(timeField.key)}看${name(primary.key)}怎么变化`,
+      question: `按${name(timeField.key)}分组，${aggregateNames[aggregate]}${name(primary.key)}，观察时间上的变化。`,
+      why: `${questionWhy(timeField, name)}；${name(primary.key)}有 ${formatNumber(primary.numeric, 0)} 个可解析数值。按${bucket === 'month' ? '月' : '年'}汇总，趋势只描述这些聚合值。`,
       chart: 'line',
       execution: {
         kind: 'aggregate',
@@ -414,9 +437,9 @@ export function buildCheckup(dataset: Dataset, overrides: CheckupOverrides = {})
     add({
       id: `rate:${rateGrouping.key}:${outcome.key}`,
       kind: 'rate',
-      title: `按 ${rateGrouping.key} 看 ${outcome.key} = ${binary.successValue} 的比例`,
-      question: `按 ${rateGrouping.key} 分组，计算 ${outcome.key} 等于 ${binary.successValue} 的记录占比。`,
-      why: `${outcome.key} 只有两种可枚举取值（${binary.values.join(' / ')}）；分母只纳入这两种取值，缺失和未知会排除并单独报告。`,
+      title: `按${name(rateGrouping.key)}看${name(outcome.key)}为${binary.successValue}的比例`,
+      question: `按${name(rateGrouping.key)}分组，计算${name(outcome.key)}等于 ${binary.successValue} 的记录占比。`,
+      why: `${name(outcome.key)}只有两种可枚举取值（${binary.values.join(' / ')}）；分母只纳入这两种取值，缺失和未知会排除并单独报告。`,
       chart: 'bar',
       execution: {
         kind: 'aggregate',
@@ -438,9 +461,9 @@ export function buildCheckup(dataset: Dataset, overrides: CheckupOverrides = {})
     add({
       id: `rank:${category.key}:${primary.key}:${aggregate}`,
       kind: 'rank',
-      title: `${category.key} 之间，${primary.key} 差多少`,
-      question: `按 ${category.key} 分组，${aggregateNames[aggregate]} ${primary.key}，比较各组水平。`,
-      why: `${category.key} 有 ${formatNumber(category.unique, 0)} 个不同取值；${primary.key} 有 ${formatNumber(primary.numeric, 0)} 个可解析数值。使用${aggregateNames[aggregate]}，不会把缺失值当作 0。`,
+      title: `${name(category.key)}之间，${name(primary.key)}差多少`,
+      question: `按${name(category.key)}分组，${aggregateNames[aggregate]}${name(primary.key)}，比较各组水平。`,
+      why: `${name(category.key)}有 ${formatNumber(category.unique, 0)} 个不同取值；${name(primary.key)}有 ${formatNumber(primary.numeric, 0)} 个可解析数值。使用${aggregateNames[aggregate]}，不会把缺失值当作 0。`,
       chart: 'bar',
       execution: {
         kind: 'aggregate',
@@ -454,9 +477,9 @@ export function buildCheckup(dataset: Dataset, overrides: CheckupOverrides = {})
     add({
       id: `count:${category.key}`,
       kind: 'count',
-      title: `记录主要集中在哪些 ${category.key}`,
-      question: `按 ${category.key} 分组，统计每组的记录数。`,
-      why: `${category.key} 有 ${formatNumber(category.unique, 0)} 个不同取值；当前没有稳定的数值指标，因此只做记录数分布。`,
+      title: `记录主要集中在哪些${name(category.key)}`,
+      question: `按${name(category.key)}分组，统计每组的记录数。`,
+      why: `${name(category.key)}有 ${formatNumber(category.unique, 0)} 个不同取值；当前没有稳定的数值指标，因此只做记录数分布。`,
       chart: 'bar',
       execution: {
         kind: 'aggregate',
@@ -471,9 +494,9 @@ export function buildCheckup(dataset: Dataset, overrides: CheckupOverrides = {})
     add({
       id: `top:${field.key}:${primary.key}:${aggregate}`,
       kind: 'top',
-      title: `按 ${field.key} 看 ${primary.key} 的前 20 名`,
-      question: `按 ${field.key} 分组，${aggregateNames[aggregate]} ${primary.key}，按结果降序查看前 20 项。`,
-      why: `${field.key} 有 ${formatNumber(field.unique, 0)} 个不同取值；先看前 20 名，图上会明确标注未显示项，不把截断当作完整排名。`,
+      title: `按${name(field.key)}看${name(primary.key)}的前 20 名`,
+      question: `按${name(field.key)}分组，${aggregateNames[aggregate]}${name(primary.key)}，按结果降序查看前 20 项。`,
+      why: `${name(field.key)}有 ${formatNumber(field.unique, 0)} 个不同取值；先看前 20 名，图上会明确标注未显示项，不把截断当作完整排名。`,
       chart: 'bar',
       execution: {
         kind: 'explore',
@@ -488,8 +511,8 @@ export function buildCheckup(dataset: Dataset, overrides: CheckupOverrides = {})
     add({
       id: `correlation:${first.key}:${second.key}`,
       kind: 'correlation',
-      title: `${first.key} 与 ${second.key} 是否同步变化`,
-      question: `计算 ${first.key} 与 ${second.key} 的 Pearson 相关系数，并查看散点分布。`,
+      title: `${name(first.key)}与${name(second.key)}是否同步变化`,
+      question: `计算${name(first.key)}与${name(second.key)}的 Pearson 相关系数，并查看散点分布。`,
       why: `两列都有足够的可解析数值；结果只描述线性同步程度，并会按全部有效配对计算，不是因果结论。`,
       chart: 'bar',
       execution: {
@@ -500,9 +523,13 @@ export function buildCheckup(dataset: Dataset, overrides: CheckupOverrides = {})
   }
 
   const timeText = timeField
-    ? `，${timeField.key} 是可验证的${timeField.time!.granularity === 'year' ? '年度' : timeField.time!.granularity === 'month' ? '月度' : '日期'}字段（${timeField.time!.min}–${timeField.time!.max}）`
+    ? `，${name(timeField.key)}是可验证的${timeField.time!.granularity === 'year' ? '年度' : timeField.time!.granularity === 'month' ? '月度' : '日期'}字段（${timeField.time!.min}–${timeField.time!.max}）`
     : '，没有发现可验证的时间字段'
-  const summary = `这份数据有 ${formatNumber(dataset.rows.length, 0)} 行、${dataset.headers.length} 个字段${timeText}；${measures.length} 个字段可作为数值指标，${categories.length} 个字段适合作为分类维度。下面是可以直接执行的描述性问题，字段含义和单位仍需你核对。`
+  // 分类维度 only counts fields small enough to put every group on one chart.
+  // High-cardinality dimensions are groupable through top-N, so they are named
+  // separately instead of being silently reported as "not a dimension".
+  const highText = highCardinality.length ? `，${highCardinality.length} 个高基数维度可用前 20 名比较` : ''
+  const summary = `这份数据有 ${formatNumber(dataset.rows.length, 0)} 行、${dataset.headers.length} 个字段${timeText}；${measures.length} 个字段可作为数值指标，${categories.length} 个字段取值较少可直接分组${highText}。下面是可以直接执行的描述性问题，字段含义和单位仍需你核对。`
 
   return {
     rows: dataset.rows.length, fields: dataset.headers.length, completeness, missingCells,
