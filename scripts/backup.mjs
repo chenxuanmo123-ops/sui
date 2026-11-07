@@ -15,7 +15,6 @@ const manifestPath = join(dir, name + '.json')
 const excludes = [
   '.git', 'node_modules', '.tools', 'dist', 'backups', 'artifacts',
   '.local', '.env', '.env.*', '__pycache__', '*.tsbuildinfo',
-  '.claude/handover/snapshots',
 ]
 
 await mkdir(dir, { recursive: true })

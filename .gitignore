@@ -13,13 +13,7 @@ __pycache__/
 *.tsbuildinfo
 
 .local/
-
-# 自动交接机制的运行态文件：配置、脚本和交接文档本身要入库，状态与快照不入库。
-.claude/handover-state.json
-.claude/handover/snapshots/
-
-# 本机设计辅助 skill 仅作开发参考，不属于作品源码且附带第三方许可，不入库。
-.claude/skills/
+.claude/
 
 .vercel/
 .render/
