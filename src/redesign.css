@@ -10,8 +10,8 @@
   --obs-line: rgba(226, 236, 255, .085);
   --obs-line-strong: rgba(226, 236, 255, .16);
   --obs-text: #eef3fb;
-  --obs-muted: #9aa6b5;
-  --obs-faint: #8592a3;
+  --obs-muted: #b6c2d0;
+  --obs-faint: #9fabbc;
   --obs-lime: #6ea8ff;
   --obs-lime-soft: rgba(110, 168, 255, .13);
   --obs-cyan: #9cc0ff;
@@ -1325,3 +1325,24 @@ html:root { color-scheme: dark; }
    「130」 beside it start 10px in — the numbers never line up in a column.
    Restore the same inner padding for the first tile. */
 .review-facts > span:first-child { padding-left: 10px; }
+
+/* ---------- 深色主题收尾：残留的浅色表头与过暗的辅助文字 ----------
+   `styles.css` 里那条全局 `th{background:#f7f9fc}` 仍会落到没有单独深色
+   规则的表格上。数据处理 → 算法诊断里的数值区间频数表就是这种情况：整块
+   表头在深色面板中间发白，行首的区间格也跟着变白。这里按面板色重绘表头，
+   行首 th 保持透明；只改颜色，不动结构、字号与数字。
+   另一处是 `core.css` 的 `.cleaning-panel>label`：`.cleaning-panel` 就是
+   标签的直接父级，带空格的子代选择器永远匹配不到，实际生效的是它自带的
+   #566d8b，在深色底上只有 3.6:1。补一条同级选择器即可。 */
+.core-panel .quality-distribution thead th {
+  color: var(--obs-muted);
+  background: var(--obs-surface-2);
+}
+.core-panel .quality-distribution tbody th {
+  color: var(--obs-muted);
+  background: transparent;
+}
+.core-panel .quality-distribution th,
+.core-panel .quality-distribution td { border-bottom-color: var(--obs-line); }
+.core-panel .quality-distribution td { color: var(--obs-text); }
+.core-panel.cleaning-panel > label:not(.core-check) { color: var(--obs-muted); }

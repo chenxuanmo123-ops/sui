@@ -11,8 +11,8 @@
   --obs-line: rgba(226,236,255, .10);
   --obs-line-strong: rgba(226,236,255, .18);
   --obs-text: #eef3fb;
-  --obs-muted: #9aa6b5;
-  --obs-faint: #8592a3;
+  --obs-muted: #b6c2d0;
+  --obs-faint: #9fabbc;
   --obs-lime: #6ea8ff;
   --obs-lime-soft: rgba(110,168,255, .12);
   --obs-cyan: #9cc0ff;
@@ -2747,7 +2747,7 @@ dialog[open] { animation: obs-dialog-in 260ms var(--obs-spring); }
   border-color: var(--obs-line-strong);
 }
 .core-panel input::placeholder,
-.core-panel textarea::placeholder { color: #8592a4; }
+.core-panel textarea::placeholder { color: var(--obs-faint); }
 .core-panel .core-shortcuts code {
   background: rgba(255, 255, 255, .06);
   border: 1px solid var(--obs-line);
@@ -2849,7 +2849,7 @@ dialog[open] { animation: obs-dialog-in 260ms var(--obs-spring); }
   background: rgba(7,11,16, .8);
   border-color: var(--obs-line-strong);
 }
-.unit-declaration-entry input::placeholder { color: #8592a4; opacity: 1; }
+.unit-declaration-entry input::placeholder { color: var(--obs-faint); opacity: 1; }
 .unit-declaration-entry .secondary { color: var(--obs-text); background: rgba(226,236,255, .045); border-color: var(--obs-line-strong); }
 .unit-declaration-entry .secondary:hover:not(:disabled) { color: #071120; background: var(--obs-lime); border-color: transparent; }
 .unit-declaration p { color: var(--obs-muted); }
@@ -2860,4 +2860,4 @@ dialog[open] { animation: obs-dialog-in 260ms var(--obs-spring); }
   background-color: rgba(7,11,16, .8);
   border-color: var(--obs-line-strong);
 }
-.app-shell :where(input, textarea)::placeholder { color: #8592a4; opacity: 1; }
+.app-shell :where(input, textarea)::placeholder { color: var(--obs-faint); opacity: 1; }

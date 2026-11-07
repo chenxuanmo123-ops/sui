@@ -534,7 +534,7 @@
 .ai-web-results a { display: inline-flex; align-items: center; gap: 4px; color: var(--obs-cyan); font-size: 11px; text-decoration: none; }
 .ai-web-results a:hover { text-decoration: underline; }
 .ai-web-error { margin: 6px 0; padding: 8px 10px; color: #ffc2c8; font-size: 11.5px; line-height: 1.65; background: rgba(255, 113, 133, .08); border: 1px solid rgba(255, 113, 133, .24); border-radius: 8px; }
-.ai-reference-kb { display: block; margin: 2px 0 8px; color: #8592a3; font-size: 10.5px; line-height: 1.6; }
+.ai-reference-kb { display: block; margin: 2px 0 8px; color: var(--obs-faint); font-size: 10.5px; line-height: 1.6; }
 
 /* ---------- the dock must not squeeze the page behind it ----------
    Opening the assistant takes 420–620px from the content column *without*
