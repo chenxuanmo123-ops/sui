@@ -26,8 +26,7 @@ export const isPieTask = (task: Task): task is PieTask => task.chart === 'pie';
  * facts, so review must not cite them. */
 export const isExploreTask = (task: Task): task is ScatterTask | HeatmapTask | PieTask => task.chart === 'scatter' || task.chart === 'heatmap' || task.chart === 'pie';
 export type Hypothesis = { id: string; statement: string; testTaskIds: string[] };
-/** 通用知识回答：模型对数据之外部分的解释。它不是计算结果，不得包含
- * 由当前数据推算的数字；界面必须单独标注来源，不能与 SQL 结果混排。 */
+/** 通用知识回答：不来自数据，界面单独标注，不与 SQL 结果混排。 */
 export type KnowledgeAnswer = { question: string; answer: string };
 export type Plan = { goal: string; scene: string; grain: string; fieldRoles: { field: string; meaning: string; role: string }[]; assumptions: string[]; questions: string[]; knowledge?: KnowledgeAnswer[]; hypotheses?: Hypothesis[]; tasks: Task[]; limitations: string[] };
 export type TaskProgress = { taskId: string; title: string; index: number; total: number; status: 'running' | 'completed' | 'failed' | 'cancelled'; error?: string };
@@ -185,8 +184,7 @@ export function inspectPlanFilters(dataset: Dataset, plan: Plan): PlanWarning[] 
         ...(task.mapping.filter ? [{ field: task.mapping.filter, value: task.mapping.value }] : []),
         ...(task.mapping.conditions ?? []).filter(condition => condition.operator === 'eq'),
       ];
-      // 空值条件单独核对：载入时空单元格是 null，TRIM 对 null 返回 null，
-      // 所以空值筛选走 IS NULL OR TRIM(...) = ''，不能拿等值口径判断。
+      // 空值条件单独核对：载入时空单元格是 null，不能按等值口径判断。
       missing = (task.mapping.conditions ?? []).filter(condition => condition.operator === 'empty').map(condition => condition.field);
     }
     const parts: string[] = [];

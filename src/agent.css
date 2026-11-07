@@ -358,8 +358,7 @@
 }
 .assistant-window .ai-workbench .ai-questions li { color: #f0d5a2; font-size: 12px; line-height: 1.6; }
 .assistant-window .ai-workbench .ai-questions p { color: #d9c199; font-size: 11.5px; line-height: 1.55; }
-/* 通用知识回答：与琥珀色口径问题、红色失败块用不同颜色区分，标题明确写
-   “不来自当前数据”，避免把模型解释误当成 SQL 计算结果。 */
+/* 通用知识回答：蓝色提示块，与口径问题、计算结果区分。 */
 .assistant-window .ai-workbench .ai-knowledge {
   display: grid;
   gap: 8px;
@@ -377,8 +376,7 @@
 .assistant-window .ai-workbench .ai-knowledge b { display: block; color: #dbe8fa; font-size: 12px; }
 .assistant-window .ai-workbench .ai-knowledge p { margin: 2px 0 0; color: #c3d4e8; font-size: 11.5px; line-height: 1.6; }
 .assistant-window .ai-workbench .ai-knowledge .ai-knowledge-note { color: #a9bcd3; font-size: 11px; }
-/* 计算前的筛选提示与失败恢复块：styles.css 里仍是 #fff8eb 奶油底 + #80501c 褐字，
-   在深色控制台里是一整块亮面。改成与 .ai-questions 同一套琥珀提示形制。 */
+/* 筛选提示与失败恢复：styles.css 仍是奶油底，这里改为深色琥珀提示条。 */
 .assistant-window .ai-workbench .ai-execution-warnings {
   display: grid;
   gap: 6px;
@@ -772,15 +770,7 @@
   .app-shell.has-ai-dock .core-heading h2 { font-size: 22px; }
 }
 
-/* A closed <details> must not lay out or paint its body. In this build the
-   result-table details stayed in flow while closed: its 416px table was laid
-   out 57px below the summary and painted underneath the next result card,
-   which is what made the results area look like it was overlapping itself.
-   This restores the browser default explicitly. */
-/* `.ai-workbench .ai-check { display: flex }` outranks the bare selector, so
-   the closed 发送说明 drawer still laid out one checkbox row below the
-   composer — a stray strip at the panel's bottom edge. The prefixed copies
-   exist only to win that tie-break. */
+/* 关闭的 details 不参与布局；带前缀的副本用于压过 .ai-workbench .ai-check。 */
 details:not([open]) > *:not(summary),
 .assistant-window .ai-workbench details:not([open]) > *:not(summary),
 .assistant-window .ai-composer details:not([open]) > *:not(summary) { display: none; }

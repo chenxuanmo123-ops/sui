@@ -1317,23 +1317,10 @@ html:root { color-scheme: dark; }
 .field-statistics dd,
 .core-table-wrap td { font-variant-numeric: tabular-nums; }
 
-/* ---------- the checkup strip's first figure sat 10px left of the rest ----
-   `investigation.css` still carries `.review-facts>span:first-child{padding-left:0}`
-   from the old white audit strip. The redesigned 数据体检 turns the strip into
-   four equal tiles, so that rule (0,2,1) outranks `.review-facts > span` (0,1,1)
-   and leaves 「23,377」 touching its tile edge while 「1,997,225」 below it and
-   「130」 beside it start 10px in — the numbers never line up in a column.
-   Restore the same inner padding for the first tile. */
+/* 数据体检指标条：第一格沿用旧审计条的 padding-left:0，与其余各格对不齐。 */
 .review-facts > span:first-child { padding-left: 10px; }
 
-/* ---------- 深色主题收尾：残留的浅色表头与过暗的辅助文字 ----------
-   `styles.css` 里那条全局 `th{background:#f7f9fc}` 仍会落到没有单独深色
-   规则的表格上。数据处理 → 算法诊断里的数值区间频数表就是这种情况：整块
-   表头在深色面板中间发白，行首的区间格也跟着变白。这里按面板色重绘表头，
-   行首 th 保持透明；只改颜色，不动结构、字号与数字。
-   另一处是 `core.css` 的 `.cleaning-panel>label`：`.cleaning-panel` 就是
-   标签的直接父级，带空格的子代选择器永远匹配不到，实际生效的是它自带的
-   #566d8b，在深色底上只有 3.6:1。补一条同级选择器即可。 */
+/* 深色主题收尾：频数表表头仍被全局浅色 th 规则染白，清理标签对比度不足。只改颜色。 */
 .core-panel .quality-distribution thead th {
   color: var(--obs-muted);
   background: var(--obs-surface-2);
