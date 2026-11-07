@@ -27,6 +27,21 @@ test('计划约束：字段真实、任务唯一、拒绝额外属性', () => {
   const duplicateBinding = clone(plan); duplicateBinding.hypotheses = [{ id: 'h1', statement: '重复绑定不应产生两个结果', testTaskIds: ['annual', 'annual'] }]; assert.throws(() => checkPlan(duplicateBinding,dataset), /候选假设/);
   const blankHypothesis = clone(plan); blankHypothesis.hypotheses = [{ id: 'annual', statement: ' ', testTaskIds: ['annual'] }]; assert.throws(() => checkPlan(blankHypothesis,dataset), /候选假设/);
 });
+test('空值条件与通用知识回答：只接受 empty/notEmpty，knowledge 不参与计算', () => {
+  const blank = clone(plan); blank.tasks[0].mapping.conditions = [{ field: 'country', operator: 'empty', value: '' }];
+  assert.equal(checkPlan(clone(blank), dataset).tasks[0].mapping.conditions[0].value, '');
+  const notEmpty = clone(plan); notEmpty.tasks[0].mapping.conditions = [{ field: 'country', operator: 'notEmpty', value: 'ignored' }];
+  assert.equal(checkPlan(notEmpty, dataset).tasks[0].mapping.conditions[0].value, '');
+  const bogus = clone(plan); bogus.tasks[0].mapping.conditions = [{ field: 'country', operator: 'like', value: 'x' }];
+  assert.throws(() => validate(bogus, planSchema), /值无效/);
+  const missingValue = clone(plan); missingValue.tasks[0].mapping.conditions = [{ field: 'country', operator: 'eq', value: '' }];
+  assert.throws(() => checkPlan(missingValue, dataset), /比较值/);
+  const knowledge = { ...clone(plan), tasks: [], knowledge: [{ question: '什么是年发电量？', answer: '通用说明，不来自这份数据。' }] };
+  assert.equal(checkPlan(knowledge, dataset).knowledge.length, 1);
+  const blankKnowledge = { ...clone(plan), tasks: [], knowledge: [{ question: ' ', answer: ' ' }] };
+  assert.throws(() => checkPlan(blankKnowledge, dataset), /问题或任务/);
+  assert.throws(() => validate({ ...clone(plan), knowledge: [{ question: 'q', answer: 'a', extra: 1 }] }, planSchema), /未知字段/);
+});
 test('模型写中文标签、大小写或带单位时确定性映射回真实列，无法映射的任务单独跳过', () => {
   const labelled = { ...dataset, columns: [
     { field: 'year', label: '年份', numeric: 3 },

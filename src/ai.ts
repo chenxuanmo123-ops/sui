@@ -26,7 +26,10 @@ export const isPieTask = (task: Task): task is PieTask => task.chart === 'pie';
  * facts, so review must not cite them. */
 export const isExploreTask = (task: Task): task is ScatterTask | HeatmapTask | PieTask => task.chart === 'scatter' || task.chart === 'heatmap' || task.chart === 'pie';
 export type Hypothesis = { id: string; statement: string; testTaskIds: string[] };
-export type Plan = { goal: string; scene: string; grain: string; fieldRoles: { field: string; meaning: string; role: string }[]; assumptions: string[]; questions: string[]; hypotheses?: Hypothesis[]; tasks: Task[]; limitations: string[] };
+/** 通用知识回答：模型对数据之外部分的解释。它不是计算结果，不得包含
+ * 由当前数据推算的数字；界面必须单独标注来源，不能与 SQL 结果混排。 */
+export type KnowledgeAnswer = { question: string; answer: string };
+export type Plan = { goal: string; scene: string; grain: string; fieldRoles: { field: string; meaning: string; role: string }[]; assumptions: string[]; questions: string[]; knowledge?: KnowledgeAnswer[]; hypotheses?: Hypothesis[]; tasks: Task[]; limitations: string[] };
 export type TaskProgress = { taskId: string; title: string; index: number; total: number; status: 'running' | 'completed' | 'failed' | 'cancelled'; error?: string };
 export type ExecutionOptions = { signal?: AbortSignal; onProgress?: (event: TaskProgress) => void };
 export type ExploreExecution = { taskId: string; title: string; result: ExploreResult };
@@ -172,29 +175,35 @@ export async function executePlan(dataset: Dataset, response: PlanResponse, ques
 export type PlanWarning = { taskId: string; title: string; message: string };
 export function inspectPlanFilters(dataset: Dataset, plan: Plan): PlanWarning[] {
   return plan.tasks.flatMap(task => {
-    let conditions: { field: string; value: string }[];
+    let conditions: { field: string; value: string }[] = [];
+    let missing: string[] = [];
     if (isScatterTask(task)) conditions = task.scatter.filter ? [{ field: task.scatter.filter, value: task.scatter.value }] : [];
     else if (isHeatmapTask(task)) conditions = task.heatmap.filter ? [{ field: task.heatmap.filter, value: task.heatmap.value }] : [];
     else if (isPieTask(task)) conditions = task.pie.filter ? [{ field: task.pie.filter, value: task.pie.value }] : [];
-    else conditions = [
-      ...(task.mapping.filter ? [{ field: task.mapping.filter, value: task.mapping.value }] : []),
-      ...(task.mapping.conditions ?? []).filter(condition => condition.operator === 'eq'),
-    ];
+    else {
+      conditions = [
+        ...(task.mapping.filter ? [{ field: task.mapping.filter, value: task.mapping.value }] : []),
+        ...(task.mapping.conditions ?? []).filter(condition => condition.operator === 'eq'),
+      ];
+      // 空值条件单独核对：载入时空单元格是 null，TRIM 对 null 返回 null，
+      // 所以空值筛选走 IS NULL OR TRIM(...) = ''，不能拿等值口径判断。
+      missing = (task.mapping.conditions ?? []).filter(condition => condition.operator === 'empty').map(condition => condition.field);
+    }
+    const parts: string[] = [];
     conditions = conditions.filter(condition => dataset.headers.includes(condition.field));
-    if (!conditions.length) return [];
+    missing = [...new Set(missing.filter(field => dataset.headers.includes(field)))];
     const absent = conditions.filter(condition => !dataset.rows.some(row => row[condition.field] === condition.value));
     if (absent.length) {
       const empty = absent.filter(condition => !condition.value);
       const rest = absent.filter(condition => condition.value);
-      const parts: string[] = [];
-      if (empty.length) parts.push(empty.map(condition => condition.field).join('、') + '：空单元格在载入的数据里按空值（NULL）保存，用 = "" 等值筛选匹配不到任何记录；本任务不会读出空值分布。要看缺失情况，请改为按该字段分组，或到「数据处理 → 字段画像」核对缺失统计。');
+      if (empty.length) parts.push(empty.map(condition => condition.field).join('、') + '：空单元格在载入的数据里按空值（NULL）保存，用 = "" 等值筛选匹配不到任何记录；本任务不会读出空值分布。要统计缺失记录，请改用空值条件（empty），或到「数据处理 → 字段画像」核对缺失统计。');
       if (rest.length) parts.push(rest.map(condition => condition.field + ' = ' + JSON.stringify(condition.value)).join('、') + '：当前数据没有精确匹配记录。请核对原始值后重新规划。');
-      return [{ taskId: task.id, title: task.title, message: parts.join(' ') }];
+    } else if (conditions.length && !dataset.rows.some(row => conditions.every(condition => row[condition.field] === condition.value))) {
+      parts.push('这些等值筛选组合当前没有匹配记录，请核对筛选口径后重新规划。');
     }
-    if (!dataset.rows.some(row => conditions.every(condition => row[condition.field] === condition.value))) {
-      return [{ taskId: task.id, title: task.title, message: '这些等值筛选组合当前没有匹配记录，请核对筛选口径后重新规划。' }];
-    }
-    return [];
+    const noEmpty = missing.filter(field => !dataset.rows.some(row => row[field] === null || String(row[field]).trim() === ''));
+    if (noEmpty.length) parts.push(noEmpty.join('、') + '：当前数据里这些字段没有空值记录，按空值筛选会得到 0 条。请核对是否问的是另一份数据，或改用按该字段分组查看分布。');
+    return parts.length ? [{ taskId: task.id, title: task.title, message: parts.join(' ') }] : [];
   });
 }
 /** Review may only cite computed aggregate facts, so explore tasks (scatter and

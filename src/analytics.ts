@@ -48,7 +48,7 @@ export function runAggregate(db: Database, d: Dataset, m: Mapping, question: str
  const params: SqlValue[]=[m.timeBucket ?? 'none']; const predicates: string[]=[]
  if(rowScope) predicates.push('_record IN ('+rowScope.rowIds.join(',')+')')
  if (m.filter) { if(!m.value) throw new Error('请选择筛选值'); predicates.push(col(d,m.filter)+' = ?'); params.push(m.value) }
- for(const c of m.conditions ?? []) { if(!['eq','gte','lte'].includes(c.operator)) throw new Error('无效筛选条件'); const ccol=col(d,c.field); predicates.push(c.operator==='eq' ? ccol+' = ?' : ccol+' IS NOT NULL AND compare_labels('+ccol+', ?) '+(c.operator==='gte'?'>=':'<=')+' 0'); params.push(c.value) }
+ for(const c of m.conditions ?? []) { if(!['eq','gte','lte','empty','notEmpty'].includes(c.operator)) throw new Error('无效筛选条件'); const ccol=col(d,c.field); if(c.operator==='empty') predicates.push('('+ccol+' IS NULL OR TRIM('+ccol+") = '')"); else if(c.operator==='notEmpty') predicates.push('('+ccol+' IS NOT NULL AND TRIM('+ccol+") <> '')"); else { predicates.push(c.operator==='eq' ? ccol+' = ?' : ccol+' IS NOT NULL AND compare_labels('+ccol+', ?) '+(c.operator==='gte'?'>=':'<=')+' 0'); params.push(c.value) } }
  const cte=`WITH scoped AS (SELECT _record, ${x} AS raw_label, ${metric} AS raw_value, CASE WHEN TRIM(COALESCE(${x}, '')) <> '' THEN time_bucket(${x}, ?) ELSE NULL END AS label FROM data${predicates.length ? ' WHERE ' + predicates.join(' AND ') : ''}), selected AS (SELECT * FROM scoped WHERE label IS NOT NULL`
  let scope=cte
  if(m.from) {scope+=' AND compare_labels(label, ?) >= 0';params.push(m.from)}
