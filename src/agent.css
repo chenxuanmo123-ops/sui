@@ -358,6 +358,26 @@
 }
 .assistant-window .ai-workbench .ai-questions li { color: #f0d5a2; font-size: 12px; line-height: 1.6; }
 .assistant-window .ai-workbench .ai-questions p { color: #d9c199; font-size: 11.5px; line-height: 1.55; }
+/* 计算前的筛选提示与失败恢复块：styles.css 里仍是 #fff8eb 奶油底 + #80501c 褐字，
+   在深色控制台里是一整块亮面。改成与 .ai-questions 同一套琥珀提示形制。 */
+.assistant-window .ai-workbench .ai-execution-warnings {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+  padding: 11px 13px;
+  color: #f0d5a2;
+  background: rgba(245, 183, 64, .08);
+  border: 1px solid rgba(245, 183, 64, .22);
+  border-left: 3px solid rgba(245, 183, 64, .55);
+  border-radius: 9px;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.assistant-window .ai-workbench .ai-execution-warnings strong { color: #f7ddb0; font-size: 12.5px; }
+.assistant-window .ai-workbench .ai-execution-warnings b { color: #f7ddb0; }
+.assistant-window .ai-workbench .ai-execution-warnings ul { margin: 0; padding-left: 18px; }
+.assistant-window .ai-workbench .ai-execution-warnings p { margin: 0; color: #d9c199; font-size: 11.5px; line-height: 1.6; }
+.assistant-window .ai-workbench .ai-execution-warnings .secondary { justify-self: start; margin-top: 4px; }
 .assistant-window .ai-workbench .ai-tasks { display: grid; gap: 9px; margin: 12px 0; padding: 0; list-style: none; }
 .assistant-window .ai-workbench .ai-tasks li {
   padding: 10px 12px;

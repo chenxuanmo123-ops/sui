@@ -183,7 +183,14 @@ export function inspectPlanFilters(dataset: Dataset, plan: Plan): PlanWarning[] 
     conditions = conditions.filter(condition => dataset.headers.includes(condition.field));
     if (!conditions.length) return [];
     const absent = conditions.filter(condition => !dataset.rows.some(row => row[condition.field] === condition.value));
-    if (absent.length) return [{ taskId: task.id, title: task.title, message: absent.map(condition => condition.field + ' = ' + JSON.stringify(condition.value)).join('、') + '：当前数据没有精确匹配记录。请核对原始值后重新规划。' }];
+    if (absent.length) {
+      const empty = absent.filter(condition => !condition.value);
+      const rest = absent.filter(condition => condition.value);
+      const parts: string[] = [];
+      if (empty.length) parts.push(empty.map(condition => condition.field).join('、') + '：空单元格在载入的数据里按空值（NULL）保存，用 = "" 等值筛选匹配不到任何记录；本任务不会读出空值分布。要看缺失情况，请改为按该字段分组，或到「数据处理 → 字段画像」核对缺失统计。');
+      if (rest.length) parts.push(rest.map(condition => condition.field + ' = ' + JSON.stringify(condition.value)).join('、') + '：当前数据没有精确匹配记录。请核对原始值后重新规划。');
+      return [{ taskId: task.id, title: task.title, message: parts.join(' ') }];
+    }
     if (!dataset.rows.some(row => conditions.every(condition => row[condition.field] === condition.value))) {
       return [{ taskId: task.id, title: task.title, message: '这些等值筛选组合当前没有匹配记录，请核对筛选口径后重新规划。' }];
     }

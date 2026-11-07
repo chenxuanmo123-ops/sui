@@ -188,9 +188,9 @@ function resolvePlanFields(plan, dataset, { drop }) {
     plan.hypotheses = plan.hypotheses.filter(hypothesis => hypothesis.testTaskIds.every(id => live.has(id)));
   }
   if (dropped.length && drop) {
-    const sample = dataset.columns.slice(0, 12).map(column => column.field).join('、');
+    const sample = dataset.columns.slice(0, 24).map(column => column.field).join('、');
     const detail = dropped.map(item => '「' + item.name + '」(' + item.title + ')').join('；');
-    plan.questions = [...new Set([...plan.questions, '模型引用了当前数据中不存在的字段：' + detail + '。可用字段包括：' + sample + '。相关任务已跳过，未执行任何计算；请核对字段名或改用上方已有字段重新规划。'])];
+    plan.questions = [...new Set([...plan.questions, '当前载入的数据里找不到问题提到的字段：' + detail + '。相关任务已跳过，未执行任何计算。本数据实际可用的字段：' + sample + '（共 ' + dataset.columns.length + ' 个）。请用这些字段重新提问；如果问题针对的是另一份数据，请先载入含该字段的文件。'])];
   }
   return dropped;
 }
