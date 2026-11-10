@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto'
 import { parseCSV } from '../src/data'
 import type { Dataset, Mapping } from '../src/data'
 import { installSQL, runAggregate } from '../src/analytics'
-import { bundleSummaryRows, bundleWorkbookBytes, resultCSV, resultMetaRows, resultSheetRows, resultWorkbookBytes, safeName, sheetName } from '../src/export-workbook'
+import { bundleSummaryRows, bundleWorkbookBytes, readableTime, resultCSV, resultMetaRows, resultSheetRows, resultWorkbookBytes, safeName, sheetName } from '../src/export-workbook'
 import type { AnalysisBundle } from '../src/AnalysisResults'
 let SQL: Awaited<ReturnType<typeof initSqlJs>>
 const raw = readFileSync(resolve('tests/fixtures/uci-online-shoppers.csv'), 'utf8')
@@ -78,12 +78,32 @@ it('写出的工作簿能被独立读回，单元格与导出行一致', async (
   const book = XLSX.read(bytes, { type: 'array' })
   expect(book.SheetNames).toEqual(['访客类型转化率', '口径与来源', '来源记录'])
   const sheet = XLSX.utils.sheet_to_json<(string | number)[]>(book.Sheets['访客类型转化率'], { header: 1 })
-  expect(sheet[0]).toEqual(['分组', '结果（%）', '分子', '分母', '排除', '来源记录数'])
+  const header = sheet.findIndex(row => row[0] === '分组')
+  expect(header).toBe(4) // 3 title rows + 1 blank row
+  expect(sheet[header]).toEqual(['分组', '结果（%）', '分子', '分母', '排除', '来源记录数'])
   const first = result.points[0]
-  expect(sheet[1]).toEqual([first.label, first.value, first.rate!.numerator, first.rate!.denominator, first.rate!.excluded, first.rowIds.length])
+  expect(sheet[header + 1]).toEqual([first.label, first.value, first.rate!.numerator, first.rate!.denominator, first.rate!.excluded, first.rowIds.length])
   const sources = XLSX.utils.sheet_to_json<(string | number)[]>(book.Sheets['来源记录'], { header: 1 })
-  expect(sources[0]).toEqual(['分组', '记录ID', '来源位置'])
-  expect(sources.slice(1).map(row => row[1])).toEqual(result.points.flatMap(point => point.rowIds))
+  const sourceHeader = sources.findIndex(row => row[0] === '分组')
+  expect(sources[sourceHeader]).toEqual(['分组', '记录ID', '来源位置'])
+  expect(sources.slice(sourceHeader + 1).map(row => row[1]).filter(id => typeof id === 'number')).toEqual(result.points.flatMap(point => point.rowIds))
+})
+
+it('工作表顶部带标题块：任务、分析问题、数据快照与计算时间', async () => {
+  const XLSX = await import('xlsx')
+  const result = calculate()
+  result.ai = { goal: '真实公开数据', taskId: 'visitor', taskTitle: '访客类型转化率', model: 'test-only', plannedAt: '2026-10-19' }
+  const book = XLSX.read(await resultWorkbookBytes(result, { dataset: data }), { type: 'array' })
+  const sheet = XLSX.utils.sheet_to_json<(string | number)[]>(book.Sheets['访客类型转化率'], { header: 1 })
+  expect(sheet[0]).toEqual(['数鉴分析结果 · 访客类型转化率'])
+  expect(sheet[1][0]).toContain('分析问题：哪些访问群体转化率较高')
+  expect(sheet[2][0]).toContain('数据：' + data.title)
+  expect(sheet[2][0]).toContain('快照：' + data.fingerprint.slice(0, 16))
+  expect(sheet[2][0]).toContain('有效记录：' + result.usedRows.toLocaleString('zh-CN'))
+  expect(sheet[2][0]).toContain('计算时间：' + readableTime(result.createdAt))
+  const meta = XLSX.utils.sheet_to_json<(string | number)[]>(book.Sheets['口径与来源'], { header: 1 })
+  expect(String(meta[0][0])).toContain('口径与来源 · 访客类型转化率')
+  expect(book.Sheets['访客类型转化率']['!merges']?.length).toBe(3)
 })
 
 it('整轮分析导出汇总加每个任务一张表', async () => {

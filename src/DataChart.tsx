@@ -3,14 +3,15 @@ import { ArrowUpDown, Maximize2, RotateCcw, X } from 'lucide-react'
 import type { Point } from './data'
 import { download, formatNumber } from './data'
 import { chartSVGMarkup, downloadChartPNG } from './chart-image'
+import type { ChartFrame } from './chart-image'
 import { ExportMenu } from './ExportMenu'
 import { chartDomain, chartScale, orderPoints, tickPrecision } from './chart-model'
 import type { ChartReference, ChartSort } from './chart-model'
 import { useLabels } from './labels'
 
 type ChartDisplay = { orientation: 'horizontal'|'vertical'; sort: ChartSort; showValues: boolean; showReference: boolean; start: number }
-type Props = { initialDisplay?: ChartDisplay; interaction?: 'evidence' | 'select'; compact?: boolean; chartId?: string; points: Point[]; metric: string; unit: string; kind: 'line' | 'bar'; selected: string; onSelect: (label: string) => void; reference?: ChartReference; exportMode?: boolean; detailView?: boolean; facetField?: string }
-export default function DataChart({ interaction = 'evidence', compact = false, chartId = 'analysis-svg', points, metric, unit, kind, selected, onSelect, reference, exportMode = false, detailView = false, initialDisplay, facetField }: Props) {
+type Props = { initialDisplay?: ChartDisplay; interaction?: 'evidence' | 'select'; compact?: boolean; chartId?: string; points: Point[]; metric: string; unit: string; kind: 'line' | 'bar'; selected: string; onSelect: (label: string) => void; reference?: ChartReference; exportMode?: boolean; detailView?: boolean; facetField?: string; exportFrame?: ChartFrame }
+export default function DataChart({ interaction = 'evidence', compact = false, chartId = 'analysis-svg', points, metric, unit, kind, selected, onSelect, reference, exportMode = false, detailView = false, initialDisplay, facetField, exportFrame }: Props) {
   const labels = useLabels()
   // Group labels arrive as stored values ("China"). Show the reader's name but
   // keep the raw value in the title so the chart still points at the snapshot.
@@ -88,9 +89,16 @@ export default function DataChart({ interaction = 'evidence', compact = false, c
   const shorten=(s:string,n:number)=>s.length>n?s.slice(0,n-1)+'…':s
   const valueLabel=(v:number)=>formatNumber(v/scale.divisor,scale.divisor===1?2:3)+(scale.label||'')+(unit?' '+unit:'')
   function reset(){setSort('original');setOrientation(compact?'horizontal':'vertical');setShowValues(true);setShowReference(true);setStart(0);setHovered('')}
+  // A bare plot does not say what it is. Every exported image carries the
+  // question, the scope and where the numbers came from.
+  const chartFrame: ChartFrame = exportFrame ?? {
+    title: metric,
+    subtitle: points.length + ' 个分组 · 单位 ' + (unit || '未声明') + ' · 当前图表视图',
+    footnote: '数值来自本地计算，未经 AI 生成',
+  }
   const exportItems = [
-    { format: 'PNG', label: '图表 PNG', hint: '2× 清晰度，适合文档与演示', run: ()=>{ if(!svgRef.current)throw new Error('图表尚未渲染完成，请稍后重试。'); return downloadChartPNG(svgRef.current,'数鉴-当前图表.png') } },
-    { format: 'SVG', label: '图表 SVG', hint: '矢量图，放大不失真', run: ()=>{ if(!svgRef.current)throw new Error('图表尚未渲染完成，请稍后重试。'); download(chartSVGMarkup(svgRef.current),'image/svg+xml','数鉴-图表当前视图.svg') } },
+    { format: 'PNG', label: '图表 PNG', hint: '带标题和口径，2× 清晰度', run: ()=>{ if(!svgRef.current)throw new Error('图表尚未渲染完成，请稍后重试。'); return downloadChartPNG(svgRef.current,'数鉴-当前图表.png',2,chartFrame) } },
+    { format: 'SVG', label: '图表 SVG', hint: '带标题和口径，矢量放大不失真', run: ()=>{ if(!svgRef.current)throw new Error('图表尚未渲染完成，请稍后重试。'); download(chartSVGMarkup(svgRef.current,chartFrame),'image/svg+xml','数鉴-图表当前视图.svg') } },
   ]
   return <div className={'analysis-viz'+(exportMode?' is-export':'')}>
     {!exportMode && <div className="viz-toolbar" aria-label="图表显示设置">

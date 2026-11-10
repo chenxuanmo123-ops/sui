@@ -191,8 +191,9 @@ with sync_playwright() as p:
     page.get_by_role('button', name='数据预览', exact=True).click()
     page.get_by_role('button', name='计算结果', exact=True).click()
 
+    page.locator('.result-table-controls .export-menu > summary').click()
     with page.expect_download() as dl:
-        page.get_by_role('button', name='CSV', exact=True).click()
+        page.locator('.export-popover:visible .export-list button').filter(has_text='结果 CSV').first.click()
     dl.value.save_as(str(root / 'artifacts/result.csv'))
     assert len(list(csv.DictReader(io.StringIO((root / 'artifacts/result.csv').read_text(encoding='utf-8-sig'))))) == 8
     bad = subset.replace('year,country,', 'year,year,', 1)

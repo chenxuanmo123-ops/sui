@@ -87,12 +87,13 @@ with sync_playwright() as p:
         table[cells[0]] = float(cells[1].replace(',', ''))
     for label, value in expected.items():
         assert abs(table[label] - value) < 1e-9, (label, table[label], value)
+    page.locator('.result-table-controls .export-menu > summary').click()
     with page.expect_download() as event:
-        page.get_by_role('button', name='CSV', exact=True).click()
+        page.locator('.export-popover:visible .export-list button').filter(has_text='结果 CSV').first.click()
     event.value.save_as(str(out / 'unit-declared-result.csv'))
     text = (out / 'unit-declared-result.csv').read_text(encoding='utf-8-sig')
     parsed = list(csv.reader(io.StringIO(text)))
-    assert parsed[0][:2] == ['group', 'Administrative（次点击）'], parsed[0]
+    assert parsed[0][:2] == ['分组', '结果（次点击）'], parsed[0]
     exported = {row[0]: float(row[1]) for row in parsed[1:]}
     assert exported == expected, (exported, expected)
     checked('计算结果表头与结果 CSV 列名带上用户声明单位，数值仍为真实 SQL 汇总')

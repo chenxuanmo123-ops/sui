@@ -6,7 +6,7 @@ import { download, formatNumber } from './data'
 import { chartSVGMarkup, downloadChartPNG } from './chart-image'
 import { ExportMenu } from './ExportMenu'
 import type { ExportItem } from './ExportMenu'
-import { exportBundleWorkbook, exportResultWorkbook, resultCSV, safeName } from './export-workbook'
+import { exportBundleWorkbook, exportResultWorkbook, readableTime, resultCSV, safeName } from './export-workbook'
 import InsightBrief from './InsightBrief'
 import NextCuts from './NextCuts'
 import { ResultTable } from './ResultTable'
@@ -29,13 +29,18 @@ export function AnalysisResults({ bundle, dataset, overrides, onEvidence, onFoll
  const chartNode=(id:number)=>document.getElementById('bundle-chart-'+id) as SVGSVGElement | null
  const titleOf=(result:Analysis)=>result.ai?.taskTitle||result.question
  const exportOptions={fieldLabel:labels.field,valueLabel:labels.value,dataset}
+ const frameOf=(result:Analysis)=>({
+  title:titleOf(result),
+  subtitle:[labels.field(result.mapping.metric)+(result.mapping.unit?'（'+result.mapping.unit+'）':''),result.points.length+' 个分组',result.usedRows.toLocaleString('zh-CN')+' 条有效记录','数据：'+dataset.title,'快照 '+result.datasetHash.slice(0,16)].join(' · '),
+  footnote:'数值来自本地 SQL 计算，未经 AI 生成 · '+readableTime(result.createdAt),
+ })
  const resultItems=(result:Analysis):ExportItem[]=>{
-  const title=titleOf(result), file=safeName(title)
+  const title=titleOf(result), file=safeName(title), frame=frameOf(result)
   return [
-   {format:'PNG',label:'图表 PNG',hint:'2× 清晰度，适合放进文档与演示',run:()=>{const node=chartNode(result.id);if(!node)throw new Error('图表尚未渲染完成，请稍后重试。');return downloadChartPNG(node,'数鉴-'+file+'-图表.png')}},
-   {format:'SVG',label:'图表 SVG',hint:'矢量图，放大不失真',run:()=>{const node=chartNode(result.id);if(!node)throw new Error('图表尚未渲染完成，请稍后重试。');download(chartSVGMarkup(node),'image/svg+xml','数鉴-'+file+'-图表.svg')}},
-   {format:'XLSX',label:'结果 Excel',hint:'分组表 + 口径与来源 + 来源记录',run:()=>exportResultWorkbook(result,exportOptions)},
-   {format:'CSV',label:'结果 CSV',hint:'仅分组表，便于导入其他工具',run:()=>download(resultCSV(result,exportOptions),'text/csv;charset=utf-8','数鉴-'+file+'-结果.csv')},
+   {format:'PNG',label:'图表 PNG',hint:'带标题、指标和数据来源，2× 清晰度',run:()=>{const node=chartNode(result.id);if(!node)throw new Error('图表尚未渲染完成，请稍后重试。');return downloadChartPNG(node,'数鉴-'+file+'-图表.png',2,frame)}},
+   {format:'SVG',label:'图表 SVG',hint:'带标题与口径的矢量图，放大不失真',run:()=>{const node=chartNode(result.id);if(!node)throw new Error('图表尚未渲染完成，请稍后重试。');download(chartSVGMarkup(node,frame),'image/svg+xml','数鉴-'+file+'-图表.svg')}},
+   {format:'XLSX',label:'结果 Excel',hint:'带标题、口径与来源记录的完整工作簿',run:()=>exportResultWorkbook(result,exportOptions)},
+   {format:'CSV',label:'结果 CSV',hint:'纯数据表，无标题行，便于导入其他工具',run:()=>download(resultCSV(result,exportOptions),'text/csv;charset=utf-8','数鉴-'+file+'-结果.csv')},
   ]
  }
  const bundleItems:ExportItem[]=[
@@ -73,7 +78,7 @@ export function AnalysisResults({ bundle, dataset, overrides, onEvidence, onFoll
     {!result.mapping.rate&&onUnit&&<UnitDeclaration id={result.id} unit={result.mapping.unit} source={result.unitSource} onSave={unit=>onUnit(result.id,unit)} />}
     <div className="result-body">
     <div className="result-visual">
-    <div className="chart-action-line"><label className="group-locator">定位分组<select aria-label="定位图表分组" value={label} onChange={e=>setSelection(e.target.value?{id:result.id,label:e.target.value}:null)}><option value="">点击图形或选择分组</option>{result.points.map(p=><option key={p.label} value={p.label}>{labels.value(result.mapping.x,p.label)}</option>)}</select></label><div className="segmented compact result-chart-kind" aria-label="结果图表类型"><button aria-pressed={chartKind==='line'} className={chartKind==='line'?'active':''} onClick={()=>setChartKinds(kinds=>({...kinds,[result.id]:'line'}))}>折线</button><button aria-pressed={chartKind==='bar'} className={chartKind==='bar'?'active':''} onClick={()=>setChartKinds(kinds=>({...kinds,[result.id]:'bar'}))}>柱状</button></div><span><MousePointer2 size={14}/>选中分组后，查看来源或继续追问</span></div><div className="result-chart-table"><DataChart reference={analysisReference(result)} interaction="select" compact chartId={'bundle-chart-'+result.id} points={result.points} metric={result.ai?.taskTitle||result.mapping.metric} unit={result.mapping.unit} kind={chartKind} selected={label} facetField={result.mapping.x} onSelect={label=>setSelection(label?{id:result.id,label}:null)}/>
+    <div className="chart-action-line"><label className="group-locator">定位分组<select aria-label="定位图表分组" value={label} onChange={e=>setSelection(e.target.value?{id:result.id,label:e.target.value}:null)}><option value="">点击图形或选择分组</option>{result.points.map(p=><option key={p.label} value={p.label}>{labels.value(result.mapping.x,p.label)}</option>)}</select></label><div className="segmented compact result-chart-kind" aria-label="结果图表类型"><button aria-pressed={chartKind==='line'} className={chartKind==='line'?'active':''} onClick={()=>setChartKinds(kinds=>({...kinds,[result.id]:'line'}))}>折线</button><button aria-pressed={chartKind==='bar'} className={chartKind==='bar'?'active':''} onClick={()=>setChartKinds(kinds=>({...kinds,[result.id]:'bar'}))}>柱状</button></div><span><MousePointer2 size={14}/>选中分组后，查看来源或继续追问</span></div><div className="result-chart-table"><DataChart reference={analysisReference(result)} interaction="select" compact chartId={'bundle-chart-'+result.id} points={result.points} metric={result.ai?.taskTitle||result.mapping.metric} unit={result.mapping.unit} kind={chartKind} selected={label} facetField={result.mapping.x} exportFrame={frameOf(result)} onSelect={label=>setSelection(label?{id:result.id,label}:null)}/>
     <aside className="result-detail" aria-label="图表分组操作">
     {point ? <div className="selected-group" aria-label="已选分组"><div className="context-heading"><span>当前选择</span><button className="icon-button" aria-label="取消分组选择" onClick={()=>setSelection(null)}><X size={15}/></button></div><strong title={point.label}>{labels.value(result.mapping.x,point.label)}</strong><div className="context-value">{formatNumber(point.value,2)}<small>{result.mapping.unit}</small></div><p>{(point.scopeRowIds?.length??point.rowIds.length).toLocaleString()} 条匹配记录{point.rate?<><br/>分子 {point.rate.numerator.toLocaleString()} / 分母 {point.rate.denominator.toLocaleString()}</>:null}</p><div className="selected-group-actions">{onFollowUp&&!!point.scopeRowIds?.length&&<button className="primary" onClick={()=>onFollowUp(result,point.label)}><CornerDownRight size={16}/>围绕此分组追问</button>}<button className="secondary" onClick={()=>onEvidence(result.id,point.label)}>查看来源记录<ArrowUpRight size={14}/></button></div><small>追问范围限定为此分组全部匹配记录；发送前仍可修改问题并核对计划。</small></div>:<div className="group-context-empty"><MousePointer2 size={22} strokeWidth={1.5}/><h4>选中分组，继续分析</h4><p>点击图形后，在这里核对数值、查看来源，或让 AI 针对此分组继续分析。</p>{result.points.length>1&&<div className="group-shortcuts">{(['max','min'] as const).map(kind=>{const target=result.points.reduce((a,b)=>(kind==='max'?a.value>=b.value:a.value<=b.value)?a:b);return <button key={kind} onClick={()=>setSelection({id:result.id,label:target.label})}><span>{kind==='max'?'数值最高':'数值最低'}</span><strong>{labels.value(result.mapping.x,target.label)}</strong><small>{formatNumber(target.value,2)}{result.mapping.unit}<ArrowUpRight size={12}/></small></button>})}</div>}</div>}
     </aside></div>

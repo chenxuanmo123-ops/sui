@@ -37,6 +37,58 @@ function surfaceColor(element: Element) {
   return '#ffffff'
 }
 
+/** Text that travels with the chart: a bare plot does not say what it is. */
+export type ChartFrame = { title?: string; subtitle?: string; footnote?: string }
+
+const escapeXML = (text: string) => text.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' })[char]!)
+
+function inkFor(background: string) {
+  const values = (background.match(/[\d.]+/g) ?? []).map(Number)
+  if (values.length < 3) return '#111827'
+  return 0.299 * values[0] + 0.587 * values[1] + 0.114 * values[2] < 140 ? '#f3f4f6' : '#111827'
+}
+
+/** Truncate to the drawn width; CJK glyphs are about one font-size wide. */
+function fitText(text: string, size: number, maxWidth: number) {
+  let width = 0, kept = ''
+  for (const char of text) {
+    const advance = char.charCodeAt(0) > 255 ? size : size * 0.58
+    if (width + advance > maxWidth) return kept.replace(/[\s·,，。]+$/, '') + '…'
+    width += advance
+    kept += char
+  }
+  return text
+}
+
+/**
+ * Draw the chart inside a titled plate. The clone keeps its own viewBox and is
+ * nested at its natural size, so the plot itself is untouched.
+ */
+function framed(svg: SVGSVGElement, frame: ChartFrame, prepared: { clone: SVGSVGElement; width: number; height: number }) {
+  const { clone, width, height } = prepared
+  const background = surfaceColor(svg)
+  const title = frame.title ? fitText(frame.title, 18, width) : ''
+  const subtitle = frame.subtitle ? fitText(frame.subtitle, 12, width) : ''
+  const footnote = frame.footnote ? fitText(frame.footnote, 11, width - 90) : ''
+  if (!title && !subtitle && !footnote) return { markup: new XMLSerializer().serializeToString(clone), width, height, background }
+
+  const pad = 28, titleH = title ? 26 : 0, subtitleH = subtitle ? 20 : 0, headGap = title || subtitle ? 14 : 0, footH = footnote ? 26 : 0
+  const outerWidth = width + pad * 2, outerHeight = height + pad * 2 + titleH + subtitleH + headGap + footH
+  const chartY = pad + titleH + subtitleH + headGap
+  const ink = inkFor(background)
+  const parts: string[] = [`<rect width="${outerWidth}" height="${outerHeight}" fill="${escapeXML(background)}"/>`]
+  if (title) parts.push(`<text x="${pad}" y="${pad + 17}" font-family="sans-serif" font-size="18" font-weight="700" fill="${ink}">${escapeXML(title)}</text>`)
+  if (subtitle) parts.push(`<text x="${pad}" y="${pad + titleH + 14}" font-family="sans-serif" font-size="12" fill="${ink}" opacity="0.72">${escapeXML(subtitle)}</text>`)
+  if (title || subtitle) parts.push(`<line x1="${pad}" x2="${outerWidth - pad}" y1="${chartY - 8}" y2="${chartY - 8}" stroke="${ink}" opacity="0.16"/>`)
+  if (footnote) parts.push(
+    `<text x="${pad}" y="${outerHeight - 12}" font-family="sans-serif" font-size="11" fill="${ink}" opacity="0.6">${escapeXML(footnote)}</text>`,
+    `<text x="${outerWidth - pad}" y="${outerHeight - 12}" text-anchor="end" font-family="sans-serif" font-size="11" fill="${ink}" opacity="0.6">数鉴 Agent</text>`,
+  )
+  const nested = new XMLSerializer().serializeToString(clone).replace('<svg ', `<svg x="${pad}" y="${chartY}" `)
+  const markup = `<svg xmlns="http://www.w3.org/2000/svg" width="${outerWidth}" height="${outerHeight}" viewBox="0 0 ${outerWidth} ${outerHeight}">${parts.join('')}${nested}</svg>`
+  return { markup, width: outerWidth, height: outerHeight, background }
+}
+
 function preparedClone(svg: SVGSVGElement) {
   const clone = svg.cloneNode(true) as SVGSVGElement
   inlinePaint(svg, clone)
@@ -50,15 +102,13 @@ function preparedClone(svg: SVGSVGElement) {
   return { clone, width, height }
 }
 
-/** Standalone SVG that keeps the on-screen colors and fonts. */
-export function chartSVGMarkup(svg: SVGSVGElement) {
-  return new XMLSerializer().serializeToString(preparedClone(svg).clone)
+/** Standalone SVG that keeps the on-screen colors, fonts and title block. */
+export function chartSVGMarkup(svg: SVGSVGElement, frame: ChartFrame = {}) {
+  return framed(svg, frame, preparedClone(svg)).markup
 }
 
-export async function downloadChartPNG(svg: SVGSVGElement, filename: string, scale = 2) {
-  const { clone, width, height } = preparedClone(svg)
-  const background = surfaceColor(svg)
-  const markup = new XMLSerializer().serializeToString(clone)
+export async function downloadChartPNG(svg: SVGSVGElement, filename: string, scale = 2, frame: ChartFrame = {}) {
+  const { markup, width, height, background } = framed(svg, frame, preparedClone(svg))
   const source = URL.createObjectURL(new Blob([markup], { type: 'image/svg+xml;charset=utf-8' }))
   try {
     const image = new Image()
@@ -84,8 +134,8 @@ export async function downloadChartPNG(svg: SVGSVGElement, filename: string, sca
 }
 
 /** PNG for an ECharts container, which renders its own <svg> child. */
-export async function downloadContainerPNG(container: HTMLElement | null, filename: string, scale = 2) {
+export async function downloadContainerPNG(container: HTMLElement | null, filename: string, scale = 2, frame: ChartFrame = {}) {
   const svg = container?.querySelector('svg')
   if (!svg) throw new Error('图表尚未渲染完成，请稍后重试。')
-  await downloadChartPNG(svg, filename, scale)
+  await downloadChartPNG(svg, filename, scale, frame)
 }

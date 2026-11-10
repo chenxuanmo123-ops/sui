@@ -38,6 +38,30 @@ function bucketText(mapping: Mapping) {
 
 const resultTitle = (result: Analysis) => result.ai?.taskTitle || result.question
 
+function shortHash(hash: string) {
+  return (hash || '').slice(0, 16) + (hash.length > 16 ? '…' : '')
+}
+
+/** Local, readable time for titles; the raw ISO value stays in the meta sheet. */
+export function readableTime(value: string) {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('zh-CN', { hour12: false })
+}
+
+/**
+ * Three lines above every data sheet: what this file is, the question it
+ * answers, and the exact snapshot the numbers came from. Opening the workbook
+ * should not require remembering which button produced it.
+ */
+export function resultHeading(result: Analysis, opts: ResultExportOptions = {}): Cell[][] {
+  const { mapping } = result
+  return [
+    ['数鉴分析结果 · ' + resultTitle(result)],
+    ['分析问题：' + result.question],
+    ['数据：' + (opts.dataset?.title ?? '未提供数据快照') + ' · 指标：' + field(opts, mapping.metric) + ' · 快照：' + shortHash(result.datasetHash) + ' · 有效记录：' + result.usedRows.toLocaleString('zh-CN') + ' 条 · 计算时间：' + readableTime(result.createdAt)],
+  ]
+}
+
 /** Keep file and sheet names usable on Windows without touching the content. */
 export function safeName(text: string, max = 40) {
   const cleaned = text.replace(/[\\/:*?"<>|\r\n\t]/g, ' ').replace(/\s+/g, ' ').trim()
@@ -174,36 +198,56 @@ function columnWidths(rows: Cell[][]) {
   return widths.map(wch => ({ wch }))
 }
 
-async function workbookBytes(sheets: { name: string; rows: Cell[][] }[]) {
+type SheetSpec = { name: string; rows: Cell[][]; /** leading title rows to merge across the sheet */ mergeRows?: number }
+
+async function workbookBytes(sheets: SheetSpec[]) {
   const XLSX = await import('xlsx')
   const book = XLSX.utils.book_new()
   const used = new Set<string>()
   for (const sheet of sheets) {
     const worksheet = XLSX.utils.aoa_to_sheet(sheet.rows)
     worksheet['!cols'] = columnWidths(sheet.rows)
+    if (sheet.mergeRows) {
+      const columns = Math.max(...sheet.rows.map(row => row.length))
+      if (columns > 1) worksheet['!merges'] = Array.from({ length: sheet.mergeRows }, (_, row) => ({ s: { r: row, c: 0 }, e: { r: row, c: columns - 1 } }))
+    }
     XLSX.utils.book_append_sheet(book, worksheet, sheetName(sheet.name, used))
   }
   return XLSX.write(book, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer
 }
 
+/** Title block, one blank row, then the data. `mergeRows` covers the block only. */
+function withHeading(rows: Cell[][], heading: Cell[][]): { rows: Cell[][]; mergeRows: number } {
+  return { rows: [...heading, [], ...rows], mergeRows: heading.length }
+}
+
 export async function resultWorkbookBytes(result: Analysis, opts: ResultExportOptions = {}) {
   assertSnapshot(result, opts.dataset)
+  const title = resultTitle(result)
+  const heading = resultHeading(result, opts)
   return workbookBytes([
-    { name: resultTitle(result), rows: resultSheetRows(result, opts) },
-    { name: '口径与来源', rows: resultMetaRows(result, opts) },
-    { name: '来源记录', rows: sourceRows(result, opts) },
+    { name: title, ...withHeading(resultSheetRows(result, opts), heading) },
+    { name: '口径与来源', ...withHeading(resultMetaRows(result, opts), [['口径与来源 · ' + title], ['字段、筛选、快照与计算时间；数值均来自本地计算，未经 AI 生成。']]) },
+    { name: '来源记录', ...withHeading(sourceRows(result, opts), [['来源记录 · ' + title], ['记录ID 与本次计算使用的数据行一一对应；来源位置取自原文件。']]) },
   ])
 }
 
 export async function bundleWorkbookBytes(dataset: Dataset, bundle: AnalysisBundle) {
   for (const result of bundle.results) assertSnapshot(result, dataset)
-  const sheets = [{ name: '分析汇总', rows: bundleSummaryRows(dataset, bundle) }]
+  const sheets: SheetSpec[] = [{
+    name: '分析汇总',
+    ...withHeading(bundleSummaryRows(dataset, bundle), [
+      ['数鉴分析结果 · 本轮分析汇总'],
+      ['数据：' + dataset.title + ' · 快照：' + shortHash(dataset.fingerprint) + ' · 任务数：' + bundle.results.length + ' · 导出时间：' + new Date().toLocaleString('zh-CN', { hour12: false })],
+      ['每个任务一张工作表；「口径与来源」列出全部任务的口径与来源。'],
+    ]),
+  }]
   const meta: Cell[][] = [['项目', '内容']]
   bundle.results.forEach((result, index) => {
     meta.push(['', ''], ['任务 ' + (index + 1) + '：' + resultTitle(result), ''], ...resultMetaRows(result, { dataset }, { header: false }))
   })
-  for (const result of bundle.results) sheets.push({ name: resultTitle(result), rows: resultSheetRows(result, { dataset }) })
-  sheets.push({ name: '口径与来源', rows: meta })
+  for (const result of bundle.results) sheets.push({ name: resultTitle(result), ...withHeading(resultSheetRows(result, { dataset }), resultHeading(result, { dataset })) })
+  sheets.push({ name: '口径与来源', ...withHeading(meta, [['本轮分析 · 口径与来源'], ['每个任务的字段、筛选、快照与计算时间如下；数值均来自本地计算，未经 AI 生成。']]) })
   return workbookBytes(sheets)
 }
 
