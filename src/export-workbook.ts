@@ -17,6 +17,9 @@ export type ResultExportOptions = {
 
 type Cell = string | number | null
 
+/** A chart rasterized by src/chart-image.ts, ready to embed in a sheet. */
+export type ChartImage = { data: Uint8Array; width: number; height: number }
+
 const field = (opts: ResultExportOptions, key: string) => opts.fieldLabel ? opts.fieldLabel(key) : key
 const value = (opts: ResultExportOptions, key: string, raw: string) => opts.valueLabel ? opts.valueLabel(key, raw) : raw
 
@@ -221,18 +224,44 @@ function withHeading(rows: Cell[][], heading: Cell[][]): { rows: Cell[][]; merge
   return { rows: [...heading, [], ...rows], mergeRows: heading.length }
 }
 
-export async function resultWorkbookBytes(result: Analysis, opts: ResultExportOptions = {}) {
+/**
+ * SheetJS can write cells but not pictures. Reopen the finished workbook with
+ * ExcelJS and anchor each rendered chart below its sheet's content, so the
+ * export carries the same titled image the user sees. Runs only on export;
+ * ExcelJS is a separate lazy chunk.
+ */
+async function withChartImages(bytes: ArrayBuffer, images: (ChartImage | null | undefined)[]) {
+  if (!images.some(Boolean)) return bytes
+  const ExcelJS = await import('exceljs')
+  const book = new ExcelJS.Workbook()
+  await book.xlsx.load(bytes)
+  images.forEach((image, index) => {
+    const sheet = book.worksheets[index]
+    if (!image || !sheet) return
+    const id = book.addImage({ buffer: image.data as unknown as Buffer, extension: 'png' })
+    sheet.addImage(id, {
+      tl: { col: 0, row: Math.max(sheet.rowCount, 1) + 1 },
+      ext: { width: image.width, height: image.height },
+      editAs: 'oneCell',
+    })
+  })
+  return (await book.xlsx.writeBuffer()) as unknown as ArrayBuffer
+}
+
+export async function resultWorkbookBytes(result: Analysis, opts: ResultExportOptions = {}, chart?: ChartImage | null) {
   assertSnapshot(result, opts.dataset)
   const title = resultTitle(result)
   const heading = resultHeading(result, opts)
-  return workbookBytes([
+  const bytes = await workbookBytes([
     { name: title, ...withHeading(resultSheetRows(result, opts), heading) },
     { name: '口径与来源', ...withHeading(resultMetaRows(result, opts), [['口径与来源 · ' + title], ['字段、筛选、快照与计算时间；数值均来自本地计算，未经 AI 生成。']]) },
     { name: '来源记录', ...withHeading(sourceRows(result, opts), [['来源记录 · ' + title], ['记录ID 与本次计算使用的数据行一一对应；来源位置取自原文件。']]) },
   ])
+  return withChartImages(bytes, [chart])
 }
 
-export async function bundleWorkbookBytes(dataset: Dataset, bundle: AnalysisBundle) {
+/** `charts[i]` is embedded in the sheet for `bundle.results[i]`. */
+export async function bundleWorkbookBytes(dataset: Dataset, bundle: AnalysisBundle, charts: (ChartImage | null | undefined)[] = []) {
   for (const result of bundle.results) assertSnapshot(result, dataset)
   const sheets: SheetSpec[] = [{
     name: '分析汇总',
@@ -248,16 +277,17 @@ export async function bundleWorkbookBytes(dataset: Dataset, bundle: AnalysisBund
   })
   for (const result of bundle.results) sheets.push({ name: resultTitle(result), ...withHeading(resultSheetRows(result, { dataset }), resultHeading(result, { dataset })) })
   sheets.push({ name: '口径与来源', ...withHeading(meta, [['本轮分析 · 口径与来源'], ['每个任务的字段、筛选、快照与计算时间如下；数值均来自本地计算，未经 AI 生成。']]) })
-  return workbookBytes(sheets)
+  const bytes = await workbookBytes(sheets)
+  return withChartImages(bytes, [undefined, ...charts])
 }
 
-export async function exportResultWorkbook(result: Analysis, opts: ResultExportOptions = {}) {
-  const bytes = await resultWorkbookBytes(result, opts)
+export async function exportResultWorkbook(result: Analysis, opts: ResultExportOptions = {}, chart?: ChartImage | null) {
+  const bytes = await resultWorkbookBytes(result, opts, chart)
   download(bytes, XLSX_MIME, '数鉴-' + safeName(resultTitle(result)) + '-结果.xlsx')
 }
 
-export async function exportBundleWorkbook(dataset: Dataset, bundle: AnalysisBundle) {
-  const bytes = await bundleWorkbookBytes(dataset, bundle)
+export async function exportBundleWorkbook(dataset: Dataset, bundle: AnalysisBundle, charts: (ChartImage | null | undefined)[] = []) {
+  const bytes = await bundleWorkbookBytes(dataset, bundle, charts)
   download(bytes, XLSX_MIME, '数鉴-本轮分析结果.xlsx')
 }
 

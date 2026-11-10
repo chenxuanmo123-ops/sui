@@ -70,22 +70,28 @@ function framed(svg: SVGSVGElement, frame: ChartFrame, prepared: { clone: SVGSVG
   const title = frame.title ? fitText(frame.title, 18, width) : ''
   const subtitle = frame.subtitle ? fitText(frame.subtitle, 12, width) : ''
   const footnote = frame.footnote ? fitText(frame.footnote, 11, width - 90) : ''
-  if (!title && !subtitle && !footnote) return { markup: new XMLSerializer().serializeToString(clone), width, height, background }
+  const declaration = '<?xml version="1.0" encoding="UTF-8"?>'
+  const serialized = new XMLSerializer().serializeToString(clone)
+  if (!title && !subtitle && !footnote) return { markup: declaration + serialized, width, height, background }
 
   const pad = 28, titleH = title ? 26 : 0, subtitleH = subtitle ? 20 : 0, headGap = title || subtitle ? 14 : 0, footH = footnote ? 26 : 0
   const outerWidth = width + pad * 2, outerHeight = height + pad * 2 + titleH + subtitleH + headGap + footH
   const chartY = pad + titleH + subtitleH + headGap
   const ink = inkFor(background)
-  const parts: string[] = [`<rect width="${outerWidth}" height="${outerHeight}" fill="${escapeXML(background)}"/>`]
-  if (title) parts.push(`<text x="${pad}" y="${pad + 17}" font-family="sans-serif" font-size="18" font-weight="700" fill="${ink}">${escapeXML(title)}</text>`)
-  if (subtitle) parts.push(`<text x="${pad}" y="${pad + titleH + 14}" font-family="sans-serif" font-size="12" fill="${ink}" opacity="0.72">${escapeXML(subtitle)}</text>`)
-  if (title || subtitle) parts.push(`<line x1="${pad}" x2="${outerWidth - pad}" y1="${chartY - 8}" y2="${chartY - 8}" stroke="${ink}" opacity="0.16"/>`)
-  if (footnote) parts.push(
+  const head: string[] = [`<rect width="${outerWidth}" height="${outerHeight}" fill="${escapeXML(background)}"/>`]
+  if (title) head.push(`<text x="${pad}" y="${pad + 17}" font-family="sans-serif" font-size="18" font-weight="700" fill="${ink}">${escapeXML(title)}</text>`)
+  if (subtitle) head.push(`<text x="${pad}" y="${pad + titleH + 14}" font-family="sans-serif" font-size="12" fill="${ink}" opacity="0.72">${escapeXML(subtitle)}</text>`)
+  if (title || subtitle) head.push(`<line x1="${pad}" x2="${outerWidth - pad}" y1="${chartY - 8}" y2="${chartY - 8}" stroke="${ink}" opacity="0.16"/>`)
+  const foot: string[] = []
+  if (footnote) foot.push(
     `<text x="${pad}" y="${outerHeight - 12}" font-family="sans-serif" font-size="11" fill="${ink}" opacity="0.6">${escapeXML(footnote)}</text>`,
     `<text x="${outerWidth - pad}" y="${outerHeight - 12}" text-anchor="end" font-family="sans-serif" font-size="11" fill="${ink}" opacity="0.6">数鉴 Agent</text>`,
   )
-  const nested = new XMLSerializer().serializeToString(clone).replace('<svg ', `<svg x="${pad}" y="${chartY}" `)
-  const markup = `<svg xmlns="http://www.w3.org/2000/svg" width="${outerWidth}" height="${outerHeight}" viewBox="0 0 ${outerWidth} ${outerHeight}">${parts.join('')}${nested}</svg>`
+  // Flatten the chart into a translated group instead of nesting a second
+  // <svg>. Nested SVG renders in browsers but is unreliable in Office,
+  // Illustrator and some SVG previewers.
+  const inner = serialized.slice(serialized.indexOf('>') + 1, serialized.lastIndexOf('</svg>'))
+  const markup = declaration + `<svg xmlns="http://www.w3.org/2000/svg" width="${outerWidth}" height="${outerHeight}" viewBox="0 0 ${outerWidth} ${outerHeight}">${head.join('')}<g transform="translate(${pad}, ${chartY})">${inner}</g>${foot.join('')}</svg>`
   return { markup, width: outerWidth, height: outerHeight, background }
 }
 
@@ -107,7 +113,10 @@ export function chartSVGMarkup(svg: SVGSVGElement, frame: ChartFrame = {}) {
   return framed(svg, frame, preparedClone(svg)).markup
 }
 
-export async function downloadChartPNG(svg: SVGSVGElement, filename: string, scale = 2, frame: ChartFrame = {}) {
+/** Rasterized chart plus the logical size it should occupy in a document. */
+export type ChartImageData = { data: Uint8Array; width: number; height: number }
+
+export async function chartPNG(svg: SVGSVGElement, scale = 2, frame: ChartFrame = {}): Promise<ChartImageData> {
   const { markup, width, height, background } = framed(svg, frame, preparedClone(svg))
   const source = URL.createObjectURL(new Blob([markup], { type: 'image/svg+xml;charset=utf-8' }))
   try {
@@ -127,10 +136,15 @@ export async function downloadChartPNG(svg: SVGSVGElement, filename: string, sca
     context.drawImage(image, 0, 0, canvas.width, canvas.height)
     const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'))
     if (!blob) throw new Error('PNG 编码失败，请改用 SVG 导出。')
-    download(await blob.arrayBuffer(), 'image/png', filename)
+    return { data: new Uint8Array(await blob.arrayBuffer()), width, height }
   } finally {
     URL.revokeObjectURL(source)
   }
+}
+
+export async function downloadChartPNG(svg: SVGSVGElement, filename: string, scale = 2, frame: ChartFrame = {}) {
+  const image = await chartPNG(svg, scale, frame)
+  download(image.data.buffer as ArrayBuffer, 'image/png', filename)
 }
 
 /** PNG for an ECharts container, which renders its own <svg> child. */

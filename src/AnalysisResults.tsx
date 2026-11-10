@@ -3,7 +3,7 @@ import { ArrowUpRight, CornerDownRight, MousePointer2, X } from 'lucide-react'
 import DataChart from './DataChart'
 import { analysisReference } from './chart-model'
 import { download, formatNumber } from './data'
-import { chartSVGMarkup, downloadChartPNG } from './chart-image'
+import { chartPNG, chartSVGMarkup, downloadChartPNG } from './chart-image'
 import { ExportMenu } from './ExportMenu'
 import type { ExportItem } from './ExportMenu'
 import { exportBundleWorkbook, exportResultWorkbook, readableTime, resultCSV, safeName } from './export-workbook'
@@ -39,13 +39,19 @@ export function AnalysisResults({ bundle, dataset, overrides, onEvidence, onFoll
   return [
    {format:'PNG',label:'图表 PNG',hint:'带标题、指标和数据来源，2× 清晰度',run:()=>{const node=chartNode(result.id);if(!node)throw new Error('图表尚未渲染完成，请稍后重试。');return downloadChartPNG(node,'数鉴-'+file+'-图表.png',2,frame)}},
    {format:'SVG',label:'图表 SVG',hint:'带标题与口径的矢量图，放大不失真',run:()=>{const node=chartNode(result.id);if(!node)throw new Error('图表尚未渲染完成，请稍后重试。');download(chartSVGMarkup(node,frame),'image/svg+xml','数鉴-'+file+'-图表.svg')}},
-   {format:'XLSX',label:'结果 Excel',hint:'带标题、口径与来源记录的完整工作簿',run:()=>exportResultWorkbook(result,exportOptions)},
+   {format:'XLSX',label:'结果 Excel',hint:'带标题、口径、来源记录与图表图片',run:async()=>{const node=chartNode(result.id);if(!node)throw new Error('图表尚未渲染完成，请稍后重试。');await exportResultWorkbook(result,exportOptions,await chartPNG(node,2,frame))}},
    {format:'CSV',label:'结果 CSV',hint:'纯数据表，无标题行，便于导入其他工具',run:()=>download(resultCSV(result,exportOptions),'text/csv;charset=utf-8','数鉴-'+file+'-结果.csv')},
   ]
  }
  const bundleItems:ExportItem[]=[
   {format:'HTML',label:'完整分析报告',hint:'图表、SQL 与来源记录，单文件离线可看',run:()=>exportBundle(dataset,bundle)},
-  {format:'XLSX',label:'全部结果 Excel',hint:'每个任务一张表，附汇总与口径说明',run:()=>exportBundleWorkbook(dataset,bundle)},
+  {format:'XLSX',label:'全部结果 Excel',hint:'每个任务一张表，附汇总、口径与图表图片',run:async()=>{
+   const charts=await Promise.all(bundle.results.map(async result=>{
+    const node=chartNode(result.id);if(!node)return null
+    try{return await chartPNG(node,2,frameOf(result))}catch{return null}
+   }))
+   await exportBundleWorkbook(dataset,bundle,charts)
+  }},
  ]
  return <section className="analysis-bundle" aria-label="本轮完整分析">
   <header className="bundle-heading"><div><span className="result-status">{bundle.response.scope?'分组追问 · 已计算':'分析结果 · 已计算'}</span><h2 className="bundle-goal" title={bundle.response.plan.goal}>{bundle.response.plan.goal}</h2><p>{bundle.results.length} 项真实计算 · {dataset.title}</p></div><div className="bundle-heading-actions">{onBackToCheckup&&<button className="text-button" onClick={onBackToCheckup}>回到数据体检</button>}{onRoles&&<button className="text-button" onClick={onRoles}>纠正字段类型</button>}<ExportMenu label="导出本轮结果" title="本轮分析" summary={bundle.results.length+' 项计算 · 图表与结果表'} items={bundleItems} onError={setExportError}/></div></header>

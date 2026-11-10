@@ -165,9 +165,13 @@ with sync_playwright() as p:
    names=book.namelist();assert 'xl/workbook.xml' in names,names
    workbook=book.read('xl/workbook.xml').decode('utf-8')
    assert '口径与来源' in workbook and '来源记录' in workbook,workbook
-   cells=''.join(book.read(name).decode('utf-8') for name in names if name.startswith('xl/worksheets/sheet'))
+   # ExcelJS round-trip stores text in sharedStrings once a chart image is added.
+   cells=''.join(book.read(name).decode('utf-8') for name in names if name.startswith(('xl/worksheets/sheet','xl/sharedStrings.xml')))
    assert '来源记录数' in cells and '未经 AI 生成' in cells,cells[:400]
-  check('每张结果卡可单独导出图表 PNG 与 Excel；Excel 含口径与来源、来源记录工作表，未编造数字')
+   media=[name for name in names if name.startswith('xl/media/') and not name.endswith('/')]
+   assert media and book.read(media[0])[:8]==bytes([137,80,78,71,13,10,26,10]),media
+   assert any(name.startswith('xl/drawings/') and name.endswith('.xml') for name in names),names
+  check('每张结果卡可单独导出图表 PNG 与 Excel；Excel 含口径、来源记录与图表图片，未编造数字')
   state['dimension']='TrafficType'
   if not page.get_by_role('dialog',name='数鉴 AI 助手').is_visible():
    page.locator('.assistant-trigger').click()
