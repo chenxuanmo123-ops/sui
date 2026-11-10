@@ -1373,6 +1373,45 @@ body { color: var(--obs-text); }
 .report-action .secondary:disabled { opacity: .45; }
 .report-action p { margin-top: 12px; color: var(--obs-faint); font-size: 10px; line-height: 1.7; text-align: center; }
 
+/* export menus keep the console surface: dark plate, bright descriptions */
+.export-menu > summary {
+  color: var(--obs-muted);
+  background: rgba(226, 236, 255, .04);
+  border-color: var(--obs-line);
+}
+.export-menu > summary:hover { color: var(--obs-lime); border-color: rgba(110, 168, 255, .35); }
+.export-menu[open] > summary { color: var(--obs-text); background: rgba(110, 168, 255, .1); border-color: rgba(110, 168, 255, .45); }
+.export-popover {
+  color: var(--obs-text);
+  background: rgba(12, 17, 24, .98);
+  border: 1px solid var(--obs-line-strong);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, .5);
+}
+.export-head span { color: var(--obs-faint); }
+.export-list button { color: var(--obs-text); background: transparent; }
+.export-list button:hover:not(:disabled) { background: rgba(110, 168, 255, .09); border-color: rgba(110, 168, 255, .22); }
+.export-list button:disabled { opacity: .45; }
+.export-format { color: var(--obs-cyan); background: rgba(143, 184, 255, .12); }
+.export-copy small { color: var(--obs-faint); }
+.export-pending { color: var(--obs-lime); }
+.export-panel {
+  padding: 16px;
+  color: var(--obs-text);
+  background: rgba(12, 17, 24, .86);
+  border: 1px solid var(--obs-line);
+  border-radius: 12px;
+}
+.export-panel header h3 { color: var(--obs-text); }
+.export-panel header p { color: var(--obs-faint); }
+.evidence-column .export-panel .export-list button { border-color: var(--obs-line); background: rgba(226, 236, 255, .03); }
+.evidence-column .export-panel .export-list button:hover:not(:disabled) { border-color: rgba(110, 168, 255, .35); background: rgba(110, 168, 255, .09); }
+.viz-actions .export-menu > summary { color: var(--obs-muted); background: transparent; border-color: transparent; }
+.viz-actions .export-menu > summary:hover { color: var(--obs-lime); background: rgba(110, 168, 255, .08); }
+.chart-bottom-actions .export-menu > summary { color: var(--obs-muted); background: transparent; border-color: transparent; padding-inline: 0; }
+.chart-bottom-actions .export-menu > summary:hover { color: var(--obs-lime); }
+.viz-export-error { color: var(--obs-fail); }
+
+
 /* public-data follow-up stays on the dark deck */
 .followup-panel {
   color: var(--obs-text);

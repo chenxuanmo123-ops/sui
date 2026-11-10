@@ -68,8 +68,9 @@ with sync_playwright() as p:
     page.get_by_role('button', name='柱状', exact=True).click()
     assert page.locator('#analysis-svg .chart-hit').count() == 8
     page.get_by_role('button', name='折线', exact=True).click()
+    page.locator('.chart-bottom-actions .export-menu > summary').first.click()
     with page.expect_download() as dl:
-        page.get_by_role('button', name='导出 SVG', exact=True).click()
+        page.locator('.export-popover:visible .export-list button').filter(has_text='图表 SVG').first.click()
     dl.value.save_as(str(root / 'artifacts/chart.svg'))
     assert '<svg' in (root / 'artifacts/chart.svg').read_text(encoding='utf-8')
     page.get_by_role('button', name='证据与报告', exact=True).click()
@@ -88,7 +89,7 @@ with sync_playwright() as p:
     page.get_by_label('输入追问').fill('2018—2020 年中国太阳能发电量如何变化？')
     page.get_by_role('button', name='发送追问', exact=True).click()
     page.get_by_role('button', name='分析与图表', exact=True).click()
-    expect(page.locator('.chart-panel h2')).to_have_text('太阳能发电量')
+    expect(page.locator('.chart-panel h2')).to_contain_text('太阳能发电量')
     page.get_by_role('button', name='数据预览', exact=True).click()
     page.get_by_role('button', name='计算结果', exact=True).click()
     assert page.locator('.data-panel tbody tr').count() == 3
@@ -100,7 +101,7 @@ with sync_playwright() as p:
     page.get_by_role('button', name='分析分支', exact=False).click()
     assert page.locator('.branch-list .branch-row').count() == 2
     page.locator('.branch-list .branch-main').last.click()
-    expect(page.locator('.chart-panel h2')).to_have_text('可再生能源发电量')
+    expect(page.locator('.chart-panel h2')).to_contain_text('可再生能源发电量')
     checked('不支持的归因追问明确拒绝，历史分支可恢复')
     page.screenshot(path=str(root / 'artifacts/desktop-analysis.png'), full_page=True)
     for width in [375, 768, 1024, 1440]:

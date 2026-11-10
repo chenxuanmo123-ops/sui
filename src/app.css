@@ -766,6 +766,64 @@ button, input, select, textarea { font-family: inherit; }
 .result-sheet-tools { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
 .result-record-count { color: var(--app-faint); font-family: var(--app-mono); font-size: 9px; }
 .result-sheet-tools .text-button { font-size: 10px; }
+.result-sheet-actions { display: flex; align-items: center; gap: 6px; }
+.viz-export-error { margin: 0; padding: 2px 0 0; color: #b42318; font-size: 10px; }
+
+/* Export entries: every format gets a name and a one-line description, so a
+   reader can tell what the file will contain before clicking. */
+.export-menu { position: relative; display: inline-block; }
+.export-menu > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 26px;
+  padding: 3px 9px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  font-size: 10px;
+  list-style: none;
+  cursor: pointer;
+}
+.export-menu > summary::-webkit-details-marker { display: none; }
+.export-menu[open] > summary { border-color: currentColor; }
+.export-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  width: 300px;
+  max-width: min(320px, calc(100vw - 32px));
+  padding: 10px;
+  border-radius: 8px;
+}
+.export-head { display: grid; gap: 2px; margin: 0 0 8px; }
+.export-head strong { font-size: 11.5px; font-weight: 650; }
+.export-head span { font-size: 9.5px; line-height: 1.5; }
+.export-list { display: grid; gap: 3px; margin: 0; padding: 0; list-style: none; }
+.export-list button {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  text-align: left;
+  cursor: pointer;
+}
+.export-list button:disabled { cursor: default; }
+.export-format { padding: 4px 0; border-radius: 3px; font: 600 8.5px/1 var(--app-mono); letter-spacing: .04em; text-align: center; }
+.export-copy { min-width: 0; }
+.export-copy strong { display: block; font-size: 11px; font-weight: 600; }
+.export-copy small { display: block; margin-top: 1px; font-size: 9.5px; line-height: 1.45; }
+.export-pending { font-size: 9px; white-space: nowrap; }
+.export-panel { display: grid; gap: 8px; }
+.export-panel header h3 { margin: 0; font-size: 12.5px; font-weight: 650; }
+.export-panel header p { margin: 4px 0 0; font-size: 10px; line-height: 1.6; }
+.export-panel .export-list button { grid-template-columns: 44px minmax(0, 1fr) 16px; padding: 9px 10px; }
+.viz-actions .export-menu > summary { min-height: 26px; padding: 0 5px; }
+
 .result-answer { padding: 1px 0 0; }
 .result-finding { max-width: 96ch; margin: 0; color: var(--app-ink); font-size: 13.5px; line-height: 1.75; }
 .rate-summary { display: flex; align-items: center; gap: 18px; padding: 2px 0; }

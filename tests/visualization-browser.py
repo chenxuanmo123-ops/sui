@@ -27,6 +27,8 @@ for row in raw:
 base_context='真实来源UCI Online Shoppers Purchasing Intention。每行一次电商访问，不是用户。Revenue精确值TRUE/FALSE表示是否购买，不是营收金额。购买转化率=Revenue=TRUE的记录数 / Revenue属于TRUE、FALSE的记录数 ×100%；未知和缺失排除。VisitorType是访客类型，Weekend是否周末。只做描述性分析，不推断因果或当前市场。'
 base_question='仅生成一个任务：按VisitorType全量分组计算购买转化率，分母同时表示访问量，不要额外筛选。'
 follow_question='仅生成一个任务：在当前选中的新访客范围内，按Weekend分组计算购买转化率，不增加其他筛选和时间限制。保持Revenue的TRUE/FALSE分母口径。'
+def dialog_btn():
+  return page.get_by_role('dialog',name='数鉴 AI 助手').get_by_role('button',name='与 AI 一起分析',exact=True)
 with sync_playwright() as p:
  browser=p.chromium.launch(headless=True,channel='msedge')
  page=browser.new_page(viewport={'width':1440,'height':1080},accept_downloads=True,reduced_motion='reduce')
@@ -72,11 +74,11 @@ with sync_playwright() as p:
   page.locator('#file-upload').set_input_files(str(root/'tests/fixtures/uci-online-shoppers.csv'))
   expect(page.locator('.dataset-name strong')).to_contain_text('uci-online-shoppers')
   if not page.get_by_role('dialog',name='数鉴 AI 助手').is_visible():
-   page.get_by_role('button',name='打开 AI 分析助手',exact=True).click()
+   page.locator('.assistant-trigger').click()
   page.get_by_label('分析目标',exact=True).fill(base_question)
   page.locator('.ai-optional > summary').click()
   page.locator('#business-context').fill(base_context)
-  page.get_by_role('button',name='理解数据并提出分析计划',exact=True).click()
+  dialog_btn().click()
   first=wait_response('plan',1)
   tasks=first['plan']['tasks'];assert len(tasks)==1 and tasks[0]['mapping']['x']=='VisitorType',tasks
   page.get_by_role('checkbox',name='我已核对行粒度',exact=False).check()
@@ -143,16 +145,34 @@ with sync_playwright() as p:
   page.locator('.bundle-heading').hover()
   page.locator('.analysis-bundle').screenshot(path=str(out/'01-chart-selection.png'))
   page.locator('.bundle-result').first.screenshot(path=str(out/'04-group-interaction.png'))
-  with page.expect_download() as event:viz.get_by_role('button',name='导出当前图表视图 SVG',exact=True).click()
+  viz.locator('.viz-actions .export-menu > summary').click()
+  with page.expect_download() as event:viz.locator('.export-list button').filter(has_text='图表 SVG').first.click()
   event.value.save_as(str(out/'selected-view.svg'))
   svg=(out/'selected-view.svg').read_text(encoding='utf-8')
   assert 'xmlns="http://www.w3.org/2000/svg"' in svg and 'New_Visitor' in svg
   check('方向切换、参考线开关和重置可用；结果表数字与独立 CSV 核算一致；SVG 可独立导出')
+  # Per-result exports must come from this card only: its chart and its table.
+  page.locator('.bundle-result:not([hidden]) .result-sheet-tools .export-menu > summary').click()
+  with page.expect_download() as event:page.locator('.export-popover:visible .export-list button').filter(has_text='图表 PNG').first.click()
+  event.value.save_as(str(out/'selected-view.png'))
+  png=(out/'selected-view.png').read_bytes()
+  assert png.startswith(bytes([137,80,78,71,13,10,26,10])) and len(png)>10000,png[:16]
+  page.locator('.bundle-result:not([hidden]) .result-sheet-tools .export-menu > summary').click()
+  with page.expect_download() as event:page.locator('.export-popover:visible .export-list button').filter(has_text='结果 Excel').first.click()
+  event.value.save_as(str(out/'visitor-result.xlsx'))
+  import zipfile
+  with zipfile.ZipFile(out/'visitor-result.xlsx') as book:
+   names=book.namelist();assert 'xl/workbook.xml' in names,names
+   workbook=book.read('xl/workbook.xml').decode('utf-8')
+   assert '口径与来源' in workbook and '来源记录' in workbook,workbook
+   cells=''.join(book.read(name).decode('utf-8') for name in names if name.startswith('xl/worksheets/sheet'))
+   assert '来源记录数' in cells and '未经 AI 生成' in cells,cells[:400]
+  check('每张结果卡可单独导出图表 PNG 与 Excel；Excel 含口径与来源、来源记录工作表，未编造数字')
   state['dimension']='TrafficType'
   if not page.get_by_role('dialog',name='数鉴 AI 助手').is_visible():
-   page.get_by_role('button',name='打开 AI 分析助手',exact=True).click()
+   page.locator('.assistant-trigger').click()
   page.get_by_label('分析目标',exact=True).fill('按TrafficType统计购买转化率；保留编码原值，不推断渠道名称。')
-  page.get_by_role('button',name='理解数据并提出分析计划',exact=True).click()
+  dialog_btn().click()
   wait_response('plan',2)
   page.get_by_role('checkbox',name='我已核对行粒度',exact=False).check()
   page.get_by_role('button',name='确认计划并计算',exact=True).click();wait_response('review',2)
@@ -170,7 +190,8 @@ with sync_playwright() as p:
   viz.get_by_role('button',name='上一段',exact=True).click()
   page.get_by_label('定位图表分组',exact=True).select_option(last_label)
   assert any(t.startswith(last_label+':') for t in viz.locator('.chart-hit title').all_text_contents())
-  with page.expect_download() as event:page.get_by_role('button',name='导出完整分析报告',exact=True).click()
+  page.locator('.bundle-heading .export-menu > summary').first.click()
+  with page.expect_download() as event:page.locator('.export-popover:visible .export-list button').filter(has_text='完整分析报告').first.click()
   event.value.save_as(str(out/'all-groups-report.html'))
   html=(out/'all-groups-report.html').read_text(encoding='utf-8')
   assert html.count('class="chart-hit"')==20 and '当前范围总体比例' in html and '10.24432/C5F88Q' in html
@@ -182,9 +203,9 @@ with sync_playwright() as p:
   page.set_viewport_size({'width':1440,'height':1080})
   if not real:
    state['multi']=True
-   page.get_by_role('button',name='打开 AI 分析助手',exact=True).click()
+   page.locator('.assistant-trigger').click()
    page.get_by_label('分析目标',exact=True).fill('按TrafficType与Weekend分别计算购买转化率')
-   page.get_by_role('button',name='理解数据并提出分析计划',exact=True).click()
+   dialog_btn().click()
    wait_response('plan',3)
    page.get_by_role('checkbox',name='我已核对行粒度',exact=False).check()
    page.get_by_role('button',name='确认计划并计算',exact=True).click()
@@ -205,7 +226,8 @@ with sync_playwright() as p:
    page.locator('.result-navigation button').nth(0).click()
    expect(page.locator('.bundle-result:visible')).to_have_count(1)
    if page.get_by_role('dialog',name='数鉴 AI 助手').is_visible():page.get_by_role('button',name='收起 AI 助手',exact=True).click()
-   with page.expect_download() as event:page.get_by_role('button',name='导出完整分析报告',exact=True).click()
+   page.locator('.bundle-heading .export-menu > summary').first.click()
+   with page.expect_download() as event:page.locator('.export-popover:visible .export-list button').filter(has_text='完整分析报告').first.click()
    event.value.save_as(str(out/'multi-task-report.html'))
    multi_html=(out/'multi-task-report.html').read_text(encoding='utf-8')
    assert '按周末分组核算' in multi_html and multi_html.count('class="chart-hit"')==22

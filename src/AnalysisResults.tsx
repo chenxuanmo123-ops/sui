@@ -3,6 +3,10 @@ import { ArrowUpRight, CornerDownRight, MousePointer2, X } from 'lucide-react'
 import DataChart from './DataChart'
 import { analysisReference } from './chart-model'
 import { download, formatNumber } from './data'
+import { chartSVGMarkup, downloadChartPNG } from './chart-image'
+import { ExportMenu } from './ExportMenu'
+import type { ExportItem } from './ExportMenu'
+import { exportBundleWorkbook, exportResultWorkbook, resultCSV, safeName } from './export-workbook'
 import InsightBrief from './InsightBrief'
 import NextCuts from './NextCuts'
 import { ResultTable } from './ResultTable'
@@ -20,10 +24,28 @@ export function AnalysisResults({ bundle, dataset, overrides, onEvidence, onFoll
  const [focused,setFocused]=useState(bundle.results[0]?.id)
  const [selection,setSelection]=useState<{id:number;label:string}|null>(null)
  const [chartKinds,setChartKinds]=useState<Record<number,'line'|'bar'>>({})
+ const [exportError,setExportError]=useState('')
  const labels=useLabels()
+ const chartNode=(id:number)=>document.getElementById('bundle-chart-'+id) as SVGSVGElement | null
+ const titleOf=(result:Analysis)=>result.ai?.taskTitle||result.question
+ const exportOptions={fieldLabel:labels.field,valueLabel:labels.value,dataset}
+ const resultItems=(result:Analysis):ExportItem[]=>{
+  const title=titleOf(result), file=safeName(title)
+  return [
+   {format:'PNG',label:'图表 PNG',hint:'2× 清晰度，适合放进文档与演示',run:()=>{const node=chartNode(result.id);if(!node)throw new Error('图表尚未渲染完成，请稍后重试。');return downloadChartPNG(node,'数鉴-'+file+'-图表.png')}},
+   {format:'SVG',label:'图表 SVG',hint:'矢量图，放大不失真',run:()=>{const node=chartNode(result.id);if(!node)throw new Error('图表尚未渲染完成，请稍后重试。');download(chartSVGMarkup(node),'image/svg+xml','数鉴-'+file+'-图表.svg')}},
+   {format:'XLSX',label:'结果 Excel',hint:'分组表 + 口径与来源 + 来源记录',run:()=>exportResultWorkbook(result,exportOptions)},
+   {format:'CSV',label:'结果 CSV',hint:'仅分组表，便于导入其他工具',run:()=>download(resultCSV(result,exportOptions),'text/csv;charset=utf-8','数鉴-'+file+'-结果.csv')},
+  ]
+ }
+ const bundleItems:ExportItem[]=[
+  {format:'HTML',label:'完整分析报告',hint:'图表、SQL 与来源记录，单文件离线可看',run:()=>exportBundle(dataset,bundle)},
+  {format:'XLSX',label:'全部结果 Excel',hint:'每个任务一张表，附汇总与口径说明',run:()=>exportBundleWorkbook(dataset,bundle)},
+ ]
  return <section className="analysis-bundle" aria-label="本轮完整分析">
-  <header className="bundle-heading"><div><span className="result-status">{bundle.response.scope?'分组追问 · 已计算':'分析结果 · 已计算'}</span><h2 className="bundle-goal" title={bundle.response.plan.goal}>{bundle.response.plan.goal}</h2><p>{bundle.results.length} 项真实计算 · {dataset.title}</p></div><div className="bundle-heading-actions">{onBackToCheckup&&<button className="text-button" onClick={onBackToCheckup}>回到数据体检</button>}{onRoles&&<button className="text-button" onClick={onRoles}>纠正字段类型</button>}<button className="secondary" onClick={()=>exportBundle(dataset,bundle)}>导出完整分析报告</button></div></header>
+  <header className="bundle-heading"><div><span className="result-status">{bundle.response.scope?'分组追问 · 已计算':'分析结果 · 已计算'}</span><h2 className="bundle-goal" title={bundle.response.plan.goal}>{bundle.response.plan.goal}</h2><p>{bundle.results.length} 项真实计算 · {dataset.title}</p></div><div className="bundle-heading-actions">{onBackToCheckup&&<button className="text-button" onClick={onBackToCheckup}>回到数据体检</button>}{onRoles&&<button className="text-button" onClick={onRoles}>纠正字段类型</button>}<ExportMenu label="导出本轮结果" title="本轮分析" summary={bundle.results.length+' 项计算 · 图表与结果表'} items={bundleItems} onError={setExportError}/></div></header>
   {bundle.response.scope && <ScopeSummary scope={bundle.response.scope} onParent={onParent}/>}
+  {exportError && <div role="status" className="bundle-warning">导出未完成：{exportError}</div>}
   {bundle.failures.length>0 && <div role="status" className="bundle-warning">{bundle.failures.length} 项任务失败，以下仅展示成功计算；请在助手中查看错误并修正。</div>}
   <p className="bundle-interaction-hint"><MousePointer2 size={15}/>点击图表或表格中的分组，可限定范围继续分析；点击记录数查看来源。</p>
   <div className={'result-workspace'+(bundle.results.length>1?' has-rail':'')}>
@@ -41,7 +63,7 @@ export function AnalysisResults({ bundle, dataset, overrides, onEvidence, onFoll
       </div>
       <div className="result-sheet-tools">
         <span className="result-record-count">{result.usedRows.toLocaleString()} 条有效记录 · {result.points.length} 个分组</span>
-        <button className="text-button" onClick={()=>onEvidence(result.id)}>检查 SQL 与来源</button>
+        <div className="result-sheet-actions"><ExportMenu title={titleOf(result)} summary={result.points.length+' 个分组 · '+result.usedRows+' 条有效记录'} items={resultItems(result)} onError={setExportError}/><button className="text-button" onClick={()=>onEvidence(result.id)}>检查 SQL 与来源</button></div>
       </div>
     </header>
     <div className="result-answer">

@@ -1,7 +1,9 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { ArrowDownToLine, ArrowUpDown, Maximize2, RotateCcw, X } from 'lucide-react'
+import { ArrowUpDown, Maximize2, RotateCcw, X } from 'lucide-react'
 import type { Point } from './data'
 import { download, formatNumber } from './data'
+import { chartSVGMarkup, downloadChartPNG } from './chart-image'
+import { ExportMenu } from './ExportMenu'
 import { chartDomain, chartScale, orderPoints, tickPrecision } from './chart-model'
 import type { ChartReference, ChartSort } from './chart-model'
 import { useLabels } from './labels'
@@ -27,7 +29,7 @@ export default function DataChart({ interaction = 'evidence', compact = false, c
     return ()=>observer.disconnect()
   },[exportMode])
   const svgRef = useRef<SVGSVGElement>(null), dialogRef = useRef<HTMLDialogElement>(null), displayRef = useRef<HTMLDetailsElement>(null), expandButtonRef = useRef<HTMLButtonElement>(null)
-  const [expanded,setExpanded] = useState(false)
+  const [expanded,setExpanded] = useState(false), [exportError,setExportError] = useState('')
   useEffect(()=>{if(expanded)dialogRef.current?.showModal()},[expanded])
   const [orientation,setOrientation] = useState<'horizontal'|'vertical'>(initialDisplay?.orientation??(compact?'horizontal':'vertical'))
   const [sort,setSort] = useState<ChartSort>(initialDisplay?.sort??'original'), [showValues,setShowValues] = useState(initialDisplay?.showValues??true), [showReference,setShowReference] = useState(initialDisplay?.showReference??true)
@@ -86,12 +88,16 @@ export default function DataChart({ interaction = 'evidence', compact = false, c
   const shorten=(s:string,n:number)=>s.length>n?s.slice(0,n-1)+'…':s
   const valueLabel=(v:number)=>formatNumber(v/scale.divisor,scale.divisor===1?2:3)+(scale.label||'')+(unit?' '+unit:'')
   function reset(){setSort('original');setOrientation(compact?'horizontal':'vertical');setShowValues(true);setShowReference(true);setStart(0);setHovered('')}
-  function exportSVG(){if(svgRef.current)download(new XMLSerializer().serializeToString(svgRef.current),'image/svg+xml','数鉴-图表当前视图.svg')}
+  const exportItems = [
+    { format: 'PNG', label: '图表 PNG', hint: '2× 清晰度，适合文档与演示', run: ()=>{ if(!svgRef.current)throw new Error('图表尚未渲染完成，请稍后重试。'); return downloadChartPNG(svgRef.current,'数鉴-当前图表.png') } },
+    { format: 'SVG', label: '图表 SVG', hint: '矢量图，放大不失真', run: ()=>{ if(!svgRef.current)throw new Error('图表尚未渲染完成，请稍后重试。'); download(chartSVGMarkup(svgRef.current),'image/svg+xml','数鉴-图表当前视图.svg') } },
+  ]
   return <div className={'analysis-viz'+(exportMode?' is-export':'')}>
     {!exportMode && <div className="viz-toolbar" aria-label="图表显示设置">
       <div className="viz-controls">{kind==='bar' && <><label><span className="sr-only">图表方向</span><select aria-label="图表方向" value={orientation} onChange={e=>setOrientation(e.target.value as typeof orientation)}><option value="horizontal">横向条形</option><option value="vertical">纵向柱形</option></select></label><label><ArrowUpDown size={13}/><select aria-label="图表排序" value={sort} onChange={e=>{setSort(e.target.value as ChartSort);setStart(0)}}><option value="original">原始顺序</option><option value="desc">数值从高到低</option><option value="asc">数值从低到高</option></select></label></>}{kind==='line'&&<span className="viz-order-note">保留计算顺序</span>}<details ref={displayRef} className="viz-display"><summary>显示设置</summary><div><label className="viz-check"><input type="checkbox" checked={showValues} onChange={e=>setShowValues(e.target.checked)}/>数值标签</label>{reference&&<label className="viz-check"><input type="checkbox" checked={showReference} onChange={e=>setShowReference(e.target.checked)}/>参考线</label>}</div></details></div>
-      <div className="viz-actions">{!detailView&&<button ref={expandButtonRef} type="button" className="icon-button" title="放大查看图表" aria-label="放大查看图表" onClick={()=>{setHovered('');setExpanded(true)}}><Maximize2 size={15}/></button>}<button type="button" className="icon-button" title="重置图表显示" aria-label="重置图表显示" onClick={reset}><RotateCcw size={14}/></button><button type="button" className="icon-button" title="导出当前图表视图 SVG" aria-label="导出当前图表视图 SVG" onClick={exportSVG}><ArrowDownToLine size={15}/></button></div>
+      <div className="viz-actions">{!detailView&&<button ref={expandButtonRef} type="button" className="icon-button" title="放大查看图表" aria-label="放大查看图表" onClick={()=>{setHovered('');setExpanded(true)}}><Maximize2 size={15}/></button>}<button type="button" className="icon-button" title="重置图表显示" aria-label="重置图表显示" onClick={reset}><RotateCcw size={14}/></button><ExportMenu iconOnly label="导出图表" title={metric} summary={visible.length+' 个分组 · 当前图表视图'} items={exportItems} onError={setExportError}/></div>
     </div>}
+    {!exportMode && exportError && <p className="viz-export-error" role="status">{exportError}</p>}
     <div className="viz-legend"><span><i/>{metric}</span>{baseline&&<span className="viz-reference-key"><i/>{baseline.label} {formatNumber(baseline.value,2)}{unit}</span>}</div>
     <div ref={plotRef} className="chart-scroll viz-plot" onMouseLeave={()=>setHovered('')}><svg ref={svgRef} xmlns="http://www.w3.org/2000/svg" id={chartId} className="data-chart" style={exportMode?undefined:{height, minWidth:360}} viewBox={'0 0 '+width+' '+height} role="img" aria-label={metric+'，共 '+points.length+' 个分组，当前显示 '+visible.length+' 个，单位 '+(unit||'未声明')+'。可点击数据点'+(interaction==='select'?'选择分组并追问':'查看来源')+'，完整数值见结果表。'}>
       <defs><linearGradient id={gradient} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--viz-mark, #0f766e)" stopOpacity=".24"/><stop offset="10%" stopColor="var(--viz-mark, #0f766e)" stopOpacity=".03"/><stop offset="26%" stopColor="var(--viz-mark, #0f766e)" stopOpacity="0"/><stop offset="100%" stopColor="var(--viz-mark, #0f766e)" stopOpacity="0"/></linearGradient></defs>

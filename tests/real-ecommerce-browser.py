@@ -11,6 +11,8 @@ oracle=json.loads((out/'independent-python-oracle.json').read_text(encoding='utf
 record={'realModel':True,'mockedRoutes':False,'responses':{},'checks':[],'errors':[]}
 def save():(out/'browser-acceptance.json').write_text(json.dumps(record,ensure_ascii=False,indent=2),encoding='utf-8')
 def check(s):record['checks'].append(s);save();print('PASS '+s,flush=True)
+def dialog_btn():
+  return page.get_by_role('dialog',name='数鉴 AI 助手').get_by_role('button',name='与 AI 一起分析',exact=True)
 with sync_playwright() as p:
  browser=p.chromium.launch(headless=True,channel='msedge')
  page=browser.new_page(viewport={'width':1440,'height':1080},accept_downloads=True)
@@ -33,13 +35,13 @@ with sync_playwright() as p:
   page.goto(os.environ.get('TEST_BASE_URL','http://127.0.0.1:5174')+'/',wait_until='networkidle')
   page.locator('#file-upload').set_input_files(str(root/'tests/fixtures/uci-online-shoppers.csv'))
   expect(page.locator('.dataset-name strong')).to_contain_text('uci-online-shoppers')
-  page.get_by_role('button',name='打开 AI 分析助手',exact=True).click()
+  page.locator('.assistant-trigger').click()
   page.get_by_label('分析目标',exact=True).fill('比较不同访客类型、流量类型代码和周末与非周末的购买转化率，同时给出对应访问量，帮助判断哪些群体值得继续研究。不要将相关性说成原因。仅生成三个任务：分别按VisitorType、TrafficType、Weekend全量分组计算转化率，分母同时作为对应访问量。不要交叉筛选或增加月份分析。')
   page.locator('.ai-optional > summary').click()
   page.locator('#business-context').fill('公开来源：UCI Online Shoppers Purchasing Intention。每行一次电商访问，不是用户。Revenue是是否产生购买，精确原值TRUE/FALSE，不是营收金额。购买转化率定义：Revenue=TRUE的访问记录数 / Revenue属于TRUE、FALSE的访问记录数 ×100%；其他值排除并说明。VisitorType是访客类型，TrafficType仅是来源类型代码，不能虚构广告/搜索名称。Weekend是是否周末。数据为历史样本，不推断当前市场或因果。')
   assert not page.get_by_role('checkbox',name='附带每列最多三个原始值样本',exact=False).is_checked()
   assert not page.get_by_role('checkbox',name='授权发送低基数文本列的类别字典',exact=False).is_checked()
-  page.get_by_role('button',name='理解数据并提出分析计划',exact=True).click()
+  dialog_btn().click()
   response=wait_model('plan');tasks=response['plan']['tasks'];rates=[t for t in tasks if t['mapping'].get('rate')]
   assert {'VisitorType','TrafficType','Weekend'} <= {t['mapping']['x'] for t in rates},tasks
   for t in rates:
@@ -52,7 +54,7 @@ with sync_playwright() as p:
   page.get_by_role('button',name='确认计划并计算',exact=True).click()
   wait_model('review')
   expect(page.locator('.bundle-result')).to_have_count(len(tasks))
-  page.get_by_role('button',name='收起 AI 分析助手',exact=True).click()
+  page.locator('.assistant-trigger').click()
   for t in rates:
    page.locator('.result-navigation button').filter(has_text=t['title']).click()
    card=page.locator('.bundle-result:visible')
@@ -71,7 +73,8 @@ with sync_playwright() as p:
   page.evaluate('window.scrollTo(0,0)')
   page.screenshot(path=str(out/'02-complete-analysis.png'),full_page=True)
   page.locator('.analysis-bundle').screenshot(path=str(out/'analysis-results.png'))
-  with page.expect_download() as event:page.get_by_role('button',name='导出完整分析报告',exact=True).click()
+  page.locator('.bundle-heading .export-menu > summary').first.click()
+  with page.expect_download() as event:page.locator('.export-popover:visible .export-list button').filter(has_text='完整分析报告').first.click()
   target=out/'real-ecommerce-complete-report.html';event.value.save_as(str(target))
   html=target.read_text(encoding='utf-8')
   assert html.count('<svg ')==len(tasks)

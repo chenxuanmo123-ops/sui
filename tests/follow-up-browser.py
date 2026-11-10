@@ -27,6 +27,8 @@ for row in raw:
 base_context='真实来源UCI Online Shoppers Purchasing Intention。每行一次电商访问，不是用户。Revenue精确值TRUE/FALSE表示是否购买，不是营收金额。购买转化率=Revenue=TRUE的记录数 / Revenue属于TRUE、FALSE的记录数 ×100%；未知和缺失排除。VisitorType是访客类型，Weekend是否周末。只做描述性分析，不推断因果或当前市场。'
 base_question='仅生成一个任务：按VisitorType全量分组计算购买转化率，分母同时表示访问量，不要额外筛选。'
 follow_question='仅生成一个任务：在当前选中的新访客范围内，按Weekend分组计算购买转化率，不增加其他筛选和时间限制。保持Revenue的TRUE/FALSE分母口径。'
+def dialog_btn():
+  return page.get_by_role('dialog',name='数鉴 AI 助手').get_by_role('button',name='与 AI 一起分析',exact=True)
 with sync_playwright() as p:
  browser=p.chromium.launch(headless=True,channel='msedge')
  page=browser.new_page(viewport={'width':1440,'height':1080},accept_downloads=True,reduced_motion='reduce')
@@ -70,11 +72,11 @@ with sync_playwright() as p:
   page.locator('#file-upload').set_input_files(str(root/'tests/fixtures/uci-online-shoppers.csv'))
   expect(page.locator('.dataset-name strong')).to_contain_text('uci-online-shoppers')
   if not page.get_by_role('dialog',name='数鉴 AI 助手').is_visible():
-   page.get_by_role('button',name='打开 AI 分析助手',exact=True).click()
+   page.locator('.assistant-trigger').click()
   page.get_by_label('分析目标',exact=True).fill(base_question)
   page.locator('.ai-optional > summary').click()
   page.locator('#business-context').fill(base_context)
-  page.get_by_role('button',name='理解数据并提出分析计划',exact=True).click()
+  dialog_btn().click()
   first=wait_response('plan',1)
   tasks=first['plan']['tasks'];assert len(tasks)==1 and tasks[0]['mapping']['x']=='VisitorType',tasks
   page.get_by_role('checkbox',name='我已核对行粒度',exact=False).check()
@@ -90,10 +92,12 @@ with sync_playwright() as p:
   page.get_by_role('button',name='围绕此分组追问',exact=True).click()
   expect(page.locator('.followup-scope')).to_contain_text('New_Visitor')
   expect(page.locator('.followup-scope')).to_contain_text('1,694')
+  if not page.get_by_role('dialog',name='数鉴 AI 助手').is_visible():page.locator('.assistant-trigger').click()
+  page.get_by_role('tab',name='对话',exact=True).click()
   page.get_by_label('分析目标',exact=True).fill(follow_question)
   assert not page.get_by_role('checkbox',name='附带每列最多三个原始值样本',exact=False).is_checked()
   assert not page.get_by_role('checkbox',name='授权发送低基数文本列的类别字典',exact=False).is_checked()
-  page.get_by_role('button',name='理解数据并提出分析计划',exact=True).click()
+  dialog_btn().click()
   follow=wait_response('plan',2)
   tasks=follow['plan']['tasks'];assert len(tasks)==1 and tasks[0]['mapping']['x']=='Weekend',tasks
   check('选中范围进入助手；问题可编辑，原始样本和类别字典仍未授权')
@@ -117,7 +121,8 @@ with sync_playwright() as p:
   assert '锁定匹配行数=1694' in json.dumps(requests[-1],ensure_ascii=False)
   check('模型收到范围说明和计算事实；完整文件与来源行ID列表未发送')
   page.locator('.analysis-bundle').screenshot(path=str(out/'02-scoped-follow-up.png'))
-  with page.expect_download() as event:page.get_by_role('button',name='导出完整分析报告',exact=True).click()
+  page.locator('.bundle-heading .export-menu > summary').first.click()
+  with page.expect_download() as event:page.locator('.export-popover:visible .export-list button').filter(has_text='完整分析报告').first.click()
   path=out/'scoped-follow-up-report.html';event.value.save_as(str(path));html=path.read_text(encoding='utf-8')
   assert '追问范围完整快照记录索引' in html and 'New_Visitor' in html and '_record IN (' in html
   assert '10.24432/C5F88Q' in html and '<svg' in html
@@ -155,7 +160,8 @@ with sync_playwright() as p:
    page.get_by_role('button',name='返回来源分析对照',exact=False).click()
    expect(page.locator('.rate-summary')).to_contain_text('15.47')
    page.get_by_role('button',name='追问 · New_Visitor',exact=False).click()
-   with page.expect_download() as event:page.get_by_role('button',name='导出完整分析报告',exact=True).click()
+   page.locator('.bundle-heading .export-menu > summary').first.click()
+   with page.expect_download() as event:page.locator('.export-popover:visible .export-list button').filter(has_text='完整分析报告').first.click()
    restored_report=out/'restored-report.html';event.value.save_as(str(restored_report))
    text=restored_report.read_text(encoding='utf-8')
    assert '_record IN (' in text and '10.24432/C5F88Q' in text and '<svg' in text
@@ -176,7 +182,7 @@ with sync_playwright() as p:
    page.get_by_role('button',name='围绕此分组追问',exact=True).click()
    expect(page.locator('.followup-scope')).to_contain_text('1,215')
    page.get_by_label('分析目标',exact=True).fill('在当前锁定范围内继续按Weekend计算购买转化率，保持原分子分母。')
-   page.get_by_role('button',name='理解数据并提出分析计划',exact=True).click()
+   dialog_btn().click()
    wait_response('plan',3)
    page.get_by_role('checkbox',name='我已核对行粒度',exact=False).check()
    page.get_by_role('button',name='确认计划并计算',exact=True).click()
