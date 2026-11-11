@@ -213,8 +213,9 @@ export function parsePublicQuestion(text: string, base: Mapping): Mapping {
   for (const [pattern] of [...countries, ...metrics]) remainder = remainder.replace(new RegExp(pattern.source, 'gi'), '')
   // Follow-ups reuse the previous mapping, so "改看风能" means "switch the
   // metric and keep the country/range". Strip those switch phrases explicitly;
-  // they carry no new scope of their own.
-  remainder = remainder.replace(/\b(?:19|20)\d{2}\b/g, '').replace(/改看|改成|改为|换看|换成|换到|切换到|切换成|切到|再看|看看|看一下|看下|查一下|发电量|发电|能源|增长|变化|趋势|下降|多少|如何|怎么样|怎样|情况|对比|比较|查看|分析|请问|请|显示|期间|年度|年|从|到|至|的|在|为|是|看|了|吗|呢|求和|平均值|平均/g, '').replace(/[\s\p{P}\p{S}]/gu, '')
+  // they carry no new scope of their own. Politeness and particles ("吧",
+  // "我想", "一遍") are stripped for the same reason: they never carry scope.
+  remainder = remainder.replace(/\b(?:19|20)\d{2}\b/g, '').replace(/改看|改成|改为|换看|换成|换到|切换到|切换成|切到|再看|看看|看一下|看下|查一下|一遍|一次|一下|我想|我要|帮我|给我|麻烦|现在|能不能|能否|可以|发电量|发电|能源|增长|变化|趋势|下降|多少|如何|怎么样|怎样|情况|对比|比较|查看|分析|请问|请|显示|期间|年度|年|从|到|至|的|在|为|是|把|将|看|了|吗|呢|吧|呀|啊|嘛|哈|哦|嗯|谢谢|多谢|求和|平均值|平均/g, '').replace(/[\s\p{P}\p{S}]/gu, '')
   if (remainder || (!selectedCountries.length && !selectedMetrics.length && !years.length && !/增长|变化|趋势|下降|多少|发电|平均|求和/.test(text))) throw new Error('问题超出规则解析范围。支持七个地区、年份范围及可再生/太阳能/风能发电量；其他问题请通过字段口径分析。')
   if (!['renewables_electricity', 'solar_electricity', 'wind_electricity'].includes(base.metric) && !selectedMetrics.length) throw new Error('请明确选择可再生、太阳能或风能发电指标。')
   if (base.filter !== 'country' && !selectedCountries.length) throw new Error('请明确指定一个地区。')

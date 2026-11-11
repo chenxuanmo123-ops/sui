@@ -32,8 +32,16 @@ describe('公开能源问题的规则解析', () => {
     expect(parsePublicQuestion('再看2018到2020的中国风能', base)).toMatchObject({ metric: 'wind_electricity', value: 'China', from: '2018', to: '2020' })
   })
 
+  it('口语化追问不被误判：语气词、次数与「我想/帮我」等引导语不影响范围', () => {
+    expect(parsePublicQuestion('换成风电吧', base)).toMatchObject({ metric: 'wind_electricity', value: 'China', from: '2015', to: '2022' })
+    expect(parsePublicQuestion('再看一遍风能', base).metric).toBe('wind_electricity')
+    expect(parsePublicQuestion('我想看下太阳能', base).metric).toBe('solar_electricity')
+    expect(parsePublicQuestion('帮我把美国换成风能', base)).toMatchObject({ metric: 'wind_electricity', value: 'United States' })
+    expect(parsePublicQuestion('改成太阳能呢，谢谢', base).metric).toBe('solar_electricity')
+  })
+
   it('仍然拒绝原因、多地区、多指标、多离散年份和无关内容', () => {
-    for (const text of ['为什么下降？', '中国和美国风能趋势', '中国太阳能和风能趋势', '2015、2018、2022年中国趋势', '中国风能的相关新闻'])
+    for (const text of ['为什么下降？', '中国和美国风能趋势', '中国太阳能和风能趋势', '2015、2018、2022年中国趋势', '中国风能的相关新闻', '看看新闻', '风能好不好'])
       expect(() => parsePublicQuestion(text, base)).toThrow()
   })
 })
